@@ -1,4 +1,9 @@
-import { MenuIcon, MenuItem, useDisclosure } from "@carbon/react";
+import {
+  MENU_ITEM_SHORTCUTS,
+  MenuIcon,
+  MenuItem,
+  useDisclosure
+} from "@carbon/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { ColumnDef } from "@tanstack/react-table";
 import { memo, useCallback, useMemo, useState } from "react";
@@ -193,6 +198,11 @@ const WarehouseTransfersTable = memo(
         return (
           <>
             <MenuItem
+              shortcut={
+                row.status !== "Draft"
+                  ? MENU_ITEM_SHORTCUTS.view
+                  : MENU_ITEM_SHORTCUTS.edit
+              }
               disabled={!permissions.can("update", "inventory")}
               onClick={() => {
                 navigate(

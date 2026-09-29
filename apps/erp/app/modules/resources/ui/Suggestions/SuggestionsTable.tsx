@@ -1,4 +1,11 @@
-import { Avatar, Badge, HStack, MenuIcon, MenuItem } from "@carbon/react";
+import {
+  Avatar,
+  Badge,
+  HStack,
+  MENU_ITEM_SHORTCUTS,
+  MenuIcon,
+  MenuItem
+} from "@carbon/react";
 
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -124,6 +131,7 @@ const SuggestionsTable = memo(
         return (
           <>
             <MenuItem
+              shortcut={MENU_ITEM_SHORTCUTS.view}
               onClick={() => {
                 navigate(path.to.suggestion(row.id!));
               }}

@@ -3,6 +3,7 @@ import {
   Button,
   HStack,
   Label,
+  MENU_ITEM_SHORTCUTS,
   MenuIcon,
   MenuItem,
   NumberDecrementStepper,
@@ -289,6 +290,7 @@ const PriceListTable = memo(
         return (
           <>
             <MenuItem
+              shortcut={row.overrideId ? MENU_ITEM_SHORTCUTS.edit : undefined}
               disabled={!(row.overrideId ? canUpdate : canCreate) || !hasScope}
               onClick={() => {
                 navigate(buildOverrideHref(row));
@@ -299,6 +301,7 @@ const PriceListTable = memo(
             </MenuItem>
             {row.overrideId && (
               <MenuItem
+                shortcut={MENU_ITEM_SHORTCUTS.duplicate}
                 disabled={!canCreate}
                 onClick={() => {
                   setDuplicateState({ overrideIds: [row.overrideId!] });

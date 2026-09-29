@@ -1,4 +1,4 @@
-import { MenuIcon, MenuItem } from "@carbon/react";
+import { MENU_ITEM_SHORTCUTS, MenuIcon, MenuItem } from "@carbon/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { ColumnDef } from "@tanstack/react-table";
 import { memo, useCallback, useMemo } from "react";
@@ -48,6 +48,7 @@ const CustomerStatusesTable = memo(
         return (
           <>
             <MenuItem
+              shortcut={MENU_ITEM_SHORTCUTS.view}
               onClick={() => {
                 navigate(`${path.to.customers}?filter=status:eq:${row.name}`);
               }}
@@ -56,6 +57,7 @@ const CustomerStatusesTable = memo(
               <Trans>View Customers</Trans>
             </MenuItem>
             <MenuItem
+              shortcut={MENU_ITEM_SHORTCUTS.edit}
               onClick={() => {
                 navigate(
                   `${path.to.customerStatus(row.id)}?${params.toString()}`

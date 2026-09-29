@@ -9,6 +9,7 @@ import {
   DrawerTitle,
   HStack,
   Kbd,
+  MENU_ITEM_SHORTCUTS,
   MenuIcon,
   MenuItem,
   Select,
@@ -167,6 +168,7 @@ const WebhooksTable = memo(({ data, count }: WebhooksTableProps) => {
       return (
         <>
           <MenuItem
+            shortcut={MENU_ITEM_SHORTCUTS.edit}
             onClick={() => {
               navigate(`${path.to.webhook(row.id!)}?${params?.toString()}`);
             }}

@@ -12,6 +12,7 @@ import {
   Input,
   InputGroup,
   InputLeftElement,
+  MENU_ITEM_SHORTCUTS,
   ShortcutKey,
   Tooltip,
   TooltipContent,
@@ -441,6 +442,7 @@ function SalesOrderLineItem({
                 {/* @ts-expect-error */}
                 {itemType.includes(line?.salesOrderLineType ?? "") && (
                   <DropdownMenuItem
+                    shortcut={MENU_ITEM_SHORTCUTS.view}
                     asChild
                     onClick={(e) => e.stopPropagation()}
                   >

@@ -1,4 +1,9 @@
-import { MenuIcon, MenuItem, useDisclosure } from "@carbon/react";
+import {
+  MENU_ITEM_SHORTCUTS,
+  MenuIcon,
+  MenuItem,
+  useDisclosure
+} from "@carbon/react";
 import { getItemById, getItemReadableId } from "@carbon/utils";
 import { useLingui } from "@lingui/react/macro";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -239,6 +244,7 @@ const RiskRegistersTable = memo(({ data, count }: RiskRegistersTableProps) => {
     (row) => (
       <>
         <MenuItem
+          shortcut={MENU_ITEM_SHORTCUTS.edit}
           onClick={() => {
             navigate(`${path.to.risk(row.id!)}?${params?.toString()}`);
           }}

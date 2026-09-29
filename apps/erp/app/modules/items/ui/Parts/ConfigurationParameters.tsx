@@ -21,6 +21,7 @@ import {
   DropdownMenuTrigger,
   HStack,
   IconButton,
+  MENU_ITEM_SHORTCUTS,
   Modal,
   ModalBody,
   ModalContent,
@@ -769,6 +770,7 @@ function ParameterGroup({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem
+                shortcut={MENU_ITEM_SHORTCUTS.edit}
                 onClick={() => {
                   flushSync(() => {
                     setSelectedGroup(group);
@@ -1000,7 +1002,10 @@ function ConfigurableParameter({
                   />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={disclosure.onOpen}>
+                  <DropdownMenuItem
+                    shortcut={MENU_ITEM_SHORTCUTS.edit}
+                    onClick={disclosure.onOpen}
+                  >
                     <Trans>Edit</Trans>
                   </DropdownMenuItem>
                   <DropdownMenuItem

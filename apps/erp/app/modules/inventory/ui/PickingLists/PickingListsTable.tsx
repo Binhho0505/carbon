@@ -1,4 +1,10 @@
-import { Button, MenuIcon, MenuItem, useDisclosure } from "@carbon/react";
+import {
+  Button,
+  MENU_ITEM_SHORTCUTS,
+  MenuIcon,
+  MenuItem,
+  useDisclosure
+} from "@carbon/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { ColumnDef } from "@tanstack/react-table";
 import { memo, useCallback, useMemo, useState } from "react";
@@ -158,6 +164,11 @@ const PickingListsTable = memo(({ data, count }: PickingListsTableProps) => {
       return (
         <>
           <MenuItem
+            shortcut={
+              row.status !== "Draft"
+                ? MENU_ITEM_SHORTCUTS.view
+                : MENU_ITEM_SHORTCUTS.edit
+            }
             disabled={!permissions.can("update", "inventory")}
             onClick={() => {
               navigate(

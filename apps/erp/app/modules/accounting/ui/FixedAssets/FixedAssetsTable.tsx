@@ -1,4 +1,9 @@
-import { MenuIcon, MenuItem, useDisclosure } from "@carbon/react";
+import {
+  MENU_ITEM_SHORTCUTS,
+  MenuIcon,
+  MenuItem,
+  useDisclosure
+} from "@carbon/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { ReactNode } from "react";
@@ -170,6 +175,9 @@ const FixedAssetsTable = memo(
         return (
           <>
             <MenuItem
+              shortcut={
+                isDraft ? MENU_ITEM_SHORTCUTS.edit : MENU_ITEM_SHORTCUTS.view
+              }
               disabled={!permissions.can("view", "accounting")}
               onClick={() => navigate(path.to.fixedAsset(row.id))}
             >

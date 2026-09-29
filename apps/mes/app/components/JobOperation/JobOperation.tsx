@@ -31,6 +31,7 @@ import {
   Heading,
   HStack,
   IconButton,
+  MENU_ITEM_SHORTCUTS,
   ScrollArea,
   Separator,
   SidebarTrigger,
@@ -2266,6 +2267,9 @@ export const JobOperation = ({
                                               </DropdownMenuTrigger>
                                               <DropdownMenuContent align="end">
                                                 <DropdownMenuItem
+                                                  shortcut={
+                                                    MENU_ITEM_SHORTCUTS.download
+                                                  }
                                                   onClick={() =>
                                                     downloadModel(modelUpload)
                                                   }
@@ -2353,6 +2357,9 @@ export const JobOperation = ({
                                                 </DropdownMenuTrigger>
                                                 <DropdownMenuContent align="end">
                                                   <DropdownMenuItem
+                                                    shortcut={
+                                                      MENU_ITEM_SHORTCUTS.download
+                                                    }
                                                     onClick={() =>
                                                       downloadFile(file)
                                                     }

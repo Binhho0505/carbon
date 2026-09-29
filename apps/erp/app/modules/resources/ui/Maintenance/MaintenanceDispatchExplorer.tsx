@@ -13,6 +13,7 @@ import {
   Input,
   InputGroup,
   InputLeftElement,
+  MENU_ITEM_SHORTCUTS,
   Modal,
   ModalBody,
   ModalContent,
@@ -382,6 +383,7 @@ function MaintenanceExplorerChildItem({
           <DropdownMenuContent>
             {child.type === "event" && (
               <DropdownMenuItem
+                shortcut={MENU_ITEM_SHORTCUTS.edit}
                 onSelect={() => {
                   onEdit(child);
                 }}

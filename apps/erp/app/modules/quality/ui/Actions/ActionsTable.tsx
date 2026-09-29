@@ -1,4 +1,10 @@
-import { Badge, MenuIcon, MenuItem, Status } from "@carbon/react";
+import {
+  Badge,
+  MENU_ITEM_SHORTCUTS,
+  MenuIcon,
+  MenuItem,
+  Status
+} from "@carbon/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { ColumnDef } from "@tanstack/react-table";
 import { memo, useCallback, useMemo } from "react";
@@ -218,6 +224,7 @@ const ActionsTable = memo(
         return (
           <>
             <MenuItem
+              shortcut={MENU_ITEM_SHORTCUTS.view}
               disabled={!permissions.can("update", "quality")}
               onClick={() => {
                 navigate(`${path.to.issue(row.nonConformanceId!)}`);

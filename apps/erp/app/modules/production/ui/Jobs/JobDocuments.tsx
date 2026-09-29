@@ -19,6 +19,7 @@ import {
   File,
   HStack,
   IconButton,
+  MENU_ITEM_SHORTCUTS,
   Table,
   Tbody,
   Td,
@@ -420,12 +421,16 @@ const JobDocuments = ({
                             />
                           </DropdownMenuTrigger>
                           <DropdownMenuContent>
-                            <DropdownMenuItem asChild>
+                            <DropdownMenuItem
+                              shortcut={MENU_ITEM_SHORTCUTS.view}
+                              asChild
+                            >
                               <Link to={getModelPath(modelUpload)}>
                                 <Trans>View</Trans>
                               </Link>
                             </DropdownMenuItem>
                             <DropdownMenuItem
+                              shortcut={MENU_ITEM_SHORTCUTS.download}
                               onClick={() => downloadModel(modelUpload)}
                             >
                               Download
@@ -526,7 +531,10 @@ const JobDocuments = ({
                             />
                           </DropdownMenuTrigger>
                           <DropdownMenuContent>
-                            <DropdownMenuItem onClick={() => download(file)}>
+                            <DropdownMenuItem
+                              shortcut={MENU_ITEM_SHORTCUTS.download}
+                              onClick={() => download(file)}
+                            >
                               Download
                             </DropdownMenuItem>
                             {itemId &&

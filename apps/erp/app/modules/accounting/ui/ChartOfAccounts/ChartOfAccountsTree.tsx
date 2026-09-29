@@ -4,6 +4,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  MENU_ITEM_SHORTCUTS,
   NumberField,
   NumberInput,
   ScrollArea
@@ -346,6 +347,7 @@ const ChartOfAccountsTree = memo(
                         <>
                           {!account.isSystem && (
                             <DropdownMenuItem
+                              shortcut={MENU_ITEM_SHORTCUTS.edit}
                               onClick={() =>
                                 runMenuAction(() =>
                                   navigate(account.id as string)
@@ -393,6 +395,7 @@ const ChartOfAccountsTree = memo(
                       ) : (
                         <>
                           <DropdownMenuItem
+                            shortcut={MENU_ITEM_SHORTCUTS.edit}
                             onClick={() =>
                               runMenuAction(() =>
                                 navigate(account.id as string)

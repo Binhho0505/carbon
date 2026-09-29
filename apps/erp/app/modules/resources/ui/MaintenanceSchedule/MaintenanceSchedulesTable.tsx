@@ -2,6 +2,7 @@ import {
   Badge,
   Combobox,
   HStack,
+  MENU_ITEM_SHORTCUTS,
   MenuIcon,
   MenuItem,
   Status
@@ -237,6 +238,7 @@ const MaintenanceSchedulesTable = memo(
         return (
           <>
             <MenuItem
+              shortcut={MENU_ITEM_SHORTCUTS.edit}
               onClick={() => {
                 navigate(
                   `${path.to.maintenanceSchedule(row.id!)}?${params.toString()}`

@@ -8,6 +8,7 @@ import {
   DropdownMenuTrigger,
   HStack,
   IconButton,
+  MENU_ITEM_SHORTCUTS,
   ShortcutKey,
   Tooltip,
   TooltipContent,
@@ -340,6 +341,7 @@ function SupplierQuoteLineItem({
                 {lineItemType &&
                   itemType.includes(lineItemType as ItemType) && (
                     <DropdownMenuItem
+                      shortcut={MENU_ITEM_SHORTCUTS.view}
                       asChild
                       onClick={(e) => e.stopPropagation()}
                     >

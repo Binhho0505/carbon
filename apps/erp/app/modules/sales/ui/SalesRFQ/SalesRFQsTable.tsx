@@ -1,4 +1,10 @@
-import { HStack, MenuIcon, MenuItem, useDisclosure } from "@carbon/react";
+import {
+  HStack,
+  MENU_ITEM_SHORTCUTS,
+  MenuIcon,
+  MenuItem,
+  useDisclosure
+} from "@carbon/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { ColumnDef } from "@tanstack/react-table";
 import { memo, useMemo, useState } from "react";
@@ -229,7 +235,10 @@ const SalesRFQsTable = memo(({ data, count }: SalesRFQsTableProps) => {
   const renderContextMenu = useMemo(() => {
     return (row: SalesRFQ) => (
       <>
-        <MenuItem onClick={() => navigate(path.to.salesRfqDetails(row.id!))}>
+        <MenuItem
+          shortcut={MENU_ITEM_SHORTCUTS.edit}
+          onClick={() => navigate(path.to.salesRfqDetails(row.id!))}
+        >
           <MenuIcon icon={<LuPencil />} />
           <Trans>Edit</Trans>
         </MenuItem>

@@ -3,6 +3,7 @@ import {
   HoverCard,
   HoverCardContent,
   HoverCardTrigger,
+  MENU_ITEM_SHORTCUTS,
   MenuIcon,
   MenuItem,
   Status,
@@ -243,6 +244,7 @@ const AssemblyInstructionsTable = memo(
         return (
           <>
             <MenuItem
+              shortcut={MENU_ITEM_SHORTCUTS.edit}
               disabled={!permissions.can("update", "production")}
               onClick={() => {
                 navigate(path.to.assemblyInstruction(row.id!));

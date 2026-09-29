@@ -10,7 +10,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
   HStack,
-  IconButton
+  IconButton,
+  MENU_ITEM_SHORTCUTS
 } from "@carbon/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -56,6 +57,7 @@ const CustomerParts = ({ customerParts, itemId }: CustomerPartsProps) => {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent>
                   <DropdownMenuItem
+                    shortcut={MENU_ITEM_SHORTCUTS.edit}
                     onClick={() =>
                       navigate(path.to.customerPart(itemId, row.original.id!))
                     }

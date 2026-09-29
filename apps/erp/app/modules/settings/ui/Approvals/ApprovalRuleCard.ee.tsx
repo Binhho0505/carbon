@@ -18,6 +18,7 @@ import {
   Heading,
   HStack,
   IconButton,
+  MENU_ITEM_SHORTCUTS,
   Status,
   useDisclosure
 } from "@carbon/react";
@@ -104,6 +105,7 @@ const ApprovalRuleCard = memo(
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem
+                        shortcut={MENU_ITEM_SHORTCUTS.edit}
                         disabled={!canEdit}
                         onClick={(e) => {
                           e.stopPropagation();

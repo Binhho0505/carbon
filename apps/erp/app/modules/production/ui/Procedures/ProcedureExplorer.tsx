@@ -26,6 +26,7 @@ import {
   HStack,
   IconButton,
   Label,
+  MENU_ITEM_SHORTCUTS,
   ShortcutKey,
   Tabs,
   TabsContent,
@@ -575,6 +576,7 @@ function ProcedureStepItem({
             </DropdownMenuTrigger>
             <DropdownMenuContent>
               <DropdownMenuItem
+                shortcut={MENU_ITEM_SHORTCUTS.edit}
                 onClick={(e) => {
                   e.stopPropagation();
                   onEdit(attribute);
@@ -665,6 +667,7 @@ function ProcedureParameterItem({
             </DropdownMenuTrigger>
             <DropdownMenuContent>
               <DropdownMenuItem
+                shortcut={MENU_ITEM_SHORTCUTS.edit}
                 onClick={(e) => {
                   e.stopPropagation();
                   onEdit(parameter);

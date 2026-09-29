@@ -16,6 +16,7 @@ import {
   HStack,
   IconButton,
   LabelWithHelp,
+  MENU_ITEM_SHORTCUTS,
   Modal,
   ModalBody,
   ModalContent,
@@ -389,6 +390,7 @@ function PriceBreaks({
                   <DropdownMenuContent>
                     {canShowHistory && row.original.id ? (
                       <DropdownMenuItem
+                        shortcut={MENU_ITEM_SHORTCUTS.view}
                         onClick={() =>
                           setHistoryBreakId(row.original.id ?? null)
                         }

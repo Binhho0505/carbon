@@ -2,6 +2,7 @@ import {
   Badge,
   Button,
   HStack,
+  MENU_ITEM_SHORTCUTS,
   MenuIcon,
   MenuItem,
   useDisclosure
@@ -131,6 +132,7 @@ const AttributeCategoriesTable = memo(
               <Trans>New Attribute</Trans>
             </MenuItem>
             <MenuItem
+              shortcut={MENU_ITEM_SHORTCUTS.view}
               onClick={() => {
                 navigate(
                   `${path.to.attributeCategoryList(
@@ -143,6 +145,7 @@ const AttributeCategoriesTable = memo(
               <Trans>View Attributes</Trans>
             </MenuItem>
             <MenuItem
+              shortcut={MENU_ITEM_SHORTCUTS.edit}
               onClick={() => {
                 navigate(path.to.attributeCategory(row.id));
               }}

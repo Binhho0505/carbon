@@ -9,6 +9,7 @@ import {
   HStack,
   IconButton,
   LabelWithHelp,
+  MENU_ITEM_SHORTCUTS,
   ModalDrawer,
   ModalDrawerBody,
   ModalDrawerContent,
@@ -358,6 +359,7 @@ function SupplierProcesses({ processId }: { processId?: string }) {
                   </DropdownMenuTrigger>
                   <DropdownMenuContent>
                     <DropdownMenuItem
+                      shortcut={MENU_ITEM_SHORTCUTS.edit}
                       onClick={() =>
                         navigate(
                           path.to.supplierProcess(sp.supplierId!, sp.id!)

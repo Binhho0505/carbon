@@ -14,6 +14,7 @@ import {
   Input,
   InputGroup,
   InputRightElement,
+  MENU_ITEM_SHORTCUTS,
   Modal,
   ModalBody,
   ModalContent,
@@ -135,6 +136,7 @@ const QuoteHeader = () => {
                 {auditLogTrigger}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
+                  shortcut={MENU_ITEM_SHORTCUTS.copy}
                   onClick={() => {
                     setAsRevision(false);
                     createRevisionModal.onOpen();

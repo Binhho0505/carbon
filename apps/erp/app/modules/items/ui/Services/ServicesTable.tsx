@@ -13,6 +13,7 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
   HStack,
+  MENU_ITEM_SHORTCUTS,
   MenuIcon,
   MenuItem,
   MenuSub,
@@ -491,7 +492,10 @@ const ServicesTable = memo(({ data, tags, count }: ServicesTableProps) => {
         }[]) ?? [];
       return (
         <>
-          <MenuItem onClick={() => navigate(path.to.service(row.id!))}>
+          <MenuItem
+            shortcut={MENU_ITEM_SHORTCUTS.edit}
+            onClick={() => navigate(path.to.service(row.id!))}
+          >
             <MenuIcon icon={<LuPencil />} />
             <Trans>Edit Service</Trans>
           </MenuItem>

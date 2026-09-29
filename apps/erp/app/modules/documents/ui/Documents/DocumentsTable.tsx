@@ -9,6 +9,7 @@ import {
   CommandItem,
   cn,
   HStack,
+  MENU_ITEM_SHORTCUTS,
   MenuIcon,
   MenuItem,
   Popover,
@@ -432,11 +433,18 @@ const DocumentsTable = memo(
     const renderContextMenu = useMemo(() => {
       return (row: Document) => (
         <>
-          <MenuItem disabled={canUpdate(row)} onClick={() => edit(row)}>
+          <MenuItem
+            shortcut={MENU_ITEM_SHORTCUTS.edit}
+            disabled={canUpdate(row)}
+            onClick={() => edit(row)}
+          >
             <MenuIcon icon={<LuPencil />} />
             <Trans>Edit</Trans>
           </MenuItem>
-          <MenuItem onClick={() => download(row)}>
+          <MenuItem
+            shortcut={MENU_ITEM_SHORTCUTS.download}
+            onClick={() => download(row)}
+          >
             <MenuIcon icon={<LuDownload />} />
             <Trans>Download</Trans>
           </MenuItem>

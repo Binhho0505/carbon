@@ -18,6 +18,7 @@ import {
   DropdownMenuTrigger,
   HStack,
   IconButton,
+  MENU_ITEM_SHORTCUTS,
   Table,
   Tbody,
   Td,
@@ -329,7 +330,7 @@ export function BatchDetailDrawer({
                   </a>
                 </DropdownMenuItem>
                 {isLive && (
-                  <DropdownMenuItem asChild>
+                  <DropdownMenuItem shortcut={MENU_ITEM_SHORTCUTS.view} asChild>
                     <Link to={path.to.priorityOperation}>
                       <DropdownMenuIcon icon={<LuLayers />} />
                       {t`View on schedule board`}

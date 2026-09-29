@@ -10,6 +10,7 @@ import {
   DropdownMenuTrigger,
   HStack,
   IconButton,
+  MENU_ITEM_SHORTCUTS,
   useDisclosure
 } from "@carbon/react";
 import type { BankCodeLabelKey } from "@carbon/utils";
@@ -198,6 +199,7 @@ const SupplierBankAccounts = ({ bankAccounts }: SupplierBankAccountsProps) => {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent>
                         <DropdownMenuItem
+                          shortcut={MENU_ITEM_SHORTCUTS.edit}
                           disabled={!permissions.can("update", "accounting")}
                           onClick={() => navigate(account.id)}
                         >

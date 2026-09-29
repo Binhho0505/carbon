@@ -1,4 +1,9 @@
-import { MenuIcon, MenuItem, useDisclosure } from "@carbon/react";
+import {
+  MENU_ITEM_SHORTCUTS,
+  MenuIcon,
+  MenuItem,
+  useDisclosure
+} from "@carbon/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { ReactNode } from "react";
@@ -82,6 +87,7 @@ const DepreciationRunTable = memo(
       (row: DepreciationRunListItem) => (
         <>
           <MenuItem
+            shortcut={MENU_ITEM_SHORTCUTS.view}
             disabled={!permissions.can("view", "accounting")}
             onClick={() => navigate(path.to.depreciationRun(row.id))}
           >

@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
   HStack,
   IconButton,
+  MENU_ITEM_SHORTCUTS,
   ModalCard,
   ModalCardBody,
   ModalCardContent,
@@ -384,7 +385,10 @@ const QuoteLineForm = ({
                             <Trans>Delete Line</Trans>
                           </DropdownMenuItem>
                         )}
-                        <DropdownMenuItem asChild>
+                        <DropdownMenuItem
+                          shortcut={MENU_ITEM_SHORTCUTS.view}
+                          asChild
+                        >
                           <Link
                             to={getLinkToItemDetails(
                               lineType,

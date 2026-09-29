@@ -8,6 +8,7 @@ import {
   DropdownMenuTrigger,
   HStack,
   IconButton,
+  MENU_ITEM_SHORTCUTS,
   useDisclosure,
   VStack
 } from "@carbon/react";
@@ -203,7 +204,7 @@ function AffectedItemRow({
                     <DropdownMenuIcon icon={<LuTrash />} />
                     <Trans>Delete</Trans>
                   </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
+                  <DropdownMenuItem shortcut={MENU_ITEM_SHORTCUTS.view} asChild>
                     <Link to={getLinkToItemDetails(type, item.itemId)}>
                       <DropdownMenuIcon
                         icon={<MethodItemTypeIcon type={type} />}

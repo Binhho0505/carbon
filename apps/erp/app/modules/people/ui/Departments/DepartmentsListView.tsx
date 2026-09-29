@@ -3,7 +3,8 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  IconButton
+  IconButton,
+  MENU_ITEM_SHORTCUTS
 } from "@carbon/react";
 import {
   LuBuilding,
@@ -74,7 +75,10 @@ function DepartmentsRow({
               />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-44">
-              <DropdownMenuItem onClick={() => onEdit(department.id!)}>
+              <DropdownMenuItem
+                shortcut={MENU_ITEM_SHORTCUTS.edit}
+                onClick={() => onEdit(department.id!)}
+              >
                 <LuPencil className="mr-2 size-4" />
                 Edit
               </DropdownMenuItem>

@@ -7,6 +7,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   HStack,
+  MENU_ITEM_SHORTCUTS,
   MenuIcon,
   MenuItem,
   toast,
@@ -446,6 +447,7 @@ const PurchaseOrdersTable = memo(
       (row: PurchaseOrderListItem) => (
         <>
           <MenuItem
+            shortcut={MENU_ITEM_SHORTCUTS.edit}
             disabled={!permissions.can("view", "purchasing")}
             onClick={() => edit(row)}
           >
@@ -454,6 +456,7 @@ const PurchaseOrdersTable = memo(
           </MenuItem>
 
           <MenuItem
+            shortcut={MENU_ITEM_SHORTCUTS.duplicate}
             disabled={!permissions.can("create", "purchasing") || !row.id}
             onClick={() => {
               if (!row.id) return;

@@ -26,6 +26,7 @@ import {
   IconButton,
   Label,
   Loading,
+  MENU_ITEM_SHORTCUTS,
   Subheading,
   ToggleGroup,
   ToggleGroupItem,
@@ -2856,10 +2857,14 @@ function AttributesListItem({
                   />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={disclosure.onOpen}>
+                  <DropdownMenuItem
+                    shortcut={MENU_ITEM_SHORTCUTS.edit}
+                    onClick={disclosure.onOpen}
+                  >
                     Edit
                   </DropdownMenuItem>
                   <DropdownMenuItem
+                    shortcut={MENU_ITEM_SHORTCUTS.duplicate}
                     onClick={() =>
                       duplicateFetcher.submit(null, {
                         method: "post",
@@ -3461,7 +3466,10 @@ function ParametersListItem({
                   />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={disclosure.onOpen}>
+                  <DropdownMenuItem
+                    shortcut={MENU_ITEM_SHORTCUTS.edit}
+                    onClick={disclosure.onOpen}
+                  >
                     Edit
                   </DropdownMenuItem>
                   <DropdownMenuItem
@@ -4016,7 +4024,10 @@ function ToolsListItem({
                   />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={disclosure.onOpen}>
+                  <DropdownMenuItem
+                    shortcut={MENU_ITEM_SHORTCUTS.edit}
+                    onClick={disclosure.onOpen}
+                  >
                     Edit
                   </DropdownMenuItem>
                   <DropdownMenuItem

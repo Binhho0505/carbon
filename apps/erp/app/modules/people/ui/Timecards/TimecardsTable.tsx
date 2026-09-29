@@ -2,6 +2,7 @@ import {
   Avatar,
   Badge,
   HStack,
+  MENU_ITEM_SHORTCUTS,
   MenuIcon,
   MenuItem,
   useInterval
@@ -206,6 +207,7 @@ const TimecardsTable = memo(({ data, count }: TimecardsTableProps) => {
       return (
         <>
           <MenuItem
+            shortcut={MENU_ITEM_SHORTCUTS.edit}
             disabled={!permissions.can("update", "people")}
             onClick={() =>
               navigate(`${path.to.timecard(row.id!)}?${params.toString()}`)

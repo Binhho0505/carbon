@@ -15,6 +15,7 @@ import {
   File,
   HStack,
   IconButton,
+  MENU_ITEM_SHORTCUTS,
   Table,
   Tbody,
   Td,
@@ -165,6 +166,7 @@ const OpportunityDocuments = ({
                           </DropdownMenuTrigger>
                           <DropdownMenuContent>
                             <DropdownMenuItem
+                              shortcut={MENU_ITEM_SHORTCUTS.download}
                               onClick={() => download(attachment)}
                             >
                               <Trans>Download</Trans>

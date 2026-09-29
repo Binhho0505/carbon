@@ -4,6 +4,7 @@ import {
   HoverCardContent,
   HoverCardTrigger,
   HStack,
+  MENU_ITEM_SHORTCUTS,
   MenuIcon,
   MenuItem
 } from "@carbon/react";
@@ -414,6 +415,7 @@ const PricingRulesTable = memo(({ data, count }: PricingRulesTableProps) => {
       return (
         <>
           <MenuItem
+            shortcut={MENU_ITEM_SHORTCUTS.edit}
             disabled={!canUpdate}
             onClick={() => {
               navigate(`${path.to.pricingRule(row.id)}?${params.toString()}`);
@@ -423,6 +425,7 @@ const PricingRulesTable = memo(({ data, count }: PricingRulesTableProps) => {
             {t`Edit Pricing Rule`}
           </MenuItem>
           <MenuItem
+            shortcut={MENU_ITEM_SHORTCUTS.duplicate}
             disabled={!canCreate}
             onClick={() => {
               fetcher.submit(

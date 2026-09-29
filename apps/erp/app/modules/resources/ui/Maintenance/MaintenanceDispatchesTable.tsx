@@ -1,4 +1,10 @@
-import { Combobox, HStack, MenuIcon, MenuItem } from "@carbon/react";
+import {
+  Combobox,
+  HStack,
+  MENU_ITEM_SHORTCUTS,
+  MenuIcon,
+  MenuItem
+} from "@carbon/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { ColumnDef } from "@tanstack/react-table";
 import { memo, useCallback, useMemo } from "react";
@@ -334,6 +340,7 @@ const MaintenanceDispatchesTable = memo(
         return (
           <>
             <MenuItem
+              shortcut={MENU_ITEM_SHORTCUTS.edit}
               onClick={() => {
                 navigate(path.to.maintenanceDispatch(row.id));
               }}

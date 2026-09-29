@@ -16,6 +16,7 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  MENU_ITEM_SHORTCUTS,
   useDisclosure
 } from "@carbon/react";
 import { msg } from "@lingui/core/macro";
@@ -174,7 +175,11 @@ export default function FixedAssetDetailRoute() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem disabled={!canUpdate} asChild>
+                  <DropdownMenuItem
+                    shortcut={MENU_ITEM_SHORTCUTS.edit}
+                    disabled={!canUpdate}
+                    asChild
+                  >
                     <Link to={path.to.fixedAssetDetails(fixedAssetId)}>
                       <DropdownMenuIcon icon={<LuPencil />} />
                       Edit

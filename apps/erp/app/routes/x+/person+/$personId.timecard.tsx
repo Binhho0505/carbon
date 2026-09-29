@@ -17,6 +17,7 @@ import {
   HStack,
   IconButton,
   Input,
+  MENU_ITEM_SHORTCUTS,
   Select,
   SelectContent,
   SelectItem,
@@ -726,7 +727,10 @@ export default function PersonTimecardRoute() {
                           />
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => startEdit(entry)}>
+                          <DropdownMenuItem
+                            shortcut={MENU_ITEM_SHORTCUTS.edit}
+                            onClick={() => startEdit(entry)}
+                          >
                             <DropdownMenuIcon icon={<LuPencil />} />
                             <Trans>Edit</Trans>
                           </DropdownMenuItem>

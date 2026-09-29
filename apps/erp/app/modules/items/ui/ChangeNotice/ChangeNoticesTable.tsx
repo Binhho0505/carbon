@@ -1,4 +1,10 @@
-import { Badge, MenuIcon, MenuItem, useDisclosure } from "@carbon/react";
+import {
+  Badge,
+  MENU_ITEM_SHORTCUTS,
+  MenuIcon,
+  MenuItem,
+  useDisclosure
+} from "@carbon/react";
 import { useLingui } from "@lingui/react/macro";
 import type { ColumnDef } from "@tanstack/react-table";
 import { memo, useCallback, useMemo, useState } from "react";
@@ -272,6 +278,7 @@ const ChangeNoticesTable = memo(
         return (
           <>
             <MenuItem
+              shortcut={MENU_ITEM_SHORTCUTS.edit}
               disabled={!permissions.can("update", "parts")}
               onClick={() => {
                 navigate(path.to.changeNotice(row.id!));

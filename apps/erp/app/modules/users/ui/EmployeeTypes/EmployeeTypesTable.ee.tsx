@@ -1,4 +1,4 @@
-import { MenuIcon, MenuItem } from "@carbon/react";
+import { MENU_ITEM_SHORTCUTS, MenuIcon, MenuItem } from "@carbon/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { ColumnDef } from "@tanstack/react-table";
 import { memo, useCallback, useMemo } from "react";
@@ -45,6 +45,7 @@ const EmployeeTypesTable = memo(({ data, count }: EmployeeTypesTableProps) => {
       return (
         <>
           <MenuItem
+            shortcut={MENU_ITEM_SHORTCUTS.view}
             onClick={() => {
               navigate(
                 `${path.to.employeeAccounts}?filter=employeeTypeId:eq:${row.id}`
@@ -55,6 +56,7 @@ const EmployeeTypesTable = memo(({ data, count }: EmployeeTypesTableProps) => {
             <Trans>View Employees</Trans>
           </MenuItem>
           <MenuItem
+            shortcut={MENU_ITEM_SHORTCUTS.edit}
             disabled={!permissions.can("update", "users")}
             onClick={() => {
               navigate(`${path.to.employeeType(row.id)}?${params.toString()}`);

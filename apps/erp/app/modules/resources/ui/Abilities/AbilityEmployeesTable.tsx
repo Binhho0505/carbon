@@ -1,4 +1,10 @@
-import { Button, HStack, MenuIcon, MenuItem } from "@carbon/react";
+import {
+  Button,
+  HStack,
+  MENU_ITEM_SHORTCUTS,
+  MenuIcon,
+  MenuItem
+} from "@carbon/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { ColumnDef } from "@tanstack/react-table";
 import { memo, useCallback, useMemo } from "react";
@@ -118,6 +124,7 @@ const AbilityEmployeesTable = memo(
       (row) => (
         <>
           <MenuItem
+            shortcut={MENU_ITEM_SHORTCUTS.edit}
             disabled={!permissions.can("update", "resources")}
             onClick={() => {
               navigate(path.to.employeeAbility(ability.id, row.id));

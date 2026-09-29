@@ -4,6 +4,7 @@ import {
   HoverCardContent,
   HoverCardTrigger,
   HStack,
+  MENU_ITEM_SHORTCUTS,
   MenuIcon,
   MenuItem,
   useDisclosure
@@ -186,6 +187,7 @@ const ProceduresTable = memo(({ data, tags, count }: ProceduresTableProps) => {
       return (
         <>
           <MenuItem
+            shortcut={MENU_ITEM_SHORTCUTS.edit}
             disabled={!permissions.can("update", "production")}
             onClick={() => {
               navigate(`${path.to.procedure(row.id!)}`);

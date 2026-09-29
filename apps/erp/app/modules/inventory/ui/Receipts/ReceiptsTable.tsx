@@ -1,6 +1,7 @@
 import {
   Button,
   Checkbox,
+  MENU_ITEM_SHORTCUTS,
   MenuIcon,
   MenuItem,
   useDisclosure
@@ -319,6 +320,11 @@ const ReceiptsTable = memo(({ data, count }: ReceiptsTableProps) => {
       return (
         <>
           <MenuItem
+            shortcut={
+              row.postingDate
+                ? MENU_ITEM_SHORTCUTS.view
+                : MENU_ITEM_SHORTCUTS.edit
+            }
             disabled={!permissions.can("update", "inventory")}
             onClick={() => {
               navigate(

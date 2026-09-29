@@ -13,6 +13,7 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
   HStack,
+  MENU_ITEM_SHORTCUTS,
   MenuIcon,
   MenuItem,
   MenuSub,
@@ -597,7 +598,10 @@ const ToolsTable = memo(({ data, tags, count }: ToolsTableProps) => {
         }[]) ?? [];
       return (
         <>
-          <MenuItem onClick={() => navigate(path.to.tool(row.id!))}>
+          <MenuItem
+            shortcut={MENU_ITEM_SHORTCUTS.edit}
+            onClick={() => navigate(path.to.tool(row.id!))}
+          >
             <MenuIcon icon={<LuPencil />} />
             <Trans>Edit Tool</Trans>
           </MenuItem>

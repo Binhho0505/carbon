@@ -1,5 +1,10 @@
 import type { Database } from "@carbon/database";
-import { Checkbox, MenuIcon, MenuItem } from "@carbon/react";
+import {
+  Checkbox,
+  MENU_ITEM_SHORTCUTS,
+  MenuIcon,
+  MenuItem
+} from "@carbon/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { ColumnDef } from "@tanstack/react-table";
 import { memo, useCallback, useMemo } from "react";
@@ -69,6 +74,7 @@ const ReturnReasonsTable = memo(({ data, count }: ReturnReasonsTableProps) => {
       return (
         <>
           <MenuItem
+            shortcut={MENU_ITEM_SHORTCUTS.edit}
             onClick={() => {
               navigate(`${path.to.returnReason(row.id)}?${params.toString()}`);
             }}

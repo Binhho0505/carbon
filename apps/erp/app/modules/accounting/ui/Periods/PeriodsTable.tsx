@@ -1,4 +1,4 @@
-import { MenuIcon, MenuItem, Status } from "@carbon/react";
+import { MENU_ITEM_SHORTCUTS, MenuIcon, MenuItem, Status } from "@carbon/react";
 import {
   formatPeriodLabel,
   PERIOD_CLOSE_STATUS_COLOR_MAP
@@ -143,6 +143,11 @@ const PeriodsTable = memo(
       (row: AccountingPeriodListItem) => (
         <>
           <MenuItem
+            shortcut={
+              row.closeStatus === "Closed"
+                ? MENU_ITEM_SHORTCUTS.view
+                : undefined
+            }
             disabled={!permissions.can("view", "accounting")}
             onClick={() => navigate(path.to.accountingPeriodClose(row.id))}
           >

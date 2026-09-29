@@ -8,6 +8,7 @@ import {
   DropdownMenuTrigger,
   HStack,
   IconButton,
+  MENU_ITEM_SHORTCUTS,
   ShortcutKey,
   Tooltip,
   TooltipContent,
@@ -413,7 +414,7 @@ function PurchaseOrderLineItem({
                 {(itemType as readonly string[]).includes(
                   line?.purchaseOrderLineType ?? ""
                 ) && (
-                  <DropdownMenuItem asChild>
+                  <DropdownMenuItem shortcut={MENU_ITEM_SHORTCUTS.view} asChild>
                     <Link
                       to={getLinkToItemDetails(
                         line.purchaseOrderLineType as ItemType,

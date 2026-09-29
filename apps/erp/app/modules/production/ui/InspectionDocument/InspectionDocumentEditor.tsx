@@ -9,6 +9,7 @@ import {
   HStack,
   IconButton,
   Input,
+  MENU_ITEM_SHORTCUTS,
   Modal,
   ModalBody,
   ModalContent,
@@ -2760,6 +2761,7 @@ export default function InspectionDocumentEditor({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="min-w-56">
               <DropdownMenuItem
+                shortcut={MENU_ITEM_SHORTCUTS.view}
                 disabled={!itemMasterLink}
                 onClick={() => {
                   if (itemMasterLink) navigate(itemMasterLink);
@@ -2779,6 +2781,7 @@ export default function InspectionDocumentEditor({
                     {uploading ? t`Uploading…` : t`Replace PDF`}
                   </DropdownMenuItem>
                   <DropdownMenuItem
+                    shortcut={MENU_ITEM_SHORTCUTS.download}
                     disabled={pdfExporting}
                     onClick={handleDownloadPdfWithBalloons}
                   >

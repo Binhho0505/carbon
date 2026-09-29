@@ -1,4 +1,10 @@
-import { Button, HStack, MenuIcon, MenuItem } from "@carbon/react";
+import {
+  Button,
+  HStack,
+  MENU_ITEM_SHORTCUTS,
+  MenuIcon,
+  MenuItem
+} from "@carbon/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { ColumnDef } from "@tanstack/react-table";
 import { memo, useCallback, useMemo } from "react";
@@ -103,6 +109,7 @@ const CustomFieldsTable = memo(({ data, count }: CustomFieldsTableProps) => {
             <Trans>New Field</Trans>
           </MenuItem>
           <MenuItem
+            shortcut={MENU_ITEM_SHORTCUTS.view}
             onClick={() => {
               navigate(
                 `${path.to.customFieldList(row.table!)}?${params?.toString()}`

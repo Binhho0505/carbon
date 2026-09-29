@@ -1,4 +1,4 @@
-import { MenuIcon, MenuItem } from "@carbon/react";
+import { MENU_ITEM_SHORTCUTS, MenuIcon, MenuItem } from "@carbon/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { ColumnDef } from "@tanstack/react-table";
 import { memo, useCallback, useMemo } from "react";
@@ -49,6 +49,7 @@ const SupplierTypesTable = memo(({ data, count }: SupplierTypesTableProps) => {
       return (
         <>
           <MenuItem
+            shortcut={MENU_ITEM_SHORTCUTS.view}
             onClick={() => {
               navigate(`${path.to.suppliers}?filter=type:eq:${row.name}`);
             }}
@@ -57,6 +58,7 @@ const SupplierTypesTable = memo(({ data, count }: SupplierTypesTableProps) => {
             <Trans>View Suppliers</Trans>
           </MenuItem>
           <MenuItem
+            shortcut={MENU_ITEM_SHORTCUTS.edit}
             disabled={row.protected || !permissions.can("update", "purchasing")}
             onClick={() => {
               navigate(`${path.to.supplierType(row.id)}?${params.toString()}`);

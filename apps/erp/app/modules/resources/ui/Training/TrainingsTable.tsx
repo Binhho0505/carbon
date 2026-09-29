@@ -1,6 +1,7 @@
 import {
   Badge,
   HStack,
+  MENU_ITEM_SHORTCUTS,
   MenuIcon,
   MenuItem,
   useDisclosure
@@ -199,6 +200,7 @@ const TrainingsTable = memo(({ data, count, tags }: TrainingsTableProps) => {
       return (
         <>
           <MenuItem
+            shortcut={MENU_ITEM_SHORTCUTS.edit}
             disabled={!permissions.can("update", "resources")}
             onClick={() => {
               navigate(`${path.to.training(row.id!)}`);

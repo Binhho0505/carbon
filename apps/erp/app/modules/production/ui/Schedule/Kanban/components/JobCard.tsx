@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger,
   HStack,
   IconButton,
+  MENU_ITEM_SHORTCUTS,
   Tooltip,
   TooltipContent,
   TooltipTrigger
@@ -282,7 +283,7 @@ export function JobCard({
               </DropdownMenuTrigger>
               <DropdownMenuContent>
                 {item.link && (
-                  <DropdownMenuItem asChild>
+                  <DropdownMenuItem shortcut={MENU_ITEM_SHORTCUTS.edit} asChild>
                     <Link to={item.link}>
                       <DropdownMenuIcon icon={<LuPencil />} />
                       Edit Job

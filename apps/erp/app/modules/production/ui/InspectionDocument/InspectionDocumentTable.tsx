@@ -1,4 +1,10 @@
-import { MenuIcon, MenuItem, useDisclosure, VStack } from "@carbon/react";
+import {
+  MENU_ITEM_SHORTCUTS,
+  MenuIcon,
+  MenuItem,
+  useDisclosure,
+  VStack
+} from "@carbon/react";
 import { useLingui } from "@lingui/react/macro";
 import type { ColumnDef } from "@tanstack/react-table";
 import { memo, useCallback, useMemo, useState } from "react";
@@ -125,6 +131,7 @@ const InspectionDocumentTable = memo(
       (row: InspectionDocument) => (
         <>
           <MenuItem
+            shortcut={MENU_ITEM_SHORTCUTS.edit}
             disabled={!permissions.can("update", "quality")}
             onClick={() => {
               navigate(

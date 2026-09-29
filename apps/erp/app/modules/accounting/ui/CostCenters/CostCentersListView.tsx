@@ -3,7 +3,8 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  IconButton
+  IconButton,
+  MENU_ITEM_SHORTCUTS
 } from "@carbon/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import {
@@ -81,7 +82,10 @@ function CostCentersRow({
               />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-44">
-              <DropdownMenuItem onClick={() => onEdit(costCenter.id!)}>
+              <DropdownMenuItem
+                shortcut={MENU_ITEM_SHORTCUTS.edit}
+                onClick={() => onEdit(costCenter.id!)}
+              >
                 <LuPencil className="mr-2 size-4" />
                 <Trans>Edit</Trans>
               </DropdownMenuItem>

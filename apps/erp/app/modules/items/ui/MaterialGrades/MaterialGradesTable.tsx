@@ -1,4 +1,10 @@
-import { Badge, Copy, MenuIcon, MenuItem } from "@carbon/react";
+import {
+  Badge,
+  Copy,
+  MENU_ITEM_SHORTCUTS,
+  MenuIcon,
+  MenuItem
+} from "@carbon/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { ColumnDef } from "@tanstack/react-table";
 import { memo, useCallback, useMemo } from "react";
@@ -109,6 +115,7 @@ const MaterialGradesTable = memo(
         return (
           <>
             <MenuItem
+              shortcut={MENU_ITEM_SHORTCUTS.edit}
               disabled={
                 !permissions.can("update", "parts") || row.companyId === null
               }

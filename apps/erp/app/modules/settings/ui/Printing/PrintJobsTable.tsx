@@ -3,6 +3,7 @@ import {
   Badge,
   Button,
   HStack,
+  MENU_ITEM_SHORTCUTS,
   MenuIcon,
   MenuItem,
   Modal,
@@ -380,6 +381,7 @@ const PrintJobsTable = memo(({ jobs, count }: PrintJobsTableProps) => {
     (job: PrintJob) => (
       <>
         <MenuItem
+          shortcut={MENU_ITEM_SHORTCUTS.view}
           disabled={job.status === "generating"}
           onClick={() => {
             fetcher.submit(

@@ -2,6 +2,7 @@ import { getQuoteDisplayId } from "@carbon/documents/utils";
 import {
   BarProgress,
   HStack,
+  MENU_ITEM_SHORTCUTS,
   MenuIcon,
   MenuItem,
   useDisclosure
@@ -284,7 +285,10 @@ const QuotesTable = memo(({ data, count }: QuotesTableProps) => {
   const renderContextMenu = useMemo(() => {
     return (row: QuotationListItem) => (
       <>
-        <MenuItem onClick={() => navigate(path.to.quoteDetails(row.id!))}>
+        <MenuItem
+          shortcut={MENU_ITEM_SHORTCUTS.edit}
+          onClick={() => navigate(path.to.quoteDetails(row.id!))}
+        >
           <MenuIcon icon={<LuPencil />} />
           <Trans>Edit</Trans>
         </MenuItem>

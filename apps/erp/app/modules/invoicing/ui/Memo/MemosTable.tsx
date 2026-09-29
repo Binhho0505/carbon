@@ -1,4 +1,9 @@
-import { MenuIcon, MenuItem, useDisclosure } from "@carbon/react";
+import {
+  MENU_ITEM_SHORTCUTS,
+  MenuIcon,
+  MenuItem,
+  useDisclosure
+} from "@carbon/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { ColumnDef } from "@tanstack/react-table";
 import { memo, useCallback, useMemo, useState } from "react";
@@ -70,7 +75,14 @@ const MemosTable = memo(({ data, count, party }: MemosTableProps) => {
   const renderContextMenu = useCallback(
     (row: MemoRow) => (
       <>
-        <MenuItem onClick={() => navigate(path.to.memo(row.id))}>
+        <MenuItem
+          shortcut={
+            row.status === "Draft"
+              ? MENU_ITEM_SHORTCUTS.edit
+              : MENU_ITEM_SHORTCUTS.view
+          }
+          onClick={() => navigate(path.to.memo(row.id))}
+        >
           <MenuIcon icon={row.status === "Draft" ? <LuPencil /> : <LuEye />} />
           {row.status === "Draft" ? (
             <Trans>Edit Memo</Trans>
