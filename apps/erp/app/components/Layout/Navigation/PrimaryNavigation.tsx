@@ -182,6 +182,7 @@ const PrimaryNavigation = () => {
                   <NavigationIconLink
                     key={link.name}
                     link={link}
+                    goToKey={MODULE_GO_TO[link.key]}
                     isActive={isActive}
                     isOpen={isOpen}
                     onClick={navigationPanel.onClose}
@@ -208,6 +209,7 @@ const PrimaryNavigation = () => {
                 return (
                   <NavigationIconLink
                     link={settingsModule}
+                    goToKey={MODULE_GO_TO[settingsModule.key]}
                     isActive={isActive}
                     isOpen={isOpen}
                     onClick={navigationPanel.onClose}
@@ -318,6 +320,8 @@ const NavigationSearchButton = ({ isOpen = false }: { isOpen?: boolean }) => {
 interface NavigationIconButtonProps
   extends AnchorHTMLAttributes<HTMLAnchorElement> {
   link: Authenticated<NavItem>;
+  /** Only module links have a g-then-letter key. */
+  goToKey?: string;
   isActive?: boolean;
   isOpen?: boolean;
 }
@@ -325,59 +329,85 @@ interface NavigationIconButtonProps
 const NavigationIconLink = forwardRef<
   HTMLAnchorElement,
   NavigationIconButtonProps
->(({ link, isActive = false, isOpen = false, onClick, ...props }, ref) => {
-  const iconClasses = [
-    "absolute left-3 top-3 flex items-center items-center justify-center"
-  ];
+>(
+  (
+    { link, goToKey, isActive = false, isOpen = false, onClick, ...props },
+    ref
+  ) => {
+    const iconClasses = [
+      "absolute left-3 top-3 flex items-center items-center justify-center"
+    ];
 
-  const classes = [
-    "relative text-foreground/70 hover:text-foreground",
-    "h-10 w-10 group-data-[state=expanded]:w-full",
-    "flex items-center rounded-md",
-    "group-data-[state=collapsed]:justify-center",
-    "group-data-[state=expanded]:-space-x-2",
-    "font-medium shrink-0 inline-flex items-center justify-center select-none",
-    "disabled:opacity-50",
-    "transition-[background-color,color,width] duration-100 ease-out",
-    "focus:!outline-none focus:!ring-0 active:!outline-none active:!ring-0",
-    "after:pointer-events-none after:absolute after:-inset-[3px] after:rounded-lg after:border after:border-blue-500 after:opacity-0 after:ring-2 after:ring-blue-500/20 after:transition-opacity focus-visible:after:opacity-100 active:after:opacity-0",
-    !isActive && "hover:bg-active/60 hover:text-active-foreground",
-    isActive && "bg-active text-active-foreground dark:shadow-button-base",
-    "group/item"
-  ];
+    const classes = [
+      "relative text-foreground/70 hover:text-foreground",
+      "h-10 w-10 group-data-[state=expanded]:w-full",
+      "flex items-center rounded-md",
+      "group-data-[state=collapsed]:justify-center",
+      "group-data-[state=expanded]:-space-x-2",
+      "font-medium shrink-0 inline-flex items-center justify-center select-none",
+      "disabled:opacity-50",
+      "transition-[background-color,color,width] duration-100 ease-out",
+      "focus:!outline-none focus:!ring-0 active:!outline-none active:!ring-0",
+      "after:pointer-events-none after:absolute after:-inset-[3px] after:rounded-lg after:border after:border-blue-500 after:opacity-0 after:ring-2 after:ring-blue-500/20 after:transition-opacity focus-visible:after:opacity-100 active:after:opacity-0",
+      !isActive && "hover:bg-active/60 hover:text-active-foreground",
+      isActive && "bg-active text-active-foreground dark:shadow-button-base",
+      "group/item"
+    ];
 
-  return (
-    <Link
-      role="button"
-      aria-current={isActive}
-      ref={ref}
-      to={link.to}
-      {...props}
-      onClick={onClick}
-      className={cn(classes, props.className)}
-      prefetch={link.external ? "none" : "intent"}
-    >
-      <link.icon className={cn(...iconClasses)} />
-
-      {link.tag ? (
-        <span className="absolute top-1 right-1 min-w-4 h-4 px-1 rounded-full bg-primary text-primary-foreground text-[10px] font-medium leading-4 text-center tabular-nums">
-          {link.tag}
-        </span>
-      ) : null}
-
-      <span
-        aria-hidden={isOpen || undefined}
-        className={cn(
-          "min-w-[128px] text-sm",
-          "absolute left-7 group-data-[state=expanded]:left-12",
-          "opacity-0 group-data-[state=expanded]:opacity-100"
-        )}
+    return (
+      <Link
+        role="button"
+        aria-current={isActive}
+        ref={ref}
+        to={link.to}
+        {...props}
+        onClick={onClick}
+        className={cn(classes, props.className)}
+        prefetch={link.external ? "none" : "intent"}
       >
-        {link.name}
-      </span>
-    </Link>
-  );
-});
+        <link.icon className={cn(...iconClasses)} />
+
+        {link.tag ? (
+          <span className="absolute top-1 right-1 min-w-4 h-4 px-1 rounded-full bg-primary text-primary-foreground text-[10px] font-medium leading-4 text-center tabular-nums">
+            {link.tag}
+          </span>
+        ) : null}
+
+        <span
+          aria-hidden={isOpen || undefined}
+          className={cn(
+            "min-w-[128px] text-sm",
+            "absolute left-7 group-data-[state=expanded]:left-12",
+            "opacity-0 group-data-[state=expanded]:opacity-100"
+          )}
+        >
+          {link.name}
+        </span>
+
+        {/* Hovering is what expands the rail, so the g-then-letter hint shows on
+          the hovered/focused row only, and only while expanded. */}
+        {goToKey ? (
+          <span
+            aria-hidden
+            className={cn(
+              "pointer-events-none absolute right-3 top-1/2 -translate-y-1/2",
+              "hidden items-center gap-0.5 group-data-[state=expanded]:flex",
+              "opacity-0 transition-opacity duration-100",
+              "group-hover/item:opacity-100 group-focus-visible/item:opacity-100"
+            )}
+          >
+            <ShortcutKey
+              shortcut={MODULE_GO_TO_PREFIX}
+              variant="small"
+              className="mx-0"
+            />
+            <ShortcutKey shortcut={goToKey} variant="small" className="mx-0" />
+          </span>
+        ) : null}
+      </Link>
+    );
+  }
+);
 NavigationIconLink.displayName = "NavigationIconLink";
 
 export default memo(PrimaryNavigation);
