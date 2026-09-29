@@ -3,7 +3,10 @@ import { requireFeature } from "@carbon/ee/plan.server";
 import { VStack } from "@carbon/react";
 import type { LoaderFunctionArgs } from "react-router";
 import { Outlet, useLoaderData } from "react-router";
-import { getWorkflowRuns } from "~/modules/workflows";
+import {
+  getWorkflowRunRecordNames,
+  getWorkflowRuns
+} from "~/modules/workflows";
 import WorkflowRunsTable from "~/modules/workflows/ui/Runs/WorkflowRunsTable";
 import { path } from "~/utils/path";
 import { getGenericQueryFilters } from "~/utils/query";
@@ -33,8 +36,22 @@ export async function loader({ request }: LoaderFunctionArgs) {
     filters
   });
 
+  const data = runs.data ?? [];
+  const recordNames = await getWorkflowRunRecordNames(
+    client,
+    companyId,
+    data.flatMap((run) =>
+      run.triggerTable && run.triggerRecordId
+        ? [{ table: run.triggerTable, id: run.triggerRecordId }]
+        : []
+    )
+  );
+
   return {
-    data: runs.data ?? [],
+    data: data.map((run) => ({
+      ...run,
+      recordName: recordNames[`${run.triggerTable}:${run.triggerRecordId}`]
+    })),
     count: runs.count ?? 0
   };
 }
