@@ -1,0 +1,53 @@
+# Keyboard shortcuts
+
+> Jump between modules, page through tables, and run menu actions from the keyboard, with the full list one keypress away.
+
+Most of what you do with the mouse in Carbon has a key. Press **?** on any page to open the full list. Shortcuts are ignored while you type in a field, so they never interrupt a form.
+
+## Jump to a module
+
+Press **G**, then a letter, within about a second and a half. The sidebar shows each module's letter when you hover it.
+
+| Keys | Module | Keys | Module |
+| --- | --- | --- | --- |
+| G then A | Accounting | G then Q | Quality |
+| G then D | Documents | G then U | Resources |
+| G then I | Inventory | G then S | Sales |
+| G then V | Invoicing | G then E | Settings |
+| G then T | Items | G then Y | Users |
+| G then O | People | G then W | Workflows |
+| G then R | Production | G then P | Purchasing |
+
+Items, Invoicing, and Inventory all start with I, so Items is **T** and Invoicing is **V**. A shortcut only works for a module you can see in your sidebar: one you have hidden, or have no permission for, does nothing.
+
+## Move through tables
+
+On any paged table, **←** goes to the previous page and **→** to the next. The Previous and Next buttons show the key when you hover them. **N** opens a new record from a list page, and **⌘K** (Ctrl+K on Windows) opens search from anywhere.
+
+## Act from a menu
+
+When a three-dot menu or a right-click menu is open, one key runs an item. The key is shown on the right of the item.
+
+| Key | Action |
+| --- | --- |
+| E | Edit |
+| R | Rename |
+| P | Pin or unpin |
+| C | Duplicate or copy |
+| D | Download |
+| O | View or open |
+
+The menu closes and the action runs, exactly as if you had clicked it. These keys work only while that menu is open. Pressing E on the page behind it does nothing.
+
+Removing data is never one keystroke away. Delete items in a menu show no key; choose them with the mouse, or with the arrow keys and Enter.
+
+A letter no item uses still jumps to the first item starting with it, so you can reach the rest with the arrow keys. The same menu keys work in the shop-floor app.
+
+  - Workflows Automations and their run history.
+  - Company settings Where company-wide options live.
+
+Internals: shared menu keys are `MENU_ITEM_SHORTCUTS` in `packages/react/src/shortcuts.ts` (edit e, rename r, pin p, duplicate/copy c, download d, view/open o; no delete key). A menu item opts in with `shortcut={MENU_ITEM_SHORTCUTS.x}` on `DropdownMenuItem`, `ContextMenuItem`, or `MenuItem`. The handler (`packages/react/src/utils/menuShortcut.ts`) sits on the menu content's `onKeyDown`, so keys only work while that menu is open; letters match the physical key, so non-Latin layouts work; any modifier opts out.
+
+Module jumps: `MODULE_GO_TO` in `apps/erp/app/shortcuts.ts`, run by `useShortcutSequence` (1.5 s window, ignored while typing, while a dialog is open, and while the sidebar is being customized). Shop Floor has no letter because it opens the separate shop-floor app.
+
+"I pressed a letter in a menu and nothing happened": that menu item has no key (only Edit, Rename, Pin, Duplicate/Copy, Download, View/Open have one), or focus is inside a text field in the menu. "G then a letter does nothing": the module is hidden from the user's sidebar or they lack view permission for it, or more than 1.5 s passed between the keys.

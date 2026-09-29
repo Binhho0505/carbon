@@ -76,7 +76,7 @@ Every step reads and writes with the owner's permissions, re-checked at each ste
 
 ## Runs and history
 
-Every firing is recorded as a workflow run: one row for the run and one per step, with the values in, the values out, and why it ended the way it did. Open **Automate → Runs** for the list: status, workflow, trigger, the record it started from, duration, owner, and a **Chain** cell reading **"Hop 2"** when the run was caused by another run. Rows update live while anything is queued or running.
+Every firing is recorded as a workflow run: one row for the run and one per step, with the values in, the values out, and why it ended the way it did. Open **Automate → Runs** for the list: status, workflow, trigger, the record it started from (shown by its name or number, and linked so you can open it), duration, owner, and a **Chain** cell reading **"Hop 2"** when the run was caused by another run. Rows update live while anything is queued or running.
 
   - **Queued**: Accepted and waiting for a worker to pick it up.
   - **Running**: A worker has claimed it and is walking the steps.

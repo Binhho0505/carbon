@@ -947,6 +947,13 @@
       ]
     },
     {
+      "slug": "docs/reference/keyboard-shortcuts",
+      "title": "Keyboard shortcuts",
+      "description": "Jump between modules, page through tables, and run menu actions from the keyboard, with the full list one keypress away.",
+      "keywords": ["keyboard", "shortcuts", "docs", "reference"],
+      "headings": ["Jump to a module", "Move through tables", "Act from a menu"]
+    },
+    {
       "slug": "docs/reference/maintenance",
       "title": "Maintenance",
       "description": "Keeping work centers running: reactive and preventive maintenance dispatches.",
