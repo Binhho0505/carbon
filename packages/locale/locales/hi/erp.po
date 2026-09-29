@@ -6459,6 +6459,9 @@ msgstr "छवि रूपांतरण के बाद डुप्लि�
 msgid "Duplicate Item"
 msgstr "आइटम डुप्लिकेट करें"
 
+msgid "Duplicate or copy"
+msgstr ""
+
 msgid "Duplicate Price List"
 msgstr "मूल्य सूची डुप्लिकेट करें"
 
@@ -8973,6 +8976,9 @@ msgstr "अपना BOM आयात करें"
 #. placeholder {0}: precise?.text
 msgid "in {0}"
 msgstr "{0} में"
+
+msgid "In an open menu"
+msgstr ""
 
 msgid "In Onshape, edit this OAuth application's permissions to include \"Application can write to your documents\", then connect again."
 msgstr "Onshape में, इस OAuth एप्लिकेशन की अनुमतियों को संपादित करें ताकि „एप्लिकेशन आपके दस्तावेज़ों में लिख सके”, फिर फिर से कनेक्ट करें।"
@@ -13138,6 +13144,9 @@ msgstr "पिन"
 msgid "Pin {0}"
 msgstr "{0} को पिन करें"
 
+msgid "Pin or unpin"
+msgstr ""
+
 msgid "Pinned"
 msgstr "पिन किया गया"
 
@@ -14614,6 +14623,9 @@ msgstr "हटाया गया"
 #. placeholder {0}: count > 1 ? "s" : ""
 msgid "Removing this path will also disconnect {count} connection{0}. Continue?"
 msgstr "इस पथ को हटाने से {count} कनेक्शन{0} भी डिस्कनेक्ट हो जाएंगे। जारी रखें?"
+
+msgid "Rename"
+msgstr ""
 
 msgid "Rename Workflow"
 msgstr "वर्कफ़्लो का नाम बदलें"
@@ -19936,6 +19948,9 @@ msgstr "खुली उद्धरणें देखें"
 
 msgid "View Open RFQs"
 msgstr "खुले RFQ देखें"
+
+msgid "View or open"
+msgstr ""
 
 msgid "View Payables"
 msgstr "देय राशि देखें"

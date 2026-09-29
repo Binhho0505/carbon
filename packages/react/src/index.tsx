@@ -322,7 +322,8 @@ import { Status } from "./Status";
 import type { SubheadingProps } from "./Subheading";
 import { Subheading } from "./Subheading";
 import { Switch } from "./Switch";
-import { SHORTCUTS } from "./shortcuts";
+import type { MenuItemShortcut } from "./shortcuts";
+import { MENU_ITEM_SHORTCUTS, SHORTCUTS } from "./shortcuts";
 import { Table, TableCaption, Tbody, Td, Tfoot, Th, Thead, Tr } from "./Table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./Tabs";
 import type { TextareaProps } from "./Textarea";
@@ -580,6 +581,7 @@ export {
   SelectValue,
   Separator,
   KeyboardKeys,
+  MENU_ITEM_SHORTCUTS,
   SHORTCUTS,
   ShortcutHelpKeys,
   ShortcutHelpOverlay,
@@ -678,6 +680,7 @@ export type {
   Modifier,
   MultiSelectProps,
   NumberFieldProps,
+  MenuItemShortcut,
   OperatingSystemPlatform,
   Shortcut,
   ShortcutDefinition,

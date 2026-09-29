@@ -6459,6 +6459,9 @@ msgstr "画像変換後のファイル名の重複"
 msgid "Duplicate Item"
 msgstr "アイテムを複製"
 
+msgid "Duplicate or copy"
+msgstr ""
+
 msgid "Duplicate Price List"
 msgstr "価格リストを複製"
 
@@ -8973,6 +8976,9 @@ msgstr "BOMをインポート"
 #. placeholder {0}: precise?.text
 msgid "in {0}"
 msgstr "{0}以内に"
+
+msgid "In an open menu"
+msgstr ""
 
 msgid "In Onshape, edit this OAuth application's permissions to include \"Application can write to your documents\", then connect again."
 msgstr "Onshapeでこのoauthアプリケーションの権限を編集して、\"アプリケーションがドキュメントに書き込むことができます\"を含めてから、もう一度接続してください。"
@@ -13138,6 +13144,9 @@ msgstr "ピン"
 msgid "Pin {0}"
 msgstr "{0}をピン留"
 
+msgid "Pin or unpin"
+msgstr ""
+
 msgid "Pinned"
 msgstr "ピン留め"
 
@@ -14614,6 +14623,9 @@ msgstr "削除済み"
 #. placeholder {0}: count > 1 ? "s" : ""
 msgid "Removing this path will also disconnect {count} connection{0}. Continue?"
 msgstr "このパスを削除すると、{count}個の接続{0}も切断されます。続行しますか？"
+
+msgid "Rename"
+msgstr ""
 
 msgid "Rename Workflow"
 msgstr "ワークフロー名を変更"
@@ -19936,6 +19948,9 @@ msgstr "オープンな見積もりを表示"
 
 msgid "View Open RFQs"
 msgstr "オープンなRFQを表示"
+
+msgid "View or open"
+msgstr ""
 
 msgid "View Payables"
 msgstr "買掛金を表示"

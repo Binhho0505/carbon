@@ -6459,6 +6459,9 @@ msgstr "Nomi file duplicati dopo la conversione dell'immagine"
 msgid "Duplicate Item"
 msgstr "Duplica Articolo"
 
+msgid "Duplicate or copy"
+msgstr ""
+
 msgid "Duplicate Price List"
 msgstr "Duplica Listino Prezzi"
 
@@ -8973,6 +8976,9 @@ msgstr "Importa il tuo BOM"
 #. placeholder {0}: precise?.text
 msgid "in {0}"
 msgstr "in {0}"
+
+msgid "In an open menu"
+msgstr ""
 
 msgid "In Onshape, edit this OAuth application's permissions to include \"Application can write to your documents\", then connect again."
 msgstr "In Onshape, modifica le autorizzazioni di questa applicazione OAuth per includere «Application can write to your documents», quindi riprova a connetterti."
@@ -13138,6 +13144,9 @@ msgstr "Fissa"
 msgid "Pin {0}"
 msgstr "Fissa {0}"
 
+msgid "Pin or unpin"
+msgstr ""
+
 msgid "Pinned"
 msgstr "Fissato"
 
@@ -14614,6 +14623,9 @@ msgstr "Rimosso"
 #. placeholder {0}: count > 1 ? "s" : ""
 msgid "Removing this path will also disconnect {count} connection{0}. Continue?"
 msgstr "La rimozione di questo percorso disconnetterà anche {count} connessione{0}. Continuare?"
+
+msgid "Rename"
+msgstr ""
 
 msgid "Rename Workflow"
 msgstr "Rinomina Workflow"
@@ -19936,6 +19948,9 @@ msgstr "Visualizza Preventivi Aperti"
 
 msgid "View Open RFQs"
 msgstr "Visualizza RFQ Aperti"
+
+msgid "View or open"
+msgstr ""
 
 msgid "View Payables"
 msgstr "Visualizza Debiti"

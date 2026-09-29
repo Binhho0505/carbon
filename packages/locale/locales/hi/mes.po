@@ -495,6 +495,9 @@ msgstr "आज देय?"
 msgid "Duplicate batch number"
 msgstr "डुप्लिकेट बैच संख्या"
 
+msgid "Duplicate or copy"
+msgstr ""
+
 msgid "Duplicate serial number"
 msgstr "डुप्लिकेट सीरियल नंबर"
 
@@ -687,6 +690,9 @@ msgstr "इंपीरियल"
 #. placeholder {0}: precise?.text
 msgid "in {0}"
 msgstr "{0} में"
+
+msgid "In an open menu"
+msgstr ""
 
 msgid "In Progress"
 msgstr "प्रगति में"
@@ -1196,6 +1202,9 @@ msgstr "पिकिंग {substitutedFrom} की जगह, जॉब पर 
 msgid "picking in place of {substitutedFrom}, the item on the job, for {substitutedAssemblies} assemblies"
 msgstr "पिकिंग {substitutedFrom} की जगह, जॉब पर आइटम, {substitutedAssemblies} असेंबलीज के लिए"
 
+msgid "Pin or unpin"
+msgstr ""
+
 msgid "Pin Out"
 msgstr "पिन आउट"
 
@@ -1319,6 +1328,9 @@ msgstr "इन्वेंटरी निकालें"
 
 msgid "Remove part"
 msgstr "पार्ट निकालें"
+
+msgid "Rename"
+msgstr ""
 
 msgid "Reopen the subassembly and create a replacement unit"
 msgstr "सब-असेंबली को फिर से खोलें और एक रिप्लेसमेंट इकाई बनाएँ"
@@ -1792,6 +1804,9 @@ msgstr "सत्यापित करें"
 
 msgid "View maintenance dispatch"
 msgstr "रखरखाव कार्य देखें"
+
+msgid "View or open"
+msgstr ""
 
 msgid "We've sent you a magic link to sign in to your account."
 msgstr "हमने आपके खाते में साइन इन करने के लिए आपको एक जादुई लिंक भेजा है।"

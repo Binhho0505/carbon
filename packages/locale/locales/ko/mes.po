@@ -495,6 +495,9 @@ msgstr "오늘 예정됨?"
 msgid "Duplicate batch number"
 msgstr "중복된 배치 번호"
 
+msgid "Duplicate or copy"
+msgstr ""
+
 msgid "Duplicate serial number"
 msgstr "중복된 시리얼 번호"
 
@@ -687,6 +690,9 @@ msgstr "야드파운드법"
 #. placeholder {0}: precise?.text
 msgid "in {0}"
 msgstr "{0} 후"
+
+msgid "In an open menu"
+msgstr ""
 
 msgid "In Progress"
 msgstr "진행 중"
@@ -1196,6 +1202,9 @@ msgstr "{substitutedFrom} 대신 피킹, 작업의 품목"
 msgid "picking in place of {substitutedFrom}, the item on the job, for {substitutedAssemblies} assemblies"
 msgstr "{substitutedFrom} 대신 피킹, 작업의 품목, {substitutedAssemblies}개 조립"
 
+msgid "Pin or unpin"
+msgstr ""
+
 msgid "Pin Out"
 msgstr "PIN 로그아웃"
 
@@ -1319,6 +1328,9 @@ msgstr "재고 제거"
 
 msgid "Remove part"
 msgstr "품목 제거"
+
+msgid "Rename"
+msgstr ""
 
 msgid "Reopen the subassembly and create a replacement unit"
 msgstr "서브어셈블리를 다시 열고 대체 부품을 생성하세요"
@@ -1792,6 +1804,9 @@ msgstr "확인"
 
 msgid "View maintenance dispatch"
 msgstr "유지보수 지시 보기"
+
+msgid "View or open"
+msgstr ""
 
 msgid "We've sent you a magic link to sign in to your account."
 msgstr "계정에 로그인할 수 있는 매직 링크를 보내드렸습니다."

@@ -21,3 +21,21 @@ export const SHORTCUTS = {
   /** Toggle the app sidebar. */
   sidebarToggle: "mod+b" as ShortcutInput
 } as const;
+
+/**
+ * One-key shortcuts for menu items, live only while their menu is open.
+ * Delete deliberately has no key — removing data is never one keystroke away.
+ */
+export const MENU_ITEM_SHORTCUTS = {
+  edit: "e",
+  rename: "r",
+  pin: "p",
+  duplicate: "c",
+  copy: "c",
+  download: "d",
+  view: "o",
+  open: "o"
+} as const;
+
+export type MenuItemShortcut =
+  (typeof MENU_ITEM_SHORTCUTS)[keyof typeof MENU_ITEM_SHORTCUTS];
