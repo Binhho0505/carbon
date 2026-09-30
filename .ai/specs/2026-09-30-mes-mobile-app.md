@@ -20,9 +20,11 @@ changes and uploads photos straight to Supabase as the signed-in user.
 
 One store build serves every Carbon: Cloud, BYOC clusters, staging and
 air-gapped installs. The app has no server built in. A supervisor links it to a
-Carbon by scanning a QR code that web Carbon shows (or typing the address), the
-server describes itself through a public `.well-known/carbon-mobile` document,
-and the app can hold several such instances and switch between them.
+Carbon by scanning a QR code that web Carbon shows (or typing the address).
+Nothing about a server is published at a public path: before sign-in the app
+knows only the address, and everything else arrives over the authenticated MES
+API once the user has proved who they are. The app can hold several such
+instances and switch between them.
 
 v1 covers core execution: time, good/scrap/rework, material by scan, work
 instructions and step records with photos, notes, quality issues, labels,
@@ -176,41 +178,51 @@ Play, identical for every customer, with no per-deployment ENV. So the app is
 **told** which Carbon to use, on the device, and it can be told more than once.
 
 **Instances are first-class.** An instance is a record the app keeps per linked
-Carbon server: name, MES API URL, Supabase URL and anon key, supported API
-versions, server version, `mode`, `controlledEnvironment`, and the scheme it
-was reached over. Every other piece of app state hangs off one instance: the
+Carbon server. Before sign-in it holds only the MES address and the scheme it
+was reached over; after sign-in it also holds what `GET /me` returned (name,
+Supabase URL and anon key, `mode`, `controlledEnvironment`, analytics key), in
+SecureStore. Every other piece of app state hangs off one instance: the
 Supabase session, the chosen company, location and work centers, the query
 cache and the outbox rows, all keyed by `(instanceId, companyId)`. The app
 holds a list of instances and switches between them from the More screen;
 switching swaps all of that state at once, so staging data can never appear
 under production. No instance is the default.
 
+**The minimum handshake.** The only thing the app needs before a user signs in
+is the MES server address, and the QR code carries it. There is no public
+document describing the server: a fixed public path would let one internet
+scan enumerate every Carbon install with its version and whether it is a
+controlled environment (PR review, Q15). The public surface is one
+rate-limited `POST` that takes an email and answers `ok`, which is what the
+web login form already exposes today.
+
+1. `POST {server}/api/v1/auth/code { email }` — the same gates as web login;
+   the body is always `{ ok: true }`, whether or not the account exists. The
+   response carries one header, `carbon-api: 1`, listing the API versions the
+   server speaks. `404` means the server predates the mobile API ("This Carbon
+   server needs an update"); `426` means the app is too old.
+2. `POST /api/v1/auth/verify { email, code }` — the server checks the code with
+   Supabase and returns the session tokens. Precedent: the server already
+   verifies magic-link tokens itself (`auth.server.ts` `verifyOtp`).
+3. `POST /api/v1/auth/mfa { code }` — when the user has a TOTP factor, the
+   server runs the challenge. Precedent: web MES verifies TOTP server-side
+   (`session.server.ts` `verifyTotpChallenge`).
+4. `GET /api/v1/me`, authenticated — only now does the app receive the Supabase
+   URL and anon key (for realtime, photo uploads, direct lookups and token
+   refresh), `mode`, `controlledEnvironment`, the analytics key, and the
+   instance name, alongside companies and locations. `mode` and
+   `controlledEnvironment` come from the same ENV the web apps read
+   (`CONTROLLED_ENVIRONMENT`; a new `CARBON_DEPLOYMENT_MODE` for `connected` /
+   `airgapped`, default `connected`).
+
+The Supabase URL and anon key were never secret (they ship in web MES's HTML,
+`root.tsx`), but they now reach only a signed-in employee, and nothing at a
+known path says what a server is.
+
 **Linking.**
 
-1. **The server describes itself** at `GET /.well-known/carbon-mobile`, public,
-   served by both ERP and MES (precedent: ERP's
-   `[.]well-known.oauth-authorization-server.ts`). Because every deployment's
-   server is started with its own ENV, every deployment's document is right
-   for that deployment with no per-customer work:
-   ```json
-   {
-     "name": "Acme Manufacturing",
-     "mesApi": "https://mes.carbon.acme.com/api/v1",
-     "supabaseUrl": "https://supabase.carbon.acme.com",
-     "supabaseAnonKey": "eyJ…",
-     "apiVersions": [1],
-     "serverVersion": "2026.09.4",
-     "minAppVersion": "1.0.0",
-     "mode": "connected",
-     "controlledEnvironment": false,
-     "analytics": { "posthogKey": null }
-   }
-   ```
-   `name` is the company-group name when the server is single-tenant, else the
-   product name. The anon key is public by design (it already ships in the web
-   apps' HTML). `mode` and `controlledEnvironment` come from the same ENV the
-   web apps read (`CONTROLLED_ENVIRONMENT`; a new `CARBON_DEPLOYMENT_MODE` for
-   `connected` / `airgapped`, default `connected`).
+1. **The app stores the address.** From the QR code or typed by hand. It is
+   validated as a URL and nothing is fetched until the user requests a code.
 2. **Web Carbon shows a QR code.** ERP Settings and the MES More screen get a
    "Connect mobile app" page that renders `carbon-mes://link?server=<MES_URL>`
    as a QR code. Any signed-in employee can open it: the server's public
@@ -229,15 +241,18 @@ under production. No instance is the default.
    "Carbon Cloud", which fills in Cloud's address. Cloud users can still scan
    the QR from their own web MES, which is the right choice when Cloud has more
    than one region.
-5. **The app fetches the document, validates it (zod, in `@carbon/mes-core`),
-   saves the instance, and starts sign-in against it.** A server with no
-   document, or one whose `apiVersions` contains nothing the app speaks, is
-   refused with "This Carbon server needs an update".
+5. **Sign-in runs the handshake above.** A `404` from `auth/code`, or a
+   `carbon-api` header listing nothing the app speaks, is shown as "This
+   Carbon server needs an update"; the instance stays linked but cannot be
+   signed into. The `/me` response is validated with zod (`@carbon/mes-core`)
+   before it is saved onto the instance.
 
 **What the flags do.** `mode: "airgapped"` or `controlledEnvironment: true`
 turns off every outbound call the app would otherwise make: analytics, the
-store update check, image CDNs. Analytics run only when the document carries
-`analytics.posthogKey`; self-hosted installs leave it null. A controlled
+store update check, image CDNs. Before sign-in the app makes no outbound call
+at all, so the flags are always known before anything could leave the device.
+Analytics run only when `/me` carries `analytics.posthogKey`; self-hosted
+installs leave it null. A controlled
 environment also applies the web's idle lock: after `SESSION_IDLE_LOCK_MS` of
 inactivity the app shows a lock screen and requires re-authentication, as
 web MES does (`SessionLockOverlay`, `_public+/unlock.tsx`).
@@ -260,9 +275,10 @@ web MES does (`SessionLockOverlay`, `_public+/unlock.tsx`).
 
 ### Sign-in and session
 
-1. **Instance.** Sign-in runs against the instance chosen above; the
-   `supabaseUrl` and `supabaseAnonKey` from its document configure the
-   supabase-js client, and `mesApi` is the base for every API call.
+1. **Instance.** Sign-in runs against the instance chosen above. Until `/me`
+   has answered, the app talks only to `{server}/api/v1`; the supabase-js
+   client is created afterwards from the `supabaseUrl` and `supabaseAnonKey`
+   in that response.
 2. **Request a code.** `POST /api/v1/auth/code { email }` runs the same gates as
    the MES login action (`_public+/login.tsx`): the IP rate limit, the per-account
    lockout (`AccountLockout`), the user-exists check, and the SSO-required
@@ -271,12 +287,14 @@ web MES does (`SessionLockOverlay`, `_public+/unlock.tsx`).
    does). Web bot protection (BotID/Turnstile) is browser-only, so the app
    relies on the rate limit and lockout, which are the NIST controls.
    Requesting the code straight from Supabase Auth would skip all four gates.
-   The response is `{ method: "code" }`, except for store-review accounts (next
-   step).
+   The response is `{ ok: true }` for every email, so the endpoint reveals
+   nothing about which accounts exist; the `sso_required` refusal is the one
+   exception, and it matches the web login's behaviour.
    **Store-review accounts (Q11).** Apple and Google reviewers can't receive an
    emailed code. For an email in `APP_REVIEW_EMAILS` (read through
    `@carbon/env`, set only on Carbon Cloud, empty everywhere else so the path
-   is off), `/auth/code` sends nothing and returns `{ method: "password" }`.
+   is off), `/auth/code` sends nothing and returns `{ ok: true, method:
+   "password" }`; every other email gets `{ ok: true }` with no `method`.
    The app then shows a password field and calls `POST /api/v1/auth/password`,
    which refuses any email outside the allow-list, applies the same rate limit
    and lockout, signs in with the account's password server-side and returns
@@ -284,20 +302,25 @@ web MES does (`SessionLockOverlay`, `_public+/unlock.tsx`).
    Carbon Cloud with no other access. Normal users never see a password field.
 3. **Enter the code.** The magic-link email template gains the 6-digit code
    (`{{ .Token }}`) next to the existing link, so web users see the same email
-   with a code added. The app calls `supabase.auth.verifyOtp({ email, token,
-   type: "email" })` and gets a session.
-4. **2FA.** If `userHasVerifiedTotpFactor(userId)`, the app runs Supabase's
-   TOTP challenge and verify, raising the session to `aal2`. `requireApiUser`
-   rejects an `aal1` token from such a user with `mfa_required`, mirroring the
-   web's `mfaVerified` bounce. Enrolment stays in ERP ("MES defers first login
-   to ERP").
-5. **Session storage.** The supabase-js client stores its session in
+   with a code added. The app posts it to `POST /api/v1/auth/verify { email,
+   code }`; the server calls `verifyOtp({ email, token, type: "email" })` with
+   the anon client and returns `{ accessToken, refreshToken, expiresAt,
+   mfaRequired }`. The same lockout counts a wrong code as a failed attempt.
+4. **2FA.** When `mfaRequired` is true (`userHasVerifiedTotpFactor(userId)`),
+   the app posts the TOTP code to `POST /api/v1/auth/mfa { code }` with the
+   `aal1` token; the server runs the challenge and returns `aal2` tokens.
+   `requireApiUser` rejects an `aal1` token from such a user with
+   `mfa_required`, mirroring the web's `mfaVerified` bounce. Enrolment stays in
+   ERP ("MES defers first login to ERP").
+5. **Context.** `GET /api/v1/me` returns the instance details above plus
+   companies, locations, the default location (`employeeJob.locationId`), work
+   centers, whether console mode is available, and the permission flags the UI
+   uses to disable controls. The chosen company, location and work centers are
+   stored per device.
+6. **Session storage.** The tokens and the instance details are stored in
    `expo-secure-store` behind an encryption wrapper (SecureStore caps values at
-   2 KB), per Supabase's Expo guide. Token refresh pauses in the background.
-6. **Context.** `GET /api/v1/me` returns companies, locations, the default
-   location (`employeeJob.locationId`), work centers, whether console mode is
-   available, and the permission flags the UI uses to disable controls. The
-   chosen company, location and work centers are stored per device.
+   2 KB), per Supabase's Expo guide, and the supabase-js client is created from
+   them. Token refresh pauses in the background.
 
 SSO sign-in is v1.1. Until then, users of SSO-required domains get a clear
 refusal, and those companies use shared-tablet mode with a non-SSO terminal
@@ -370,15 +393,15 @@ and body:
   runtime version from a fingerprint of the native code.
 - `/api/v1` changes are additive. A breaking change needs `/api/v2`, and v1
   stays until the oldest supported app release stops using it. The two most
-  recent store releases are supported. `minAppVersion` in the
-  `.well-known/carbon-mobile` document lets the server show "Update required"
-  to anything older.
+  recent store releases are supported. Every request carries
+  `X-Carbon-App-Version`, and the server answers `426` to anything older than
+  its minimum, from the first `auth/code` call onwards.
 - **Versions are checked in both directions**, because a self-hosted server
-  can be months behind the store app. The app advertises the API versions it
-  speaks; a server whose document lists none of them, or has no document, is
-  refused with "This Carbon server needs an update". A newer app never
-  enables a feature from its own version number, only from the server's
-  document.
+  can be months behind the store app. Every API response carries
+  `carbon-api: 1` (the versions the server speaks); a `404` from `auth/code`,
+  or a header listing nothing the app speaks, is refused with "This Carbon
+  server needs an update". A newer app never enables a feature from its own
+  version number, only from what `/me` reports.
 - Self-hosted installs use the same store build, linked through the QR code or
   a typed address. There is no default server.
 
@@ -400,11 +423,11 @@ and body:
 | Licensing | Community edition; shared-tablet mode only where console mode is entitled | Same as web MES (Q8) |
 | Distribution | Public store listings; no default server; the instance is linked on the device by QR code or typed address | Tulip and Epicor partner-app pattern; one build for Cloud, BYOC, staging and air-gapped installs (Q9, revised after PR review, Q12) |
 | Instance model | Instances are first-class: a list on the device, all state keyed by `(instanceId, companyId)`, switchable | One customer runs several Carbons (production, staging), and a tablet may need more than one (Q12) |
-| Instance discovery | `GET /.well-known/carbon-mobile` on ERP and MES, validated in `@carbon/mes-core` | Every deployment's server already knows its own ENV; the app has none. Replaces the earlier `/api/v1/config` (Q12) |
+| Handshake | The app knows only the server address before sign-in; code request, code verify and TOTP all go through the MES API; Supabase URL, anon key, mode and flags arrive in the authenticated `/me` | Nothing at a public path describes a server, so installs cannot be enumerated (Q15). Replaces the earlier `/api/v1/config` and the `.well-known` document |
 | Per-deployment builds | Rejected; flavors only for development / preview / production | We do not know who runs Carbon; each flavor is a separate store app (Q12) |
 | Transport | `https` first, then `http` with a visible warning; hostname always shown | Bare single-node installs have no certificate (`byoc` `deploy.go` `Scheme`) |
 | Translations | Reuse the `mes` Lingui catalog | One set of strings for translators (Q10) |
-| Analytics and errors | PostHog (`posthog-react-native`) only when the instance document carries a key; off for air-gapped and controlled installs | No new vendor; self-hosted and ITAR installs must not phone home |
+| Analytics and errors | PostHog (`posthog-react-native`) only when `/me` carries a key; off for air-gapped and controlled installs, and always off before sign-in | No new vendor; self-hosted and ITAR installs must not phone home |
 | 1 · Multi-tenancy | No new tables. Every API call takes `X-Carbon-Company`, checked against the user's claims; every query scopes `companyId`; every persisted client cache and outbox row is keyed by `(instanceId, companyId)`, and hydration is guarded against a mid-flight instance or company switch | Lesson "Client-side entity caches must be company-keyed"; a company id can be the same on production and a staging copy restored from its backup |
 | 2 · Service shape | `@carbon/mes-core` queries take `client` first and return `{ data, error }`; `commands.server.ts` and `screens.server.ts` take `client` / `db` arguments and never build a DB client in a `*.service.ts` | `conventions-services.md`, `no-db-client-in-service` |
 | 3 · RLS coverage | No new tables; direct lookups rely on existing employee-of-company policies | — |
@@ -491,11 +514,12 @@ app, not browsers. Errors are `{ error: { code, message, fields? } }`.
 
 | Endpoint | Auth | Does |
 |---|---|---|
-| `GET /.well-known/carbon-mobile` (ERP and MES roots, not under `/api/v1`) | Public | The instance document (see Instance linking) |
 | `GET /x/connect-mobile` (web MES) and ERP Settings → Connect mobile app | Signed-in employee | Renders the `carbon-mes://link?server=…` QR code |
-| `POST /auth/code` | Public, rate-limited | The MES login gates, then sends the code email; returns `{ method: "code" \| "password" }` |
-| `POST /auth/password` | Public, rate-limited | Store-review accounts only (`APP_REVIEW_EMAILS`); returns a session |
-| `GET /me` | User | Companies, locations, default location, work centers, console availability, permission flags |
+| `POST /auth/code` | Public, rate-limited | The MES login gates, then sends the code email; always `{ ok: true }` (plus `method: "password"` for review accounts); `carbon-api` header |
+| `POST /auth/verify` | Public, rate-limited, lockout | Checks the code server-side; returns tokens and `mfaRequired` |
+| `POST /auth/mfa` | `aal1` user | Runs the TOTP challenge server-side; returns `aal2` tokens |
+| `POST /auth/password` | Public, rate-limited | Store-review accounts only (`APP_REVIEW_EMAILS`); returns tokens |
+| `GET /me` | User | Instance details (Supabase URL and anon key, mode, controlled flag, analytics key, name), companies, locations, default location, work centers, console availability, permission flags |
 | `POST /console/terminal` | User with `update: "settings"` | Terminal token (console mode must be enabled) |
 | `POST /console/pin-in` | Terminal token | PIN check with lockout, operator token |
 | `POST /console/pin-out` | Operator | Ends the pin-in (the app also drops the token) |
@@ -548,7 +572,7 @@ app, not browsers. Errors are `{ error: { code, message, fields? } }`.
 | 409 (other) | State changed, e.g. operation already Done | Refetch and say what changed |
 | 422 `idempotency_key_reused` | Client bug | Needs attention |
 | 426 `update_required` | App older than `minAppVersion` | Update screen |
-| (client-side) `server_too_old` | No instance document, or no shared API version | "This Carbon server needs an update"; the instance can be linked but not signed into |
+| (client-side) `server_too_old` | `404` from `auth/code`, or no shared version in `carbon-api` | "This Carbon server needs an update"; the instance can be linked but not signed into |
 | 503 `retry_later` | Redis unavailable; nothing ran | Retry with the same key |
 
 ### Tooling
@@ -658,16 +682,21 @@ Each is checked on an iPad and an Android tablet (including one Zebra Android
 - [ ] Two instances (production and staging, same company id) are linked on
       one tablet; switching between them swaps the session, cached operations
       and outbox, and nothing from one appears under the other.
-- [ ] A server without `/.well-known/carbon-mobile` is refused with "This
-      Carbon server needs an update"; a server whose document lists
-      `minAppVersion` above the app's shows the update screen.
-- [ ] With `controlledEnvironment: true` or `mode: "airgapped"` in the
-      document, the app makes no request to any host other than the instance's
-      own (verified with a proxy), and locks after the idle window.
+- [ ] A server without the mobile API (`404` on `auth/code`) is refused with
+      "This Carbon server needs an update"; a server whose minimum app version
+      is above the app's answers `426` and the app shows the update screen.
+- [ ] Before sign-in, and with `controlledEnvironment: true` or `mode:
+      "airgapped"` in `/me` afterwards, the app makes no request to any host
+      other than the instance's own (verified with a proxy), and locks after
+      the idle window.
+- [ ] `GET /.well-known/carbon-mobile` and `GET /api/v1/config` do not exist;
+      no unauthenticated endpoint returns the server version, the Supabase URL,
+      the anon key, the deployment mode or the company name. `POST /auth/code`
+      returns the same body for an existing and a non-existent email.
 - [ ] Linking over `http` shows the insecure-connection warning on the sign-in
       screen; linking over `https` does not.
 - [ ] An email in `APP_REVIEW_EMAILS` gets a password field and signs in with
-      it; any other email gets `{ method: "code" }`, and `POST /auth/password`
+      it; any other email gets `{ ok: true }` with no `method`, and `POST /auth/password`
       refuses it. With the variable unset, no email gets the password path.
 - [ ] A user with a verified TOTP factor must enter a 2FA code before any API
       call succeeds; an `aal1` token gets `401 mfa_required`.
@@ -737,7 +766,7 @@ Each is checked on an iPad and an Android tablet (including one Zebra Android
 | Uniwind breaking changes | Low | Pin versions; upgrade on purpose |
 | Store review rejects the app | Med | Review-only password sign-in (Q11); reviewer notes explain the server address and the demo company |
 | The review password path is abused | Med | Allow-list only, empty on every install but Carbon Cloud; same rate limit and lockout as code sign-in; the account belongs to a demo company only |
-| A malicious QR code links the app to a look-alike server | Med | The hostname is shown on every sign-in screen; `https` preferred with a visible warning over `http`; the document is validated; nothing is sent until the user signs in |
+| A malicious QR code links the app to a look-alike server | Med | The hostname is shown on every sign-in screen; `https` preferred with a visible warning over `http`; nothing leaves the device until the user types their email, and no token exists until they enter the emailed code |
 | Self-hosted servers stay behind the app for months | Med | Two-way version checks; features gated on the server's document, never the app's version; additive-only `/api/v1` |
 
 ## Out of Scope / Later
@@ -801,10 +830,10 @@ Raised in PR review (#1766, Brad, 2026-09-29):
       all of them. — **Answer (Brad's comment; design agreed with Sid,
       2026-09-30):** instances are first-class in the app (a switchable list,
       all state keyed by instance), linked by a QR code that web Carbon shows
-      or a typed address, described by a public `.well-known/carbon-mobile`
-      document each server serves, with version checks in both directions and
-      no default server. Per-deployment builds were rejected. See Instance
-      linking.
+      or a typed address, with version checks in both directions and no
+      default server. Per-deployment builds were rejected. See Instance
+      linking. (The first revision described each server through a public
+      `.well-known/carbon-mobile` document; Q15 removed it.)
 - [x] **Q13. Folder name?** — **Answer (Brad):** `apps/mobile`, not
       `apps/mes-mobile`. The scope stays MES-only for v1; the store name
       "Carbon MES" is kept until the team decides otherwise.
@@ -816,6 +845,16 @@ Raised in PR review (#1766, Brad, 2026-09-29):
       Operator" employee type exists for exactly that terminal account. Raised
       for Brad in the PR in case the team wants operator-level permissions,
       which would be a web change too.
+- [x] **Q15. The public `.well-known/carbon-mobile` document exposed too much.
+      What is the minimum a handshake needs?** (Brad, PR review, 2026-09-30.)
+      Why it matters: a fixed public path listing version, mode and the
+      controlled-environment flag lets one scan enumerate every Carbon
+      install. — **Answer (Sid, 2026-10-01):** the app needs only the server
+      address before sign-in. Code request, code verify and TOTP go through
+      the MES API (all with server-side precedents), and the Supabase URL, anon
+      key, mode, flags and name arrive in the authenticated `/me`. The public
+      surface is one rate-limited `POST` that always answers `ok`. A signed
+      pairing token in the QR code is noted as optional later hardening.
 
 ## Changelog
 
@@ -831,3 +870,9 @@ Raised in PR review (#1766, Brad, 2026-09-29):
   derivation, `http` with a warning, two-way version checks, air-gapped and
   controlled flags, analytics off unless the server allows it, and the rejected
   per-deployment builds. Recorded Q14 (shared-terminal permissions, parity).
+- 2026-10-01: PR review (Q15). Removed the public `.well-known/carbon-mobile`
+  document. The handshake is now: address from the QR code, `auth/code`
+  (always `ok`, `carbon-api` header), `auth/verify` and `auth/mfa` server-side,
+  then the authenticated `/me` delivers the Supabase URL and anon key, mode,
+  controlled flag, analytics key and name. Added the no-enumeration acceptance
+  criterion.
