@@ -75,7 +75,7 @@ function moveBetweenFooterActions(event: KeyboardEvent<HTMLDivElement>) {
   if (index === -1) return;
   event.preventDefault();
   const step = event.key === "ArrowRight" ? 1 : -1;
-  actions[(index + step + actions.length) % actions.length].focus();
+  actions[(index + step + actions.length) % actions.length]?.focus();
 }
 
 const ModalContentVariants = cva(
