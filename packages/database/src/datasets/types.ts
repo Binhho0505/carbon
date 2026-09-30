@@ -1193,6 +1193,14 @@ export type AssemblyStepSpec = {
   componentNodeIds: string[];
   materials?: { item: string; quantity: number }[];
   tools?: { item: string; quantity: number }[];
+  /** Needed when another step names this one in `parent` / `usedIn`. Unique per assembly. */
+  key?: string;
+  /** A sub-assembly header row: names no node ids, materials or tools. */
+  isSubAssembly?: boolean;
+  /** Key of the header this step is a member of. Members sit directly before their header. */
+  parent?: string;
+  /** Headers only: key of the later step that fits this finished sub-assembly. */
+  usedIn?: string;
 };
 
 export type AssemblyComponentMappingSpec = {

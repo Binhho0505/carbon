@@ -4,6 +4,7 @@ import { addBomLine, addBopOperation, createItem } from "../helpers/items.ts";
 import { insertId, insertRow, need, one, rows } from "../sql.ts";
 import type {
   AssemblySpec,
+  AssemblyStepSpec,
   Ctx,
   EnforcementRuleSpec,
   InspectionPlanSpec,
@@ -72,14 +73,19 @@ async function seedAssembly(ctx: Ctx, spec: AssemblySpec): Promise<void> {
   });
 
   let sortOrder = 1;
+  const stepIds: string[] = [];
+  const stepIdByKey = new Map<string, string>();
   for (const step of spec.steps) {
     const stepId = await insertId(ctx, "assemblyInstructionStep", {
       assemblyInstructionId: instructionId,
       title: step.title,
       instructionText: step.instruction ?? step.title,
       componentNodeIds: step.componentNodeIds,
+      isSubAssembly: step.isSubAssembly ?? false,
       sortOrder: sortOrder++
     });
+    stepIds.push(stepId);
+    if (step.key) stepIdByKey.set(step.key, stepId);
     for (const [index, material] of (step.materials ?? []).entries()) {
       await insertRow(ctx, "assemblyInstructionStepMaterial", {
         stepId,
@@ -96,6 +102,32 @@ async function seedAssembly(ctx: Ctx, spec: AssemblySpec): Promise<void> {
         sortOrder: index + 1
       });
     }
+  }
+
+  // Sub-assembly links point both ways in sortOrder (members precede their
+  // header, a header's using step follows it), so they are set once every row exists.
+  const stepIdFor = (step: AssemblyStepSpec, key: string) => {
+    const id = stepIdByKey.get(key);
+    if (!id) {
+      throw new Error(
+        `Seed: assembly step "${step.title}" names unknown step key "${key}"`
+      );
+    }
+    return id;
+  };
+  for (const [index, step] of spec.steps.entries()) {
+    if (!step.parent && !step.usedIn) continue;
+    await ctx.client.query(
+      `UPDATE "assemblyInstructionStep"
+       SET "parentStepId" = $1, "usedInStepId" = $2
+       WHERE id = $3 AND "companyId" = $4`,
+      [
+        step.parent ? stepIdFor(step, step.parent) : null,
+        step.usedIn ? stepIdFor(step, step.usedIn) : null,
+        stepIds[index],
+        ctx.companyId
+      ]
+    );
   }
 
   for (const mapping of spec.componentMappings) {

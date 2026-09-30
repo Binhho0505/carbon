@@ -45,6 +45,7 @@ import {
 import { RULE_FIELDS, type RuleValueKind } from "./rule-fields.ts";
 import type {
   AccountClass,
+  AssemblyStepSpec,
   BankAccountSpec,
   BopOperationSpec,
   Dataset,
@@ -3825,6 +3826,83 @@ export function floor(ctx: ValidationCtx): void {
   }
 }
 
+/**
+ * The sub-assembly rules `validateSubAssemblies` (@carbon/viewer) enforces on every
+ * ERP write, restated here because this package cannot depend on the viewer. Steps
+ * are in play order: a header's members sit directly before it, and the step that
+ * uses a finished sub-assembly comes after it.
+ */
+function assemblySubAssemblies(
+  steps: AssemblyStepSpec[],
+  fail: (message: string) => void
+): void {
+  const indexByKey = new Map<string, number>();
+  for (const [index, step] of steps.entries()) {
+    if (step.key === undefined) continue;
+    if (indexByKey.has(step.key)) {
+      fail(
+        `items.assembly step "${step.title}": key "${step.key}" is used twice`
+      );
+    }
+    indexByKey.set(step.key, index);
+  }
+  const headerKeys = new Set(
+    steps.filter((step) => step.isSubAssembly).map((step) => step.key)
+  );
+
+  for (const [index, step] of steps.entries()) {
+    const where = `items.assembly step "${step.title}"`;
+    if (step.isSubAssembly) {
+      if (step.key === undefined) fail(`${where}: a sub-assembly needs a key`);
+      if (step.parent !== undefined) {
+        fail(`${where}: a sub-assembly cannot be a member of another one`);
+      }
+      if (
+        step.componentNodeIds.length > 0 ||
+        (step.materials ?? []).length > 0 ||
+        (step.tools ?? []).length > 0
+      ) {
+        fail(`${where}: a sub-assembly names no node ids, materials or tools`);
+      }
+      // Members: the contiguous run of steps directly before the header.
+      const members = new Set<number>();
+      for (let i = index - 1; i >= 0 && steps[i]!.parent === step.key; i--) {
+        members.add(i);
+      }
+      for (const [i, other] of steps.entries()) {
+        if (other.parent === step.key && !members.has(i)) {
+          fail(
+            `items.assembly step "${other.title}": members of "${step.title}" must sit directly before it`
+          );
+        }
+      }
+      if (step.usedIn !== undefined) {
+        const target = indexByKey.get(step.usedIn);
+        if (target === undefined) {
+          fail(`${where}: usedIn names unknown step key "${step.usedIn}"`);
+        } else if (target <= index) {
+          fail(
+            `${where}: usedIn "${step.usedIn}" must come after the sub-assembly`
+          );
+        } else if (steps[target]!.isSubAssembly) {
+          fail(
+            `${where}: usedIn "${step.usedIn}" is a sub-assembly, not a step`
+          );
+        } else if (steps[target]!.parent === step.key) {
+          fail(`${where}: usedIn "${step.usedIn}" is one of its own members`);
+        }
+      }
+    } else {
+      if (step.usedIn !== undefined) {
+        fail(`${where}: only a sub-assembly can name usedIn`);
+      }
+      if (step.parent !== undefined && !headerKeys.has(step.parent)) {
+        fail(`${where}: parent "${step.parent}" is not a sub-assembly`);
+      }
+    }
+  }
+}
+
 const MIN_ASSEMBLY_STEP_MATERIALS = 2;
 const MIN_ASSEMBLY_COMPONENT_MAPPINGS = 2;
 
@@ -3856,6 +3934,7 @@ export function assembly(ctx: ValidationCtx): void {
           }
         }
       }
+      assemblySubAssemblies(assembly.steps, fail);
       const bom =
         assembly.item === undefined
           ? new Set<string>()

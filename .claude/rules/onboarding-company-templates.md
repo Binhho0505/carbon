@@ -433,13 +433,22 @@ hand-editing, and never re-bake a model without re-deriving them — `nodeId` is
 tessellation, so ANY change to the mesh (including a different `linearDeflection`) invalidates
 every id in the dataset.
 
-The `.glb` files are baked ONCE by running the upstream STEP through a locally-built
-`apps/assembler` (`POST /v1/convert` at `linearDeflection: 2.0`, `angularDeflection: 1.0` — the
-default 0.1 produces a 30 MB GLB where the coarse setting produces 2.7 MB, with no visible
-difference at demo scale). The STEP sources are deliberately NOT committed. Both the recipe and
-the upstream licenses live in `assets/ATTRIBUTION.md` and
-`.ai/plans/2026-08-20-demo-cad-models.md` — three of the four models are CC BY or CC0 and legally
-REQUIRE that attribution to survive redistribution, so that file is not optional documentation.
+The `.glb` files are original models generated in CadQuery (one per dataset, product tree
+mirroring its top-level BOM) and baked ONCE through a locally-built `apps/assembler`
+(`POST /v1/convert` at `linearDeflection: 0.5`, `angularDeflection: 0.3`, 0.8–2.3 MB each).
+The STEP sources and generator scripts are deliberately NOT committed; `assets/ATTRIBUTION.md`
+lists the models, and no third-party CAD remains, so no attribution is owed.
+
+Every dataset assembly seeds **sub-assemblies**, each shaped to its product (satellite: three
+benches → two parents → integration; robotics: wide, the link assembly uses both joint drives and the
+controller joins the main build unused; precision: three levels deep, one step fits two
+sub-assemblies; motor: a chain).
+`AssemblyStepSpec` takes `key`, `isSubAssembly` (a header row), `parent` (the header a member
+belongs to) and `usedIn` (headers only: the later step that fits the finished unit).
+`seedAssembly` inserts the rows in play order and sets `parentStepId` / `usedInStepId` in a
+second pass; the validator restates the viewer's `validateSubAssemblies` rules (members directly
+before their header, no nesting, `usedIn` points forward at a non-header step that is not one of
+its own members) because `@carbon/database` cannot depend on `@carbon/viewer`.
 
 Two things needed no change and should stay that way: `wipe.ts` discovers tables by their
 `companyId` column rather than a hard-coded list, so `modelUpload` and every `assembly*` table are
