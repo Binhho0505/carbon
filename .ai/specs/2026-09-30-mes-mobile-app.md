@@ -8,7 +8,7 @@
 ## TLDR
 
 Build a native MES app for operators on tablets and phones, in this monorepo at
-`apps/mes-mobile`, with Expo SDK 57, Expo Router, Uniwind and React Native
+`apps/mobile`, with Expo SDK 57, Expo Router, Uniwind and React Native
 Reusables. The app never gets the service-role key and never calls a web route
 action. Everything that changes data goes through a new **MES API**
 (`apps/mes/app/routes/api+/v1+/`), which runs the *same* server code as today's
@@ -17,6 +17,12 @@ module (`commands.server.ts`). The three main screens (operations list,
 operation detail, picking) also load through the API, so operators see exactly
 what web MES shows them. The app reads simple lookups, subscribes to live
 changes and uploads photos straight to Supabase as the signed-in user.
+
+One store build serves every Carbon: Cloud, BYOC clusters, staging and
+air-gapped installs. The app has no server built in. A supervisor links it to a
+Carbon by scanning a QR code that web Carbon shows (or typing the address), the
+server describes itself through a public `.well-known/carbon-mobile` document,
+and the app can hold several such instances and switch between them.
 
 v1 covers core execution: time, good/scrap/rework, material by scan, work
 instructions and step records with photos, notes, quality issues, labels,
@@ -156,13 +162,107 @@ The app mirrors this with two signed tokens instead of cookies:
 Tokens live in memory only (the operator token) or SecureStore (the terminal
 token), never in the query cache.
 
+### Instance linking
+
+Carbon is not one server. Carbon Cloud alone is several deployments
+(`carbon`/`mes` and `carbon-us`/`mes-us` on Vercel); every BYOC customer runs
+their own cluster with its own domain and its own Supabase, derived from the
+environment's `domain` and `scheme` (`byoc` `internal/environment/deploy.go`,
+`DeployConfig`); a customer can run staging beside production on one cluster;
+and some installs are air-gapped or controlled (licence `mode`,
+`ControlledEnvironment`). Each web MES server knows which one it is from its
+own ENV. The store app cannot: there is one build on the App Store and Google
+Play, identical for every customer, with no per-deployment ENV. So the app is
+**told** which Carbon to use, on the device, and it can be told more than once.
+
+**Instances are first-class.** An instance is a record the app keeps per linked
+Carbon server: name, MES API URL, Supabase URL and anon key, supported API
+versions, server version, `mode`, `controlledEnvironment`, and the scheme it
+was reached over. Every other piece of app state hangs off one instance: the
+Supabase session, the chosen company, location and work centers, the query
+cache and the outbox rows, all keyed by `(instanceId, companyId)`. The app
+holds a list of instances and switches between them from the More screen;
+switching swaps all of that state at once, so staging data can never appear
+under production. No instance is the default.
+
+**Linking.**
+
+1. **The server describes itself** at `GET /.well-known/carbon-mobile`, public,
+   served by both ERP and MES (precedent: ERP's
+   `[.]well-known.oauth-authorization-server.ts`). Because every deployment's
+   server is started with its own ENV, every deployment's document is right
+   for that deployment with no per-customer work:
+   ```json
+   {
+     "name": "Acme Manufacturing",
+     "mesApi": "https://mes.carbon.acme.com/api/v1",
+     "supabaseUrl": "https://supabase.carbon.acme.com",
+     "supabaseAnonKey": "eyJ…",
+     "apiVersions": [1],
+     "serverVersion": "2026.09.4",
+     "minAppVersion": "1.0.0",
+     "mode": "connected",
+     "controlledEnvironment": false,
+     "analytics": { "posthogKey": null }
+   }
+   ```
+   `name` is the company-group name when the server is single-tenant, else the
+   product name. The anon key is public by design (it already ships in the web
+   apps' HTML). `mode` and `controlledEnvironment` come from the same ENV the
+   web apps read (`CONTROLLED_ENVIRONMENT`; a new `CARBON_DEPLOYMENT_MODE` for
+   `connected` / `airgapped`, default `connected`).
+2. **Web Carbon shows a QR code.** ERP Settings and the MES More screen get a
+   "Connect mobile app" page that renders `carbon-mes://link?server=<MES_URL>`
+   as a QR code. Any signed-in employee can open it: the server's public
+   address is not a secret. The `carbon-mes` scheme is registered to the app at
+   build time, so the tablet's own camera app opens Carbon MES with the address
+   filled in, and the in-app scanner (`expo-camera`) reads the same code.
+3. **Typing is the fallback.** The Connect screen also accepts an address. A
+   bare domain (`carbon.acme.com`) is resolved with the BYOC convention, `mes.`
+   under the domain (`byoc` `docs/domains.md`); a full URL is used as given.
+   The app tries `https` first, then `http`, because a bare single-node install
+   has no certificate (`deploy.go` `Scheme`). Over `http` the sign-in screen
+   shows an "insecure connection" warning, and the server hostname is shown on
+   every sign-in screen so a malicious QR code cannot quietly point the app at
+   a look-alike server.
+4. **Carbon Cloud is a button, not a default.** The Connect screen offers
+   "Carbon Cloud", which fills in Cloud's address. Cloud users can still scan
+   the QR from their own web MES, which is the right choice when Cloud has more
+   than one region.
+5. **The app fetches the document, validates it (zod, in `@carbon/mes-core`),
+   saves the instance, and starts sign-in against it.** A server with no
+   document, or one whose `apiVersions` contains nothing the app speaks, is
+   refused with "This Carbon server needs an update".
+
+**What the flags do.** `mode: "airgapped"` or `controlledEnvironment: true`
+turns off every outbound call the app would otherwise make: analytics, the
+store update check, image CDNs. Analytics run only when the document carries
+`analytics.posthogKey`; self-hosted installs leave it null. A controlled
+environment also applies the web's idle lock: after `SESSION_IDLE_LOCK_MS` of
+inactivity the app shows a lock screen and requires re-authentication, as
+web MES does (`SessionLockOverlay`, `_public+/unlock.tsx`).
+
+**Rejected.**
+
+- *A build (flavor) per deployment.* Expo app variants need a distinct bundle
+  id each, so each one is a separate store app. Carbon is open source and
+  self-hostable: we do not know who runs it, and air-gapped installs never
+  tell us, so we cannot build for them; and Apple rejects catalogues of
+  near-identical apps. Flavors stay for `development` / `preview` /
+  `production` only. A customer who wants a branded app can build one from the
+  repo with their own store accounts: supported, not distributed by Carbon.
+- *A central directory of servers kept by Carbon.* Air-gapped installs cannot
+  register, and it discloses who uses Carbon.
+- *Universal links.* The domains an app may claim are fixed at build time, so
+  they cannot cover self-hosted domains.
+- *Defaulting to Carbon Cloud.* A self-hosted operator would send their email
+  to a server where their account does not exist.
+
 ### Sign-in and session
 
-1. **Server address.** First launch asks for the Carbon server, defaulting to
-   Carbon Cloud's MES address. A QR code (`carbon-mes://configure?server=…`)
-   fills it in. `GET /api/v1/config` (public) returns that server's
-   `supabaseUrl`, `supabaseAnonKey`, `apiVersion` and `minAppVersion`. The anon
-   key is public by design (it already ships in the web apps' HTML).
+1. **Instance.** Sign-in runs against the instance chosen above; the
+   `supabaseUrl` and `supabaseAnonKey` from its document configure the
+   supabase-js client, and `mesApi` is the base for every API call.
 2. **Request a code.** `POST /api/v1/auth/code { email }` runs the same gates as
    the MES login action (`_public+/login.tsx`): the IP rate limit, the per-account
    lockout (`AccountLockout`), the user-exists check, and the SSO-required
@@ -270,17 +370,24 @@ and body:
   runtime version from a fingerprint of the native code.
 - `/api/v1` changes are additive. A breaking change needs `/api/v2`, and v1
   stays until the oldest supported app release stops using it. The two most
-  recent store releases are supported. `minAppVersion` in `/config` lets the
-  server show "Update required" to anything older.
-- Self-hosted installs use the same store build: the server address screen, or
-  the QR code, points it at their install.
+  recent store releases are supported. `minAppVersion` in the
+  `.well-known/carbon-mobile` document lets the server show "Update required"
+  to anything older.
+- **Versions are checked in both directions**, because a self-hosted server
+  can be months behind the store app. The app advertises the API versions it
+  speaks; a server whose document lists none of them, or has no document, is
+  refused with "This Carbon server needs an update". A newer app never
+  enables a feature from its own version number, only from the server's
+  document.
+- Self-hosted installs use the same store build, linked through the QR code or
+  a typed address. There is no default server.
 
 ### Design Decisions
 
 | Decision | Choice | Rationale |
 |---|---|---|
 | App type | Native (Expo), tablet-first, phones supported | Hardware access and device registration (Tulip, Plex precedent); CTO recommendation |
-| Where it lives | `apps/mes-mobile` in this monorepo | The API and the app change in one PR; types, validators, translations and tokens are shared without publishing (Q7) |
+| Where it lives | `apps/mobile` in this monorepo | The API and the app change in one PR; types, validators, translations and tokens are shared without publishing (Q7) |
 | React versions | Web stays on 18.3.1; the app uses React 19.2 | Expo forbids two React Native versions per monorepo and two React versions per app, not different React per app. The global pin becomes scoped (see Tooling) |
 | Styling | Uniwind (Tailwind v4) | NativeWind stable supports Tailwind v3 only; Carbon web is Tailwind 4.3 |
 | Components | React Native Reusables, copied in; Gluestack UI v5 as fallback | shadcn model like `@carbon/react`; we own the code, so the one-maintainer risk is contained |
@@ -291,10 +398,14 @@ and body:
 | Shared tablets | In v1, via signed terminal and operator tokens | The dominant device model at every surveyed vendor (Q2) |
 | Offline | Online-first, ordered outbox, 8-hour stale limit, Redis de-duplication | Nobody offers offline production writes (Q6) |
 | Licensing | Community edition; shared-tablet mode only where console mode is entitled | Same as web MES (Q8) |
-| Distribution | Public store listings, server address at first launch | Tulip and Epicor partner-app pattern; one build for Cloud and self-hosted (Q9) |
+| Distribution | Public store listings; no default server; the instance is linked on the device by QR code or typed address | Tulip and Epicor partner-app pattern; one build for Cloud, BYOC, staging and air-gapped installs (Q9, revised after PR review, Q12) |
+| Instance model | Instances are first-class: a list on the device, all state keyed by `(instanceId, companyId)`, switchable | One customer runs several Carbons (production, staging), and a tablet may need more than one (Q12) |
+| Instance discovery | `GET /.well-known/carbon-mobile` on ERP and MES, validated in `@carbon/mes-core` | Every deployment's server already knows its own ENV; the app has none. Replaces the earlier `/api/v1/config` (Q12) |
+| Per-deployment builds | Rejected; flavors only for development / preview / production | We do not know who runs Carbon; each flavor is a separate store app (Q12) |
+| Transport | `https` first, then `http` with a visible warning; hostname always shown | Bare single-node installs have no certificate (`byoc` `deploy.go` `Scheme`) |
 | Translations | Reuse the `mes` Lingui catalog | One set of strings for translators (Q10) |
-| Analytics and errors | PostHog (`posthog-react-native`), as web MES uses PostHog | No new vendor |
-| 1 · Multi-tenancy | No new tables. Every API call takes `X-Carbon-Company`, checked against the user's claims; every query scopes `companyId`; every persisted client cache and outbox row is keyed by company, and hydration is guarded against a mid-flight company switch | Lesson "Client-side entity caches must be company-keyed" |
+| Analytics and errors | PostHog (`posthog-react-native`) only when the instance document carries a key; off for air-gapped and controlled installs | No new vendor; self-hosted and ITAR installs must not phone home |
+| 1 · Multi-tenancy | No new tables. Every API call takes `X-Carbon-Company`, checked against the user's claims; every query scopes `companyId`; every persisted client cache and outbox row is keyed by `(instanceId, companyId)`, and hydration is guarded against a mid-flight instance or company switch | Lesson "Client-side entity caches must be company-keyed"; a company id can be the same on production and a staging copy restored from its backup |
 | 2 · Service shape | `@carbon/mes-core` queries take `client` first and return `{ data, error }`; `commands.server.ts` and `screens.server.ts` take `client` / `db` arguments and never build a DB client in a `*.service.ts` | `conventions-services.md`, `no-db-client-in-service` |
 | 3 · RLS coverage | No new tables; direct lookups rely on existing employee-of-company policies | — |
 | 4 · Permission scoping | Each endpoint mirrors its web route's `requirePermissions` argument | Parity (Q4) |
@@ -380,7 +491,8 @@ app, not browsers. Errors are `{ error: { code, message, fields? } }`.
 
 | Endpoint | Auth | Does |
 |---|---|---|
-| `GET /config` | Public | Supabase URL, anon key, API version, minimum app version |
+| `GET /.well-known/carbon-mobile` (ERP and MES roots, not under `/api/v1`) | Public | The instance document (see Instance linking) |
+| `GET /x/connect-mobile` (web MES) and ERP Settings → Connect mobile app | Signed-in employee | Renders the `carbon-mes://link?server=…` QR code |
 | `POST /auth/code` | Public, rate-limited | The MES login gates, then sends the code email; returns `{ method: "code" \| "password" }` |
 | `POST /auth/password` | Public, rate-limited | Store-review accounts only (`APP_REVIEW_EMAILS`); returns a session |
 | `GET /me` | User | Companies, locations, default location, work centers, console availability, permission flags |
@@ -436,6 +548,7 @@ app, not browsers. Errors are `{ error: { code, message, fields? } }`.
 | 409 (other) | State changed, e.g. operation already Done | Refetch and say what changed |
 | 422 `idempotency_key_reused` | Client bug | Needs attention |
 | 426 `update_required` | App older than `minAppVersion` | Update screen |
+| (client-side) `server_too_old` | No instance document, or no shared API version | "This Carbon server needs an update"; the instance can be linked but not signed into |
 | 503 `retry_later` | Redis unavailable; nothing ran | Retry with the same key |
 
 ### Tooling
@@ -448,15 +561,15 @@ app, not browsers. Errors are `{ error: { code, message, fields? } }`.
   named catalog (`catalogs.mobile`) for React 19.2, React Native and Expo.
   Prove web is unchanged: `pnpm why react` for `erp` and `mes` shows only
   18.3.1.
-- **Lingui.** Add `apps/mes-mobile` sources to the `mes` catalog's extract
+- **Lingui.** Add `apps/mobile` sources to the `mes` catalog's extract
   globs (an Ask First change, approved in Q10). Load catalogs through Lingui's
   Metro transformer; add Intl polyfills only where Hermes lacks them.
-- **Checks.** Add `apps/mes-mobile` and `packages/mes-core` to the source roots
+- **Checks.** Add `apps/mobile` and `packages/mes-core` to the source roots
   in `packages/checks/src/sources/typescript.ts`, so `no-raw-rounding`,
   `no-inline-fraction-digits` and `no-db-client-in-service` scan them. The new
   API routes and `.server` modules are already covered.
 - **Biome.** `apps/biome.jsonc` only includes `./**/app/**/*.ts*`; add
-  `apps/mes-mobile/src/**`.
+  `apps/mobile/src/**`.
 - **Turbo.** The app defines `typecheck`, `lint` and `test`, and no `build`
   script (EAS builds it), so `pnpm run build` is unaffected.
 - **Dates and numbers.** No JavaScript `Date` for parsing, formatting or
@@ -477,8 +590,9 @@ operator off the operation screen.
 ```
 app/
   _layout.tsx                 providers: Query, Auth, Theme, i18n
-  (setup)/server.tsx          Carbon server address, QR scan
-  (auth)/sign-in.tsx          email → "Send code"
+  (setup)/connect.tsx         scan the QR, type an address, or "Carbon Cloud"
+  (setup)/instances.tsx       linked instances; switch, add, remove
+  (auth)/sign-in.tsx          email → "Send code" (server hostname shown)
   (auth)/verify.tsx           6-digit code
   (auth)/two-factor.tsx       TOTP code
   (app)/_layout.tsx           guard: session + company + location
@@ -489,7 +603,7 @@ app/
   (app)/(tabs)/picking/index.tsx
   (app)/(tabs)/picking/[listId].tsx
   (app)/(tabs)/timecard.tsx
-  (app)/(tabs)/more.tsx       shared terminal, language, theme, outbox, sign out
+  (app)/(tabs)/more.tsx       switch instance, shared terminal, language, theme, outbox, sign out
   (app)/scan.tsx              camera scanner (modal)
   (app)/pin.tsx               operator picker + PIN pad (shared terminal)
 ```
@@ -535,9 +649,23 @@ app/
 Each is checked on an iPad and an Android tablet (including one Zebra Android
 11+ device) and on one phone per platform.
 
-- [ ] A user enters a Carbon Cloud server, requests a code, enters it, and lands
-      on their default location's operations list; the same user on web MES
-      sees the same operations for the same work centers.
+- [ ] A supervisor opens "Connect mobile app" on a self-hosted web MES, scans
+      the QR code with the app, and the app shows that server's name and
+      hostname; the user requests a code, enters it, and lands on their default
+      location's operations list; the same user on web MES sees the same
+      operations for the same work centers. The same flow works by typing the
+      bare domain, and by tapping "Carbon Cloud".
+- [ ] Two instances (production and staging, same company id) are linked on
+      one tablet; switching between them swaps the session, cached operations
+      and outbox, and nothing from one appears under the other.
+- [ ] A server without `/.well-known/carbon-mobile` is refused with "This
+      Carbon server needs an update"; a server whose document lists
+      `minAppVersion` above the app's shows the update screen.
+- [ ] With `controlledEnvironment: true` or `mode: "airgapped"` in the
+      document, the app makes no request to any host other than the instance's
+      own (verified with a proxy), and locks after the idle window.
+- [ ] Linking over `http` shows the insecure-connection warning on the sign-in
+      screen; linking over `https` does not.
 - [ ] An email in `APP_REVIEW_EMAILS` gets a password field and signs in with
       it; any other email gets `{ method: "code" }`, and `POST /auth/password`
       refuses it. With the variable unset, no email gets the password path.
@@ -582,7 +710,7 @@ Each is checked on an iPad and an Android tablet (including one Zebra Android
       complete, scrap, issue, finish, picking and print on web).
 - [ ] `pnpm why react` for `erp` and `mes` shows only 18.3.1 after the pin
       change.
-- [ ] `pnpm exec turbo run typecheck --filter=mes --filter=mes-mobile
+- [ ] `pnpm exec turbo run typecheck --filter=mes --filter=mobile
       --filter=@carbon/mes-core`, `pnpm exec biome check`, `pnpm test` and
       `pnpm run lingui:check` pass.
 
@@ -590,7 +718,7 @@ Each is checked on an iPad and an Android tablet (including one Zebra Android
 
 | Phase | Weeks | Output | Done when |
 |---|---|---|---|
-| 0 · Scaffold | 1 | React pin scoped, `apps/mes-mobile` and `packages/mes-core` created, tooling wired | CI green with an empty app; web unchanged |
+| 0 · Scaffold | 1 | React pin scoped, `apps/mobile` and `packages/mes-core` created, tooling wired | CI green with an empty app; web unchanged |
 | 1 · Spike | 1 | Server address, code sign-in, 2FA, operations list through `GET /operations` | The list matches web MES on an iPad and an Android tablet |
 | 2 · MES API | 2–3 | `requireApiUser`, tokens, idempotency, `commands.server.ts`, `screens.server.ts`, every endpoint | Web routes call the extracted code; API tests pass |
 | 3 · Screens | 4–6 | Every v1 screen, outbox, scanning, photos, print, shared terminal | A pilot operator runs a full job on a tablet |
@@ -609,6 +737,8 @@ Each is checked on an iPad and an Android tablet (including one Zebra Android
 | Uniwind breaking changes | Low | Pin versions; upgrade on purpose |
 | Store review rejects the app | Med | Review-only password sign-in (Q11); reviewer notes explain the server address and the demo company |
 | The review password path is abused | Med | Allow-list only, empty on every install but Carbon Cloud; same rate limit and lockout as code sign-in; the account belongs to a demo company only |
+| A malicious QR code links the app to a look-alike server | Med | The hostname is shown on every sign-in screen; `https` preferred with a visible warning over `http`; the document is validated; nothing is sent until the user signs in |
+| Self-hosted servers stay behind the app for months | Med | Two-way version checks; features gated on the server's document, never the app's version; additive-only `/api/v1` |
 
 ## Out of Scope / Later
 
@@ -644,13 +774,14 @@ for each.
 - [x] **Q6. Offline behaviour?** — **Answer:** online-first with an ordered
       outbox for short drops, an 8-hour stale limit and duplicate protection in
       Redis.
-- [x] **Q7. Stack and repository?** — **Answer:** `apps/mes-mobile` in this
-      monorepo; Expo SDK 57, Expo Router, Uniwind, React Native Reusables,
-      TanStack Query, supabase-js, PostHog; web stays on React 18.
+- [x] **Q7. Stack and repository?** — **Answer:** this monorepo (folder
+      renamed to `apps/mobile` by Q13); Expo SDK 57, Expo Router, Uniwind,
+      React Native Reusables, TanStack Query, supabase-js, PostHog; web stays
+      on React 18.
 - [x] **Q8. Licensing?** — **Answer:** Community edition, like web MES.
 - [x] **Q9. Distribution?** — **Answer:** public App Store and Google Play
-      listings; server address at first launch (default Carbon Cloud), with a
-      QR code to configure.
+      listings, with the server chosen on the device by QR code or typed
+      address. (Originally "default Carbon Cloud"; revised by Q12.)
 - [x] **Q10. Translations?** — **Answer:** reuse the existing `mes` catalog.
 
 Surfaced while writing the spec:
@@ -661,6 +792,31 @@ Surfaced while writing the spec:
       the `APP_REVIEW_EMAILS` allow-list (Carbon Cloud only) get a password
       field instead of a code; everyone else is unchanged.
 
+Raised in PR review (#1766, Brad, 2026-09-29):
+
+- [x] **Q12. The spec assumed a single instance of Carbon. How does the app
+      link to any deployed instance?** Why it matters: Carbon Cloud is several
+      deployments, BYOC customers run their own clusters, staging sits beside
+      production, and some installs are air-gapped; one store build must reach
+      all of them. — **Answer (Brad's comment; design agreed with Sid,
+      2026-09-30):** instances are first-class in the app (a switchable list,
+      all state keyed by instance), linked by a QR code that web Carbon shows
+      or a typed address, described by a public `.well-known/carbon-mobile`
+      document each server serves, with version checks in both directions and
+      no default server. Per-deployment builds were rejected. See Instance
+      linking.
+- [x] **Q13. Folder name?** — **Answer (Brad):** `apps/mobile`, not
+      `apps/mes-mobile`. The scope stays MES-only for v1; the store name
+      "Carbon MES" is kept until the team decides otherwise.
+- [x] **Q14. On a shared terminal, whose permissions apply: the terminal
+      account's or the pinned operator's?** Surfaced while answering Q12. —
+      **Answer:** parity with web, which checks claims for the session user
+      (`auth.server.ts` `getUserClaims(userId, companyId)` before
+      `getEffectiveUser`) and attributes the work to the operator; the "Console
+      Operator" employee type exists for exactly that terminal account. Raised
+      for Brad in the PR in case the team wants operator-level permissions,
+      which would be a web change too.
+
 ## Changelog
 
 - 2026-09-30: Created. Q1–Q10 resolved (recommended answers accepted); Q11,
@@ -669,3 +825,9 @@ Surfaced while writing the spec:
   closed the four security gaps found while researching (permission checks in
   `post-picking` and five `issue` cases, the unsigned console cookie, readable
   plain-text PINs).
+- 2026-09-30: PR review. Renamed to `apps/mobile` (Q13). Added Instance
+  linking (Q12): first-class instances, QR linking from web Carbon, the
+  `.well-known/carbon-mobile` document (replaces `/api/v1/config`), BYOC host
+  derivation, `http` with a warning, two-way version checks, air-gapped and
+  controlled flags, analytics off unless the server allows it, and the rejected
+  per-deployment builds. Recorded Q14 (shared-terminal permissions, parity).
