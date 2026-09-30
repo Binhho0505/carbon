@@ -394,7 +394,7 @@ describe("buildStepClip", () => {
     expect(times[times.length - 2]).toBeCloseTo(2);
   });
 
-  it("glides a join step from its staging spot, then inserts", () => {
+  it("glides a carried-in unit from beside the build, then inserts", () => {
     const { nodesById } = makeAssembly();
     const motion: Motion = {
       type: "linear",
@@ -429,7 +429,7 @@ describe("buildStepClip", () => {
     }
   });
 
-  it("glides a none-motion join step straight to the seat", () => {
+  it("glides a none-motion carry-in step straight to the seat", () => {
     const { nodesById } = makeAssembly();
     const clip = buildStepClip(
       makeStep({ type: "none" }, ["node-a"]),
@@ -445,6 +445,30 @@ describe("buildStepClip", () => {
     if (!positionTrack) throw new Error("expected tracks");
     const values = [...positionTrack.values];
     expectVectorClose(values.slice(0, 3), [51, 2, 3]);
+    expectVectorClose(values.slice(-3), [1, 2, 3]);
+  });
+
+  it("glides only the carried unit; the step's own parts wait at their start", () => {
+    const { nodesById } = makeAssembly();
+    const motion: Motion = {
+      type: "linear",
+      direction: [1, 0, 0],
+      distance: 10
+    };
+    const clip = buildStepClip(makeStep(motion, ["node-a"]), nodesById, {
+      duration: 2,
+      holdSeconds: 0,
+      glide: { offset: [0, 100, 0], seconds: 1.2, nodeIds: ["other"] }
+    });
+    if (!clip) throw new Error("expected clip");
+    const [positionTrack] = clip.tracks;
+    if (!positionTrack) throw new Error("expected tracks");
+    const values = [...positionTrack.values];
+    const times = [...positionTrack.times];
+    // Not carried: sits at its insertion start (local [-9,2,3]) through the glide.
+    expectVectorClose(values.slice(0, 3), [-9, 2, 3]);
+    const glideEnd = times.findIndex((time) => Math.abs(time - 1.2) < 1e-5);
+    expectVectorClose(values.slice(glideEnd * 3, glideEnd * 3 + 3), [-9, 2, 3]);
     expectVectorClose(values.slice(-3), [1, 2, 3]);
   });
 

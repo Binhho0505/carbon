@@ -17,7 +17,10 @@ export async function action({ request, params }: ActionFunctionArgs) {
   if (remove.error) {
     return data(
       { success: false },
-      await flash(request, error(remove.error, "Failed to delete unit"))
+      await flash(
+        request,
+        error(remove.error, "Failed to delete component group")
+      )
     );
   }
 

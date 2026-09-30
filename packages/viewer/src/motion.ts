@@ -47,12 +47,17 @@ export type StepClipOptions = MotionKeyframeOptions & {
   /** Seconds to hold the seated pose at the end of each loop. */
   holdSeconds?: number;
   /**
-   * Join step of a sub-assembly built aside: prepend a straight glide from
-   * seat + `offset` (the staging spot) to where the insertion starts. Never
-   * clamped like the insertion travel is — the staging spot is far by design.
+   * A step that carries a finished sub-assembly in: prepend a straight glide
+   * from seat + `offset` (beside the build) to where the insertion starts.
+   * Never clamped like the insertion travel is — it starts far by design.
+   * With `nodeIds`, only those nodes glide; the step's other parts wait at
+   * their insertion start until the glide ends.
    */
-  glide?: { offset: Vec3; seconds: number };
+  glide?: { offset: Vec3; seconds: number; nodeIds?: string[] };
 };
+
+/** Seconds a carried-in sub-assembly takes to glide to its insertion start. */
+export const CARRY_IN_GLIDE_SECONDS = 1.2;
 
 const INSERTION_SPEED_MM_PER_S = 60;
 const MIN_DURATION_S = 1;
@@ -530,8 +535,14 @@ export function buildStepClip(
       step.motion.type === "linear" || step.motion.type === "L"
         ? resampleEased(rawKeyframes)
         : rawKeyframes;
+    const glides = glide && (!glide.nodeIds || glide.nodeIds.includes(nodeId));
     const keyframes = glide
-      ? prependGlide(insertion, glide.offset, seatedPose, glide.seconds)
+      ? prependGlide(
+          insertion,
+          glides ? glide.offset : null,
+          seatedPose,
+          glide.seconds
+        )
       : insertion;
 
     const parentWorldInverse = node.parent
@@ -594,17 +605,20 @@ export function buildStepClip(
 /**
  * Prepends an eased straight glide from seat + `offset` to the insertion's
  * first pose, and shifts the insertion to start when the glide ends. The part
- * holds the insertion's starting orientation while it glides (staging is a
- * pure translation), so a helix that starts unscrewed doesn't snap.
+ * holds the insertion's starting orientation while it glides (the carry is a
+ * pure translation), so a helix that starts unscrewed doesn't snap. A `null`
+ * offset holds the part at its insertion start for the glide's duration.
  */
 function prependGlide(
   insertion: MotionKeyframes,
-  offset: Vec3,
+  offset: Vec3 | null,
   seatedPose: Pose,
   seconds: number
 ): MotionKeyframes {
   const end = new Vector3().fromArray(insertion.positions, 0);
-  const start = toVector3(seatedPose.position).add(toVector3(offset));
+  const start = offset
+    ? toVector3(seatedPose.position).add(toVector3(offset))
+    : end.clone();
   const quaternion = new Quaternion().fromArray(insertion.quaternions, 0);
 
   const times: number[] = [];

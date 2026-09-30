@@ -106,6 +106,11 @@ export const terms = {
     definition: msg`Builds this step's components beside the model as a group, then carries the group in at a later join step.`,
     href: "/docs/reference/assembly-instructions#building-a-group-off-to-the-side"
   },
+  "assembly-sub-assembly": {
+    term: msg`Sub-assembly`,
+    definition: msg`Steps built on their own, then fitted as one piece: in the step that uses it, or, when nothing uses it, right after its own steps.`,
+    href: "/docs/reference/assembly-instructions#sub-assemblies"
+  },
   "assembly-step-hidden-components": {
     term: msg`Hidden on this step`,
     definition: msg`Components hidden only while this step plays, such as a fixture in the way; use the eye in the Components tab to hide one.`,

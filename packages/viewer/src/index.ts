@@ -46,16 +46,17 @@ export {
   type StepPhase
 } from "./plan";
 export {
-  buildStaging,
-  EMPTY_STAGING,
-  type JoinTargets,
-  joinTargets,
-  parkedOffsetsAt,
-  STAGING_GLIDE_SECONDS,
-  type Staging,
-  type StagingJoin,
-  stagedGroupNodeIds
-} from "./staging";
+  buildSubAssemblyPlan,
+  displayOrder,
+  isSubAssemblyHeader,
+  type SubAssemblyInfo,
+  type SubAssemblyRule,
+  type SubAssemblyViolation,
+  subAssemblyPartIds,
+  type UnusableReason,
+  usableSubAssemblies,
+  validateSubAssemblies
+} from "./subassembly";
 export type {
   AssemblyGraph,
   AssemblyGraphNode,

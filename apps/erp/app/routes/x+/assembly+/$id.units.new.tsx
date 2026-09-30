@@ -22,7 +22,10 @@ export async function action({ request }: ActionFunctionArgs) {
   if (validation.error) {
     return data(
       { success: false },
-      await flash(request, error(validation.error, "Failed to create unit"))
+      await flash(
+        request,
+        error(validation.error, "Failed to create component group")
+      )
     );
   }
 
@@ -37,7 +40,10 @@ export async function action({ request }: ActionFunctionArgs) {
   if (create.error) {
     return data(
       { success: false },
-      await flash(request, error(create.error, "Failed to create unit"))
+      await flash(
+        request,
+        error(create.error, "Failed to create component group")
+      )
     );
   }
 

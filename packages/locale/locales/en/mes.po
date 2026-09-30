@@ -161,6 +161,9 @@ msgstr "All rework"
 msgid "All scrap"
 msgstr "All scrap"
 
+msgid "All steps"
+msgstr "All steps"
+
 msgid "Allocate failed units"
 msgstr "Allocate failed units"
 
@@ -1111,6 +1114,11 @@ msgstr "Open an NCR for MRB disposition"
 msgid "Open Jobs"
 msgstr "Open Jobs"
 
+#. placeholder {0}: subAssemblyNumber(item.headerId)
+#. placeholder {1}: subAssemblyTitle(item.headerId)
+msgid "Open sub-assembly {0}: {1}"
+msgstr "Open sub-assembly {0}: {1}"
+
 msgid "Operations"
 msgstr "Operations"
 
@@ -1598,6 +1606,21 @@ msgstr "Steps are missing"
 msgid "Storage Unit"
 msgstr "Storage Unit"
 
+msgid "Sub-Assembly"
+msgstr "Sub-Assembly"
+
+#. placeholder {0}: subAssemblyNumber(item.headerId)
+#. placeholder {0}: subAssemblyNumber(openSubAssemblyId)
+#. placeholder {1}: subAssemblyTitle(item.headerId)
+#. placeholder {1}: subAssemblyTitle(openSubAssemblyId)
+msgid "Sub-Assembly {0} · {1}"
+msgstr "Sub-Assembly {0} · {1}"
+
+#. placeholder {0}: subAssemblyNumber(playbackInfo.headerId)
+#. placeholder {1}: subAssemblyTitle( playbackInfo.headerId )
+msgid "Sub-Assembly {0} · {1} — shown on its own"
+msgstr "Sub-Assembly {0} · {1} — shown on its own"
+
 msgid "Submit anonymously"
 msgstr "Submit anonymously"
 
@@ -1783,6 +1806,11 @@ msgstr "Use a different account"
 
 msgid "Used automatically at completion"
 msgstr "Used automatically at completion"
+
+#. placeholder {0}: subAssemblyNumber(headerId)
+#. placeholder {1}: subAssemblyTitle(headerId)
+msgid "Uses {0} · {1}"
+msgstr "Uses {0} · {1}"
 
 msgid "Value"
 msgstr "Value"

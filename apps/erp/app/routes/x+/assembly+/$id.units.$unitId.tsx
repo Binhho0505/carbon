@@ -28,7 +28,10 @@ export async function action({ request, params }: ActionFunctionArgs) {
   if (validation.error) {
     return data(
       { success: false },
-      await flash(request, error(validation.error, "Failed to update unit"))
+      await flash(
+        request,
+        error(validation.error, "Failed to update component group")
+      )
     );
   }
 
@@ -45,7 +48,10 @@ export async function action({ request, params }: ActionFunctionArgs) {
   if (update.error) {
     return data(
       { success: false },
-      await flash(request, error(update.error, "Failed to update unit"))
+      await flash(
+        request,
+        error(update.error, "Failed to update component group")
+      )
     );
   }
 

@@ -8176,9 +8176,11 @@ async function insertAssemblyDataForJobOperation(
 
   if (instruction.error) return new Set<string>();
 
-  const sourceSteps = (instruction.data?.assemblyInstructionStep ?? []).sort(
-    (a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)
-  );
+  // A sub-assembly (header) row is not a build action, so it never becomes a
+  // job step; its member steps are copied in play order like any other.
+  const sourceSteps = (instruction.data?.assemblyInstructionStep ?? [])
+    .filter((step) => !step.isSubAssembly)
+    .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
   if (sourceSteps.length === 0) return new Set<string>();
 
   const sourceStepIds = sourceSteps.map((step) => step.id);

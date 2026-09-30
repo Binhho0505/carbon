@@ -115,11 +115,17 @@ export type AssemblyStep = {
    */
   hiddenComponentNodeIds?: string[];
   /**
-   * Built off to the side: the id of the later JOIN step where the group this
-   * step builds is carried into the main assembly (DB `parentStepId`).
-   * `null`/absent = built in place. See `staging.ts`.
+   * This row is a sub-assembly (a header): the steps whose `parentStepId` is
+   * its id are built on their own, directly before it. See `subassembly.ts`.
    */
-  joinStepId?: string | null;
+  isSubAssembly?: boolean;
+  /** The sub-assembly this step belongs to. `null`/absent = top level. */
+  parentStepId?: string | null;
+  /**
+   * On a header: the later step that fits the finished sub-assembly.
+   * `null`/absent = it joins the main build at the header itself.
+   */
+  usedInStepId?: string | null;
 };
 
 /** One node of the assembly tree in graph.json. */

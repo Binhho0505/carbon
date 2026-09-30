@@ -53362,6 +53362,12 @@ export default {
             $ref: "#/parameters/rowFilter.assemblyInstructionStep.hiddenComponentNodeIds"
           },
           {
+            $ref: "#/parameters/rowFilter.assemblyInstructionStep.usedInStepId"
+          },
+          {
+            $ref: "#/parameters/rowFilter.assemblyInstructionStep.isSubAssembly"
+          },
+          {
             $ref: "#/parameters/select"
           },
           {
@@ -53517,6 +53523,12 @@ export default {
             $ref: "#/parameters/rowFilter.assemblyInstructionStep.hiddenComponentNodeIds"
           },
           {
+            $ref: "#/parameters/rowFilter.assemblyInstructionStep.usedInStepId"
+          },
+          {
+            $ref: "#/parameters/rowFilter.assemblyInstructionStep.isSubAssembly"
+          },
+          {
             $ref: "#/parameters/preferReturn"
           }
         ],
@@ -53624,6 +53636,12 @@ export default {
           },
           {
             $ref: "#/parameters/rowFilter.assemblyInstructionStep.hiddenComponentNodeIds"
+          },
+          {
+            $ref: "#/parameters/rowFilter.assemblyInstructionStep.usedInStepId"
+          },
+          {
+            $ref: "#/parameters/rowFilter.assemblyInstructionStep.isSubAssembly"
           },
           {
             $ref: "#/parameters/body.assemblyInstructionStep"
@@ -131739,7 +131757,8 @@ export default {
         "createdBy",
         "createdAt",
         "status",
-        "hiddenComponentNodeIds"
+        "hiddenComponentNodeIds",
+        "isSubAssembly"
       ],
       properties: {
         id: {
@@ -131906,6 +131925,17 @@ export default {
             type: "string"
           },
           type: "array"
+        },
+        usedInStepId: {
+          description:
+            "Note:\nThis is a Foreign Key to `assemblyInstructionStep.id`.<fk table='assemblyInstructionStep' column='id'/>",
+          format: "text",
+          type: "string"
+        },
+        isSubAssembly: {
+          default: false,
+          format: "boolean",
+          type: "boolean"
         }
       },
       type: "object"
@@ -179674,6 +179704,18 @@ export default {
     },
     "rowFilter.assemblyInstructionStep.hiddenComponentNodeIds": {
       name: "hiddenComponentNodeIds",
+      required: false,
+      in: "query",
+      type: "string"
+    },
+    "rowFilter.assemblyInstructionStep.usedInStepId": {
+      name: "usedInStepId",
+      required: false,
+      in: "query",
+      type: "string"
+    },
+    "rowFilter.assemblyInstructionStep.isSubAssembly": {
+      name: "isSubAssembly",
       required: false,
       in: "query",
       type: "string"
