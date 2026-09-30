@@ -548,6 +548,7 @@ const SalesOrdersTable = memo(({ data, count }: SalesOrdersTableProps) => {
             Receive
           </MenuItem>*/}
         <MenuItem
+          shortcut={MENU_ITEM_SHORTCUTS.delete}
           disabled={!permissions.can("delete", "sales")}
           destructive
           onClick={() => {

@@ -122,6 +122,7 @@ const MaterialShapesTable = memo(
               <Trans>Edit Material Shape</Trans>
             </MenuItem>
             <MenuItem
+              shortcut={MENU_ITEM_SHORTCUTS.delete}
               disabled={
                 !permissions.can("delete", "parts") || row.companyId === null
               }

@@ -363,6 +363,7 @@ const ProcessesTable = memo(({ data, count }: ProcessesTableProps) => {
             </MenuItem>
           )}
           <MenuItem
+            shortcut={MENU_ITEM_SHORTCUTS.delete}
             destructive
             disabled={!permissions.can("delete", "resources")}
             onClick={() => {

@@ -9,6 +9,7 @@ import {
   Heading,
   HStack,
   IconButton,
+  MENU_ITEM_SHORTCUTS,
   Status,
   useDisclosure,
   VStack
@@ -90,6 +91,7 @@ const MaterialHeader = () => {
                 {auditLogTrigger}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
+                  shortcut={MENU_ITEM_SHORTCUTS.delete}
                   disabled={
                     !permissions.can("delete", "parts") ||
                     !permissions.is("employee")

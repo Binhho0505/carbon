@@ -122,6 +122,7 @@ const ItemSerialSequencesTable = memo(
               <Trans>Edit</Trans>
             </MenuItem>
             <MenuItem
+              shortcut={MENU_ITEM_SHORTCUTS.delete}
               disabled={!permissions.can("delete", "settings")}
               onClick={() => {
                 navigate(

@@ -56,6 +56,7 @@ const ChangeNoticeTypesTable = memo(
               {t`Edit Type`}
             </MenuItem>
             <MenuItem
+              shortcut={MENU_ITEM_SHORTCUTS.delete}
               destructive
               disabled={!permissions.can("delete", "parts")}
               onClick={() => {

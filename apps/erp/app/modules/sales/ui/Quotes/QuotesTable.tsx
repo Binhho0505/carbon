@@ -293,6 +293,7 @@ const QuotesTable = memo(({ data, count }: QuotesTableProps) => {
           <Trans>Edit</Trans>
         </MenuItem>
         <MenuItem
+          shortcut={MENU_ITEM_SHORTCUTS.delete}
           disabled={!permissions.can("delete", "sales")}
           destructive
           onClick={() => {

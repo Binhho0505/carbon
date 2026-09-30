@@ -364,6 +364,7 @@ const GaugeCalibrationRecordsTable = memo(
               Edit Record
             </MenuItem>
             <MenuItem
+              shortcut={MENU_ITEM_SHORTCUTS.delete}
               destructive
               disabled={!permissions.can("delete", "quality")}
               onClick={() => {

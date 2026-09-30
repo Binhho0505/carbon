@@ -65,6 +65,7 @@ const StorageTypesTable = memo(({ data, count }: StorageTypesTableProps) => {
             <Trans>Edit Storage Type</Trans>
           </MenuItem>
           <MenuItem
+            shortcut={MENU_ITEM_SHORTCUTS.delete}
             disabled={!permissions.can("delete", "parts")}
             destructive
             onClick={() => {

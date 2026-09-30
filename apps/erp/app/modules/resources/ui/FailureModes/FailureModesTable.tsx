@@ -69,6 +69,7 @@ const FailureModesTable = memo(({ data, count }: FailureModesTableProps) => {
             <Trans>Edit Failure Mode</Trans>
           </MenuItem>
           <MenuItem
+            shortcut={MENU_ITEM_SHORTCUTS.delete}
             destructive
             disabled={!permissions.can("delete", "resources")}
             onClick={() => {

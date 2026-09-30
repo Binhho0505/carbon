@@ -243,6 +243,7 @@ const SalesRFQsTable = memo(({ data, count }: SalesRFQsTableProps) => {
           <Trans>Edit</Trans>
         </MenuItem>
         <MenuItem
+          shortcut={MENU_ITEM_SHORTCUTS.delete}
           destructive
           disabled={!permissions.can("delete", "sales")}
           onClick={() => {

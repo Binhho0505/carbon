@@ -10,6 +10,7 @@ import {
   Heading,
   HStack,
   IconButton,
+  MENU_ITEM_SHORTCUTS,
   useDisclosure,
   VStack
 } from "@carbon/react";
@@ -138,6 +139,7 @@ const ChangeNoticeHeader = () => {
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuItem
+                  shortcut={MENU_ITEM_SHORTCUTS.delete}
                   destructive
                   disabled={
                     !permissions.can("delete", "parts") ||

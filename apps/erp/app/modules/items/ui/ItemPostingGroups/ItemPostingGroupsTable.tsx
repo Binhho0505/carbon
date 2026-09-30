@@ -70,6 +70,7 @@ const ItemGroupsTable = memo(({ data, count }: ItemGroupsTableProps) => {
             <Trans>Edit Item Group</Trans>
           </MenuItem>
           <MenuItem
+            shortcut={MENU_ITEM_SHORTCUTS.delete}
             destructive
             disabled={!permissions.can("delete", "parts")}
             onClick={() => {

@@ -378,6 +378,7 @@ const QuoteLineForm = ({
                       <DropdownMenuContent align="end">
                         {!isLocked && (
                           <DropdownMenuItem
+                            shortcut={MENU_ITEM_SHORTCUTS.delete}
                             destructive
                             onClick={deleteDisclosure.onOpen}
                           >

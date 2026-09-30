@@ -207,6 +207,7 @@ const SupplierBankAccounts = ({ bankAccounts }: SupplierBankAccountsProps) => {
                           <Trans>Edit</Trans>
                         </DropdownMenuItem>
                         <DropdownMenuItem
+                          shortcut={MENU_ITEM_SHORTCUTS.delete}
                           destructive
                           disabled={!permissions.can("delete", "accounting")}
                           onClick={() => {

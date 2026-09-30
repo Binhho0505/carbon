@@ -19,6 +19,7 @@ import {
   DropdownMenuTrigger,
   HStack,
   IconButton,
+  MENU_ITEM_SHORTCUTS,
   Modal,
   ModalBody,
   ModalContent,
@@ -165,6 +166,7 @@ const SupplierHeader = () => {
                     {auditLogTrigger}
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
+                      shortcut={MENU_ITEM_SHORTCUTS.delete}
                       disabled={!permissions.can("delete", "purchasing")}
                       destructive
                       onClick={deleteModal.onOpen}

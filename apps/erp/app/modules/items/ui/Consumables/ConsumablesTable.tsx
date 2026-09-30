@@ -559,6 +559,7 @@ const ConsumablesTable = memo(
             Edit ConsumableListItem
           </MenuItem>
           <MenuItem
+            shortcut={MENU_ITEM_SHORTCUTS.delete}
             disabled={!permissions.can("delete", "parts")}
             destructive
             onClick={() => {

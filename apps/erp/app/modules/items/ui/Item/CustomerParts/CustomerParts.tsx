@@ -67,6 +67,7 @@ const CustomerParts = ({ customerParts, itemId }: CustomerPartsProps) => {
                     Edit Customer Part
                   </DropdownMenuItem>
                   <DropdownMenuItem
+                    shortcut={MENU_ITEM_SHORTCUTS.delete}
                     onClick={() =>
                       navigate(
                         path.to.deleteCustomerPart(itemId, row.original.id!)

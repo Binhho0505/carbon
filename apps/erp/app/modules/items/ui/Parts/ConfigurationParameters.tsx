@@ -781,6 +781,7 @@ function ParameterGroup({
                 <Trans>Edit</Trans>
               </DropdownMenuItem>
               <DropdownMenuItem
+                shortcut={MENU_ITEM_SHORTCUTS.delete}
                 destructive
                 disabled={group.isUngrouped}
                 onClick={() => {
@@ -1009,6 +1010,7 @@ function ConfigurableParameter({
                     <Trans>Edit</Trans>
                   </DropdownMenuItem>
                   <DropdownMenuItem
+                    shortcut={MENU_ITEM_SHORTCUTS.delete}
                     destructive
                     onClick={deleteParameterDisclosure.onOpen}
                   >

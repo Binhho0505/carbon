@@ -437,6 +437,7 @@ function TrainingQuestionItem({
                 <Trans>Edit Question</Trans>
               </DropdownMenuItem>
               <DropdownMenuItem
+                shortcut={MENU_ITEM_SHORTCUTS.delete}
                 destructive
                 disabled={!permissions.can("update", "resources")}
                 onClick={(e) => {

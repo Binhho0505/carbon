@@ -301,6 +301,7 @@ const SalesInvoicesTable = memo(({ data, count }: SalesInvoicesTableProps) => {
           <Trans>Edit</Trans>
         </MenuItem>
         <MenuItem
+          shortcut={MENU_ITEM_SHORTCUTS.delete}
           disabled={
             row.status !== "Draft" || !permissions.can("delete", "invoicing")
           }

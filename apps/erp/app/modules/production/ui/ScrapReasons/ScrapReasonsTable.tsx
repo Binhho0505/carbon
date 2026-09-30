@@ -55,6 +55,7 @@ const ScrapReasonsTable = memo(({ data, count }: ScrapReasonsTableProps) => {
             Edit Scrap Reason
           </MenuItem>
           <MenuItem
+            shortcut={MENU_ITEM_SHORTCUTS.delete}
             destructive
             disabled={!permissions.can("delete", "production")}
             onClick={() => {

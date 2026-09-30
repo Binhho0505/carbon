@@ -14,6 +14,7 @@ import {
   Heading,
   HStack,
   IconButton,
+  MENU_ITEM_SHORTCUTS,
   SplitButton,
   Status,
   Tooltip,
@@ -274,6 +275,7 @@ const PurchaseOrderHeader = () => {
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
+                  shortcut={MENU_ITEM_SHORTCUTS.delete}
                   disabled={
                     isLocked ||
                     !permissions.can("delete", "purchasing") ||

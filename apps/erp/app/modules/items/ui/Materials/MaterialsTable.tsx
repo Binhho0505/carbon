@@ -710,6 +710,7 @@ const MaterialsTable = memo(({ data, tags, count }: MaterialsTableProps) => {
             </MenuSub>
           )}
           <MenuItem
+            shortcut={MENU_ITEM_SHORTCUTS.delete}
             destructive
             disabled={!permissions.can("delete", "parts")}
             onClick={() => {

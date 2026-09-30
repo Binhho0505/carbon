@@ -140,6 +140,7 @@ const SuggestionsTable = memo(
               <Trans>View Suggestion</Trans>
             </MenuItem>
             <MenuItem
+              shortcut={MENU_ITEM_SHORTCUTS.delete}
               destructive
               disabled={!permissions.can("delete", "resources")}
               onClick={() => {

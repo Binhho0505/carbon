@@ -66,6 +66,7 @@ const EmployeeTypesTable = memo(({ data, count }: EmployeeTypesTableProps) => {
             <Trans>Edit Employee Type</Trans>
           </MenuItem>
           <MenuItem
+            shortcut={MENU_ITEM_SHORTCUTS.delete}
             destructive
             disabled={row.protected || !permissions.can("delete", "users")}
             onClick={() => {

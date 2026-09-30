@@ -122,6 +122,7 @@ const DropdownMenuItem = forwardRef<
       className={cn(
         "relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
         inset && "pl-8",
+        shortcut && !asChild && "whitespace-nowrap",
         destructive &&
           "text-red-500 focus:text-red-500 hover:bg-destructive/20 active:bg-destructive/20",
         className
@@ -133,7 +134,7 @@ const DropdownMenuItem = forwardRef<
       ) : (
         <>
           {children}
-          <DropdownMenuShortcut className="pl-4">
+          <DropdownMenuShortcut className="shrink-0 pl-4">
             <ShortcutKey shortcut={shortcut} variant="small" className="mx-0" />
           </DropdownMenuShortcut>
         </>

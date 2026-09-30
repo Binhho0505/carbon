@@ -112,6 +112,7 @@ const GroupsTable = memo(({ data, count }: GroupsTableProps) => {
             <Trans>Edit Group</Trans>
           </MenuItem>
           <MenuItem
+            shortcut={MENU_ITEM_SHORTCUTS.delete}
             destructive
             disabled={
               row.isEmployeeTypeGroup ||

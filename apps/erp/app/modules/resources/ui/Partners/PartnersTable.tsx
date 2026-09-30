@@ -107,6 +107,7 @@ const PartnersTable = memo(({ data, count }: PartnersTableProps) => {
             <Trans>Edit Partner</Trans>
           </MenuItem>
           <MenuItem
+            shortcut={MENU_ITEM_SHORTCUTS.delete}
             destructive
             disabled={!permissions.can("delete", "resources")}
             onClick={() => {

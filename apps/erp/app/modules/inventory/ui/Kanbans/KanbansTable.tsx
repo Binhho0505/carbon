@@ -589,7 +589,11 @@ const KanbansTable = memo(
                 );
               })()}
             {canDelete && (
-              <MenuItem destructive asChild>
+              <MenuItem
+                shortcut={MENU_ITEM_SHORTCUTS.delete}
+                destructive
+                asChild
+              >
                 <Link to={`${path.to.deleteKanban(row.id!)}?${params}`}>
                   <LuTrash className="mr-2 size-4" />
                   Delete

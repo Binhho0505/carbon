@@ -12,6 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   HStack,
+  MENU_ITEM_SHORTCUTS,
   Switch
 } from "@carbon/react";
 import { Trans, useLingui } from "@lingui/react/macro";
@@ -453,6 +454,7 @@ const PivotControlBar = ({
           </DropdownMenuItem>
           {activeView && activeView.createdBy === currentUserId && (
             <DropdownMenuItem
+              shortcut={MENU_ITEM_SHORTCUTS.delete}
               destructive
               onClick={() => setDeleteModalOpen(true)}
             >

@@ -9,6 +9,7 @@ import {
   Heading,
   HStack,
   IconButton,
+  MENU_ITEM_SHORTCUTS,
   useDisclosure
 } from "@carbon/react";
 import { Trans, useLingui } from "@lingui/react/macro";
@@ -136,6 +137,7 @@ const PurchaseReturnOrderHeader = () => {
                   <Trans>Reopen</Trans>
                 </DropdownMenuItem>
                 <DropdownMenuItem
+                  shortcut={MENU_ITEM_SHORTCUTS.delete}
                   destructive
                   disabled={
                     !["Draft", "Cancelled"].includes(status ?? "") ||

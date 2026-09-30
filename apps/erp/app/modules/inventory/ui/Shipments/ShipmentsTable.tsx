@@ -351,6 +351,7 @@ const ShipmentsTable = memo(({ data, count }: ShipmentsTableProps) => {
             {row.postingDate ? t`View Shipment` : t`Edit Shipment`}
           </MenuItem>
           <MenuItem
+            shortcut={MENU_ITEM_SHORTCUTS.delete}
             disabled={
               !permissions.can("delete", "inventory") ||
               !!row.postingDate ||

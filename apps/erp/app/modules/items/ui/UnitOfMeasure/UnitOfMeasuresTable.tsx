@@ -65,6 +65,7 @@ const UnitOfMeasuresTable = memo(
               <Trans>Edit Unit of Measure</Trans>
             </MenuItem>
             <MenuItem
+              shortcut={MENU_ITEM_SHORTCUTS.delete}
               destructive
               disabled={!permissions.can("delete", "parts")}
               onClick={() => {

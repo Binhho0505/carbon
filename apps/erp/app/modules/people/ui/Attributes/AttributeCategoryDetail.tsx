@@ -128,6 +128,7 @@ const AttributeCategoryDetail = ({
           </Link>
         </MenuItem>
         <MenuItem
+          shortcut={MENU_ITEM_SHORTCUTS.delete}
           destructive
           onClick={() => onDelete(attributeMap[attributeId])}
         >

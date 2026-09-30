@@ -16,6 +16,7 @@ import {
   DropdownMenuTrigger,
   HStack,
   IconButton,
+  MENU_ITEM_SHORTCUTS,
   Status,
   useDisclosure,
   VStack
@@ -111,6 +112,7 @@ const CustomerHeader = () => {
                     {auditLogTrigger}
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
+                      shortcut={MENU_ITEM_SHORTCUTS.delete}
                       disabled={!permissions.can("delete", "sales")}
                       destructive
                       onClick={deleteModal.onOpen}

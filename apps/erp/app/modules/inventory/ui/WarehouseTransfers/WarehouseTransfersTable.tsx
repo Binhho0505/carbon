@@ -216,6 +216,7 @@ const WarehouseTransfersTable = memo(
               {row.status !== "Draft" ? t`View Transfer` : t`Edit Transfer`}
             </MenuItem>
             <MenuItem
+              shortcut={MENU_ITEM_SHORTCUTS.delete}
               disabled={
                 !permissions.can("delete", "inventory") ||
                 row.status === "Draft"

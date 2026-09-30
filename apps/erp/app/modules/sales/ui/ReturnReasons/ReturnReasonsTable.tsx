@@ -83,6 +83,7 @@ const ReturnReasonsTable = memo(({ data, count }: ReturnReasonsTableProps) => {
             <Trans>Edit Reason</Trans>
           </MenuItem>
           <MenuItem
+            shortcut={MENU_ITEM_SHORTCUTS.delete}
             destructive
             disabled={!permissions.can("delete", "sales")}
             onClick={() => {

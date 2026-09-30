@@ -156,6 +156,7 @@ const AssemblyInstructionHeader = () => {
               Re-convert Model
             </DropdownMenuItem>
             <DropdownMenuItem
+              shortcut={MENU_ITEM_SHORTCUTS.delete}
               disabled={
                 !permissions.can("delete", "production") ||
                 !permissions.is("employee")

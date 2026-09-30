@@ -157,6 +157,7 @@ const PeriodsTable = memo(
           {row.closeStatus === "Open" &&
             permissions.can("delete", "accounting") && (
               <MenuItem
+                shortcut={MENU_ITEM_SHORTCUTS.delete}
                 destructive
                 onClick={() => navigate(path.to.accountingPeriodDelete(row.id))}
               >

@@ -421,6 +421,7 @@ const SuppliersTable = memo(function SuppliersTable({
           <Trans>Edit Supplier</Trans>
         </MenuItem>
         <MenuItem
+          shortcut={MENU_ITEM_SHORTCUTS.delete}
           destructive
           disabled={!permissions.can("delete", "purchasing")}
           onClick={() => {

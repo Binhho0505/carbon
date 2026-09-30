@@ -217,6 +217,7 @@ const TimecardsTable = memo(({ data, count }: TimecardsTableProps) => {
             <Trans>Edit Timecard</Trans>
           </MenuItem>
           <MenuItem
+            shortcut={MENU_ITEM_SHORTCUTS.delete}
             destructive
             disabled={!permissions.can("delete", "people")}
             onClick={() =>

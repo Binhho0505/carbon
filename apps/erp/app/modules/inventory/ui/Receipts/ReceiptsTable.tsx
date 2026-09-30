@@ -336,6 +336,7 @@ const ReceiptsTable = memo(({ data, count }: ReceiptsTableProps) => {
             {row.postingDate ? t`View Receipt` : t`Edit Receipt`}
           </MenuItem>
           <MenuItem
+            shortcut={MENU_ITEM_SHORTCUTS.delete}
             disabled={
               !permissions.can("delete", "inventory") ||
               !!row.postingDate ||

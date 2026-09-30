@@ -625,6 +625,7 @@ const ToolsTable = memo(({ data, tags, count }: ToolsTableProps) => {
             </MenuSub>
           )}
           <MenuItem
+            shortcut={MENU_ITEM_SHORTCUTS.delete}
             destructive
             disabled={!permissions.can("delete", "parts")}
             onClick={() => {

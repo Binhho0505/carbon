@@ -371,6 +371,7 @@ function SupplierProcesses({ processId }: { processId?: string }) {
                       <Trans>Edit Process</Trans>
                     </DropdownMenuItem>
                     <DropdownMenuItem
+                      shortcut={MENU_ITEM_SHORTCUTS.delete}
                       onClick={() =>
                         navigate(
                           path.to.deleteSupplierProcess(sp.supplierId!, sp.id!)

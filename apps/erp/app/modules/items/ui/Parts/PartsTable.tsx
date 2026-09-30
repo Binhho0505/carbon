@@ -667,6 +667,7 @@ const PartsTable = memo(({ data, tags, count }: PartsTableProps) => {
             <Trans>Create Change Notice</Trans>
           </MenuItem>
           <MenuItem
+            shortcut={MENU_ITEM_SHORTCUTS.delete}
             destructive
             disabled={!permissions.can("delete", "parts")}
             onClick={() => {

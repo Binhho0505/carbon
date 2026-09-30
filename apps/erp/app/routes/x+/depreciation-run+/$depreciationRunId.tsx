@@ -15,6 +15,7 @@ import {
   Heading,
   HStack,
   IconButton,
+  MENU_ITEM_SHORTCUTS,
   useDisclosure
 } from "@carbon/react";
 import { formatDate } from "@carbon/utils";
@@ -138,6 +139,7 @@ export default function DepreciationRunDetailRoute() {
                     )}
                     {isDraft && (
                       <DropdownMenuItem
+                        shortcut={MENU_ITEM_SHORTCUTS.delete}
                         disabled={!permissions.can("delete", "accounting")}
                         destructive
                         onClick={deleteModal.onOpen}

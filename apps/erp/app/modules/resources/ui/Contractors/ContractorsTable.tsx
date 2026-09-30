@@ -130,6 +130,7 @@ const ContractorsTable = memo(({ data, count }: ContractorsTableProps) => {
             <Trans>Edit Contractor</Trans>
           </MenuItem>
           <MenuItem
+            shortcut={MENU_ITEM_SHORTCUTS.delete}
             destructive
             disabled={!permissions.can("delete", "resources")}
             onClick={() => {

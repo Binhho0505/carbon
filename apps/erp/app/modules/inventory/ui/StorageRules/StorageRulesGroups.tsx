@@ -260,6 +260,7 @@ const StorageRuleCard = memo(({ rule }: { rule: RuleListItem }) => {
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
+                      shortcut={MENU_ITEM_SHORTCUTS.delete}
                       destructive
                       disabled={!canDelete}
                       onClick={(e) => {

@@ -219,6 +219,7 @@ function StockTransferLineComponent({
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem
+                  shortcut={MENU_ITEM_SHORTCUTS.delete}
                   disabled={
                     !isEditable || !permissions.can("delete", "inventory")
                   }

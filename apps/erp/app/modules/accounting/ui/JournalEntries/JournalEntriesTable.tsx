@@ -246,6 +246,7 @@ const JournalEntriesTable = memo(
               {isDraft ? t`Edit Journal Entry` : t`View Journal Entry`}
             </MenuItem>
             <MenuItem
+              shortcut={MENU_ITEM_SHORTCUTS.delete}
               disabled={!isDraft || !permissions.can("delete", "accounting")}
               destructive
               onClick={() => {

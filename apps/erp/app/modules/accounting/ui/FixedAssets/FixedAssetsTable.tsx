@@ -186,6 +186,7 @@ const FixedAssetsTable = memo(
             </MenuItem>
             {isDraft && (
               <MenuItem
+                shortcut={MENU_ITEM_SHORTCUTS.delete}
                 disabled={!permissions.can("delete", "accounting")}
                 destructive
                 onClick={() => {

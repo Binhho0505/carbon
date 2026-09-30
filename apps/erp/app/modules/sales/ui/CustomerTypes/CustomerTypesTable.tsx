@@ -68,6 +68,7 @@ const CustomerTypesTable = memo(({ data, count }: CustomerTypesTableProps) => {
             <Trans>Edit Customer Type</Trans>
           </MenuItem>
           <MenuItem
+            shortcut={MENU_ITEM_SHORTCUTS.delete}
             destructive
             disabled={row.protected || !permissions.can("delete", "sales")}
             onClick={() => {

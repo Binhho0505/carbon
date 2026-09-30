@@ -2394,6 +2394,7 @@ function StepsListItem({
                     Duplicate
                   </DropdownMenuItem>
                   <DropdownMenuItem
+                    shortcut={MENU_ITEM_SHORTCUTS.delete}
                     destructive
                     onClick={deleteModalDisclosure.onOpen}
                   >
@@ -2756,6 +2757,7 @@ function ParametersListItem({
                   Edit
                 </DropdownMenuItem>
                 <DropdownMenuItem
+                  shortcut={MENU_ITEM_SHORTCUTS.delete}
                   destructive
                   onClick={deleteModalDisclosure.onOpen}
                 >
@@ -4055,6 +4057,7 @@ function ToolsListItem({
                   Edit
                 </DropdownMenuItem>
                 <DropdownMenuItem
+                  shortcut={MENU_ITEM_SHORTCUTS.delete}
                   destructive
                   onClick={deleteModalDisclosure.onOpen}
                 >

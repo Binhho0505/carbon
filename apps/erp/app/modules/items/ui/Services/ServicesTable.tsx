@@ -519,6 +519,7 @@ const ServicesTable = memo(({ data, tags, count }: ServicesTableProps) => {
             </MenuSub>
           )}
           <MenuItem
+            shortcut={MENU_ITEM_SHORTCUTS.delete}
             destructive
             disabled={!permissions.can("delete", "parts")}
             onClick={() => {

@@ -177,6 +177,7 @@ const WebhooksTable = memo(({ data, count }: WebhooksTableProps) => {
             <Trans>Edit Webhook</Trans>
           </MenuItem>
           <MenuItem
+            shortcut={MENU_ITEM_SHORTCUTS.delete}
             destructive
             onClick={() => {
               navigate(

@@ -2792,6 +2792,7 @@ export default function InspectionDocumentEditor({
               )}
               <DropdownMenuSeparator />
               <DropdownMenuItem
+                shortcut={MENU_ITEM_SHORTCUTS.delete}
                 destructive
                 disabled={!permissions.can("delete", "quality")}
                 onClick={() => deleteDisclosure.onOpen()}

@@ -380,6 +380,7 @@ const ChartOfAccountsTree = memo(
                           </DropdownMenuItem>
                           {!account.isSystem && (
                             <DropdownMenuItem
+                              shortcut={MENU_ITEM_SHORTCUTS.delete}
                               className="text-destructive"
                               onClick={() =>
                                 runMenuAction(() =>
@@ -406,6 +407,7 @@ const ChartOfAccountsTree = memo(
                             <Trans>Edit</Trans>
                           </DropdownMenuItem>
                           <DropdownMenuItem
+                            shortcut={MENU_ITEM_SHORTCUTS.delete}
                             className="text-destructive"
                             onClick={() =>
                               runMenuAction(() =>

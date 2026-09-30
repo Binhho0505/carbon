@@ -586,6 +586,7 @@ function ProcedureStepItem({
                 Edit Step
               </DropdownMenuItem>
               <DropdownMenuItem
+                shortcut={MENU_ITEM_SHORTCUTS.delete}
                 destructive
                 disabled={!permissions.can("update", "production")}
                 onClick={(e) => {
@@ -677,6 +678,7 @@ function ProcedureParameterItem({
                 Edit Parameter
               </DropdownMenuItem>
               <DropdownMenuItem
+                shortcut={MENU_ITEM_SHORTCUTS.delete}
                 destructive
                 disabled={!permissions.can("update", "production")}
                 onClick={(e) => {

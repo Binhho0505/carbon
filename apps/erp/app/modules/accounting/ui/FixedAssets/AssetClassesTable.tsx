@@ -125,6 +125,7 @@ const AssetClassesTable = memo(
             <Trans>Edit Asset Class</Trans>
           </MenuItem>
           <MenuItem
+            shortcut={MENU_ITEM_SHORTCUTS.delete}
             disabled={!permissions.can("delete", "accounting")}
             destructive
             onClick={() => {

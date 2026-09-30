@@ -103,6 +103,7 @@ const PaymentTermsTable = memo(({ data, count }: PaymentTermsTableProps) => {
             <Trans>Edit Payment Term</Trans>
           </MenuItem>
           <MenuItem
+            shortcut={MENU_ITEM_SHORTCUTS.delete}
             disabled={!permissions.can("delete", "accounting")}
             onClick={() => {
               navigate(

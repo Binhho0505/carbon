@@ -10,6 +10,7 @@ import {
   DropdownMenuTrigger,
   HStack,
   IconButton,
+  MENU_ITEM_SHORTCUTS,
   ModalCard,
   ModalCardBody,
   ModalCardContent,
@@ -187,7 +188,10 @@ const PurchasingRFQLineForm = ({
                           />
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={deleteDisclosure.onOpen}>
+                          <DropdownMenuItem
+                            shortcut={MENU_ITEM_SHORTCUTS.delete}
+                            onClick={deleteDisclosure.onOpen}
+                          >
                             <DropdownMenuIcon icon={<LuTrash />} />
                             <Trans>Delete Line</Trans>
                           </DropdownMenuItem>

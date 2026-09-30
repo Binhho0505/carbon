@@ -98,6 +98,7 @@ const IssueWorkflowsTable = memo(
               Edit Template
             </MenuItem>
             <MenuItem
+              shortcut={MENU_ITEM_SHORTCUTS.delete}
               destructive
               disabled={!permissions.can("delete", "quality")}
               onClick={() => {

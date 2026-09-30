@@ -111,7 +111,8 @@ export function ShortcutHelpOverlay({
         shortcut: MENU_ITEM_SHORTCUTS.view,
         description: t`View or open`,
         group
-      }
+      },
+      { shortcut: MENU_ITEM_SHORTCUTS.delete, description: t`Delete`, group }
     ];
   }, [t]);
 

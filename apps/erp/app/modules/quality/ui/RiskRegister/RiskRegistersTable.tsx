@@ -253,6 +253,7 @@ const RiskRegistersTable = memo(({ data, count }: RiskRegistersTableProps) => {
           Edit Risk
         </MenuItem>
         <MenuItem
+          shortcut={MENU_ITEM_SHORTCUTS.delete}
           destructive
           disabled={!permissions.can("delete", "quality")}
           onClick={() => onDelete(row)}

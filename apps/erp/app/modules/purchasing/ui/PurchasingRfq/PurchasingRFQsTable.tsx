@@ -246,6 +246,7 @@ const PurchasingRFQsTable = memo(
             <Trans>Edit</Trans>
           </MenuItem>
           <MenuItem
+            shortcut={MENU_ITEM_SHORTCUTS.delete}
             destructive
             disabled={!permissions.can("delete", "purchasing")}
             onClick={() => {

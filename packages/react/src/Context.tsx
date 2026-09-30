@@ -105,6 +105,7 @@ const ContextMenuItem = forwardRef<
       className={cn(
         "relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
         inset && "pl-8",
+        shortcut && !asChild && "whitespace-nowrap",
         destructive &&
           "text-red-500 focus:text-red-500 hover:bg-destructive/20 active:bg-destructive/20",
         className
@@ -116,7 +117,7 @@ const ContextMenuItem = forwardRef<
       ) : (
         <>
           {children}
-          <ContextMenuShortcut className="pl-4">
+          <ContextMenuShortcut className="shrink-0 pl-4">
             <ShortcutKey shortcut={shortcut} variant="small" className="mx-0" />
           </ContextMenuShortcut>
         </>

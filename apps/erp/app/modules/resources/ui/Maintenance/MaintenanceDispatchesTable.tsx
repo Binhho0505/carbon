@@ -349,6 +349,7 @@ const MaintenanceDispatchesTable = memo(
               <Trans>Edit Dispatch</Trans>
             </MenuItem>
             <MenuItem
+              shortcut={MENU_ITEM_SHORTCUTS.delete}
               destructive
               disabled={!permissions.can("delete", "resources")}
               onClick={() => {

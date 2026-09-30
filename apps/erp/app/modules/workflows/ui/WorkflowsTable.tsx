@@ -223,6 +223,7 @@ const WorkflowsTable = memo(
             {t`Unpublish`}
           </MenuItem>
           <MenuItem
+            shortcut={MENU_ITEM_SHORTCUTS.delete}
             destructive
             disabled={!permissions.can("delete", "workflows")}
             onClick={() => {

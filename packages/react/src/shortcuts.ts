@@ -24,7 +24,8 @@ export const SHORTCUTS = {
 
 /**
  * One-key shortcuts for menu items, live only while their menu is open.
- * Delete deliberately has no key — removing data is never one keystroke away.
+ * `delete` is Backspace (or Delete); only wire it on an item that asks for
+ * confirmation before anything is removed.
  */
 export const MENU_ITEM_SHORTCUTS = {
   edit: "e",
@@ -34,7 +35,8 @@ export const MENU_ITEM_SHORTCUTS = {
   copy: "c",
   download: "d",
   view: "o",
-  open: "o"
+  open: "o",
+  delete: "backspace"
 } as const;
 
 export type MenuItemShortcut =

@@ -94,6 +94,7 @@ const CustomerPortalsTable = memo(
               <Trans>Edit Portal</Trans>
             </MenuItem>
             <MenuItem
+              shortcut={MENU_ITEM_SHORTCUTS.delete}
               destructive
               disabled={!permissions.can("delete", "sales")}
               onClick={() => {

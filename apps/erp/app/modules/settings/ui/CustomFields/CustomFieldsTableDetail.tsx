@@ -155,7 +155,11 @@ const CustomFieldCategoryDetail = ({
             <Trans>Edit Custom Field</Trans>
           </Link>
         </MenuItem>
-        <MenuItem destructive onClick={() => onDelete(fieldMap[fieldId])}>
+        <MenuItem
+          shortcut={MENU_ITEM_SHORTCUTS.delete}
+          destructive
+          onClick={() => onDelete(fieldMap[fieldId])}
+        >
           <MenuIcon icon={<LuTrash />} />
           <Trans>Delete Custom Field</Trans>
         </MenuItem>

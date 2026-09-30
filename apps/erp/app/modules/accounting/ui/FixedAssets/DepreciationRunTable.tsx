@@ -96,6 +96,7 @@ const DepreciationRunTable = memo(
           </MenuItem>
           {row.status === "Draft" && (
             <MenuItem
+              shortcut={MENU_ITEM_SHORTCUTS.delete}
               disabled={!permissions.can("delete", "accounting")}
               destructive
               onClick={() => {

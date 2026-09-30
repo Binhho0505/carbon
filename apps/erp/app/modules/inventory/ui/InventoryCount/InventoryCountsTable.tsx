@@ -165,6 +165,7 @@ const InventoryCountsTable = memo(
               {row.status === "Draft" ? t`Edit Count` : t`View Count`}
             </MenuItem>
             <MenuItem
+              shortcut={MENU_ITEM_SHORTCUTS.delete}
               disabled={
                 !permissions.can("delete", "inventory") ||
                 row.status === "Posted"

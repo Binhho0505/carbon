@@ -129,6 +129,7 @@ const MaterialGradesTable = memo(
               <Trans>Edit Material Grade</Trans>
             </MenuItem>
             <MenuItem
+              shortcut={MENU_ITEM_SHORTCUTS.delete}
               disabled={
                 !permissions.can("delete", "parts") || row.companyId === null
               }

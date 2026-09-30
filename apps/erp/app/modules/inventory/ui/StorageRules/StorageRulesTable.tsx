@@ -141,6 +141,7 @@ const StorageRulesTable = memo(({ data, count }: StorageRulesTableProps) => {
           <Trans>Edit Rule</Trans>
         </MenuItem>
         <MenuItem
+          shortcut={MENU_ITEM_SHORTCUTS.delete}
           disabled={!permissions.can("delete", "settings")}
           destructive
           onClick={() => {

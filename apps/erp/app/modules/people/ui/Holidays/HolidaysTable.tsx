@@ -85,6 +85,7 @@ const HolidaysTable = memo(({ data, count, years }: HolidaysTableProps) => {
             <Trans>Edit Holiday</Trans>
           </MenuItem>
           <MenuItem
+            shortcut={MENU_ITEM_SHORTCUTS.delete}
             disabled={!permissions.can("delete", "people")}
             destructive
             onClick={() => {

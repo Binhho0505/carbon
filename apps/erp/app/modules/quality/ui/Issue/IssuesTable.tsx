@@ -321,6 +321,7 @@ const IssuesTable = memo(({ data, types, count }: IssuesTableProps) => {
             Edit Issue
           </MenuItem>
           <MenuItem
+            shortcut={MENU_ITEM_SHORTCUTS.delete}
             destructive
             disabled={!permissions.can("delete", "quality")}
             onClick={() => {

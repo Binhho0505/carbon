@@ -186,6 +186,7 @@ const ShiftsTable = memo(({ data, count, locations }: ShiftsTableProps) => {
             <Trans>Edit Shift</Trans>
           </MenuItem>
           <MenuItem
+            shortcut={MENU_ITEM_SHORTCUTS.delete}
             destructive
             disabled={!permissions.can("delete", "people")}
             onClick={() => {

@@ -142,6 +142,7 @@ const LocationsTable = memo(({ data, count }: LocationsTableProps) => {
             <Trans>Edit Location</Trans>
           </MenuItem>
           <MenuItem
+            shortcut={MENU_ITEM_SHORTCUTS.delete}
             destructive
             disabled={!permissions.can("delete", "resources")}
             onClick={() => {

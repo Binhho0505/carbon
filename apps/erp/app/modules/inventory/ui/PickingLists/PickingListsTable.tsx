@@ -182,6 +182,7 @@ const PickingListsTable = memo(({ data, count }: PickingListsTableProps) => {
               : t`Edit Picking List`}
           </MenuItem>
           <MenuItem
+            shortcut={MENU_ITEM_SHORTCUTS.delete}
             disabled={
               !permissions.can("delete", "inventory") || row.status !== "Draft"
             }

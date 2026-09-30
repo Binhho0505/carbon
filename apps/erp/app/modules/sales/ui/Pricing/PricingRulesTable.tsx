@@ -441,6 +441,7 @@ const PricingRulesTable = memo(({ data, count }: PricingRulesTableProps) => {
             {t`Duplicate Pricing Rule`}
           </MenuItem>
           <MenuItem
+            shortcut={MENU_ITEM_SHORTCUTS.delete}
             destructive
             disabled={!canDelete}
             onClick={() => {

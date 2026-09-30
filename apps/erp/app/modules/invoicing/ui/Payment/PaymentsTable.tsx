@@ -73,6 +73,7 @@ const PaymentsTable = memo(({ data, count }: PaymentsTableProps) => {
           )}
         </MenuItem>
         <MenuItem
+          shortcut={MENU_ITEM_SHORTCUTS.delete}
           destructive
           disabled={
             row.status !== "Draft" || !permissions.can("delete", "invoicing")

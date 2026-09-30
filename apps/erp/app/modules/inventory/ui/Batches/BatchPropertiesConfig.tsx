@@ -449,6 +449,7 @@ function BatchPropertyComponent({
                   <Trans>Edit</Trans>
                 </DropdownMenuItem>
                 <DropdownMenuItem
+                  shortcut={MENU_ITEM_SHORTCUTS.delete}
                   destructive
                   onClick={deletePropertyDisclosure.onOpen}
                 >

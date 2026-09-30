@@ -197,6 +197,7 @@ const ApiKeysTable = memo(({ data, count }: ApiKeysTableProps) => {
             <Trans>Edit API Key</Trans>
           </MenuItem>
           <MenuItem
+            shortcut={MENU_ITEM_SHORTCUTS.delete}
             destructive
             onClick={() => {
               navigate(

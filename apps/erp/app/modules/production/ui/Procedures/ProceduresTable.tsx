@@ -197,6 +197,7 @@ const ProceduresTable = memo(({ data, tags, count }: ProceduresTableProps) => {
             Edit Procedure
           </MenuItem>
           <MenuItem
+            shortcut={MENU_ITEM_SHORTCUTS.delete}
             destructive
             disabled={!permissions.can("delete", "production")}
             onClick={() => {

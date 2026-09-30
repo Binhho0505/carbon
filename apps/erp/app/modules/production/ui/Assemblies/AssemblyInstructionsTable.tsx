@@ -254,6 +254,7 @@ const AssemblyInstructionsTable = memo(
               Edit Instruction
             </MenuItem>
             <MenuItem
+              shortcut={MENU_ITEM_SHORTCUTS.delete}
               destructive
               disabled={!permissions.can("delete", "production")}
               onClick={() => {

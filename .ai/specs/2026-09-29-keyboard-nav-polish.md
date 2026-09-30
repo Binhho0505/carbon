@@ -78,7 +78,7 @@ No schema changes. Research: `.ai/research/keyboard-nav-polish.md`.
 
 **Rollout:** every menu item in `apps/erp` and `apps/mes` whose label starts with one of these verbs gets `shortcut={MENU_ITEM_SHORTCUTS.<verb>}`. Items with any other label are left alone.
 
-**No Delete key:** Delete items get no shortcut. Removing data stays a deliberate pointer or Enter action.
+**Delete key:** Backspace (or Delete) on a Delete item, only when choosing it opens a confirmation first. Items that delete immediately get no key. Items with a keycap never wrap their text.
 
 ### Design Decisions
 
@@ -89,7 +89,7 @@ No schema changes. Research: `.ai/research/keyboard-nav-polish.md`.
 | Record link style | The name is the `Hyperlink` (via `EntityRecordLink`) | Matches the PO/SO tables and this table's own Workflow column; the user's choice |
 | Pager tooltip | Label + keycap | The tooltip must say what the button does; the user's choice |
 | How menu items get keys | Explicit `shortcut` prop, no auto-assignment | Predictable letters that don't shift when items hide or labels are translated; the user's choice |
-| Delete key | None | Removing data should never be one keystroke away, even behind a confirmation; the user's call, reversing the earlier Backspace decision |
+| Delete key | Backspace/Delete, confirm-first items only | The key only opens the confirmation, so nothing is removed in one keystroke; the user's call, restoring the original Backspace decision |
 | Scoping of menu keys | `onKeyDown` on menu content, not a document listener | Content is mounted only while the menu is open, so scoping comes for free; no global binding to guard |
 | react-hotkeys-hook for menu keys | Not used | The convention bans hand-rolled *document* listeners. This is an element-scoped React handler. `useHotkeys` would need a ref per content plus its menu/typeahead suppression, and `isEditableTarget` treats `[role=menu]` as editable, so it would suppress exactly the keys we need |
 | Shortcut constants location | `packages/react/src/shortcuts.ts` | Menus are shared parts used by ERP and MES; the convention puts shared combos there |
@@ -120,7 +120,7 @@ N/A: no schema changes. Item 1 reads existing columns through an existing servic
 - [ ] CSV export of the runs table contains the same record text as the cell.
 - [ ] With the rail expanded, hovering Items shows `G` `T` keycaps on that row only. Pressing G then T goes to Items. Shop Floor shows no keycaps.
 - [ ] Hovering the table header's Previous icon shows "Previous page" with a ← keycap; the footer's Next button shows "Next page" with a → keycap. ← and → still page.
-- [ ] Opening a table row's action menu (three-dot or right-click) that has "Edit …" and "Delete …": pressing E runs Edit and closes the menu; Delete shows no keycap and Backspace does nothing.
+- [ ] Opening a table row's action menu (three-dot or right-click) that has "Edit …" and "Delete …": pressing E runs Edit and closes the menu; Backspace opens the Delete confirmation.
 - [ ] With no menu open, pressing E on the page does nothing menu-related.
 - [ ] In a menu with a submenu open, a letter pressed inside the submenu runs only the submenu's matching item.
 - [ ] Typing in a NumberField inside a menu (Quote line pricing) never triggers a menu key.
@@ -142,10 +142,11 @@ N/A: no schema changes. Item 1 reads existing columns through an existing servic
 - [x] How do menu items get letters? — **Answer:** an explicit `shortcut` prop; no auto-assignment.
 - [x] Workflow run record opening style? — **Answer:** the name is the Hyperlink (existing `EntityRecordLink`).
 - [x] Pager tooltip content? — **Answer:** label plus keycap ("Previous page ←").
-- [x] Delete key in menus? — **Answer:** first Backspace/Delete, then revised to none (no Delete shortcut at all).
+- [x] Delete key in menus? — **Answer:** Backspace/Delete on confirm-first items (briefly dropped, then restored).
 - [x] Rollout scope? — **Answer:** the mechanism plus every menu item starting with a common verb (Edit, Rename, Pin, Duplicate/Copy, Download, View/Open, Delete) across ERP and MES.
 
 ## Changelog
 
 - 2026-09-29: Created
 - 2026-09-29: Dropped the Delete menu key (user decision); Delete items get no shortcut
+- 2026-09-30: Restored the Delete menu key (Backspace/Delete, confirm-first items only); keycap items no longer wrap

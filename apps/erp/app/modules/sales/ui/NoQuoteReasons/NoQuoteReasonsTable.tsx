@@ -58,6 +58,7 @@ const NoQuoteReasonsTable = memo(
               <Trans>Edit Reason</Trans>
             </MenuItem>
             <MenuItem
+              shortcut={MENU_ITEM_SHORTCUTS.delete}
               destructive
               disabled={!permissions.can("delete", "sales")}
               onClick={() => {

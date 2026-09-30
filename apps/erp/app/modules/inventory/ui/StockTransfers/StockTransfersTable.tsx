@@ -223,6 +223,7 @@ const StockTransfersTable = memo(
                 : t`Edit Stock Transfer`}
             </MenuItem>
             <MenuItem
+              shortcut={MENU_ITEM_SHORTCUTS.delete}
               disabled={
                 !permissions.can("delete", "inventory") ||
                 !!row.completedAt ||

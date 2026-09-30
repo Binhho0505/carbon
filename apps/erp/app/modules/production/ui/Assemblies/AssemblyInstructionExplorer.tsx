@@ -10,6 +10,7 @@ import {
   DropdownMenuTrigger,
   IconButton,
   Input,
+  MENU_ITEM_SHORTCUTS,
   Modal,
   ModalContent,
   ModalDescription,
@@ -1160,6 +1161,7 @@ function StepItem({
           </DropdownMenuTrigger>
           <DropdownMenuContent>
             <DropdownMenuItem
+              shortcut={MENU_ITEM_SHORTCUTS.delete}
               destructive
               disabled={!permissions.can("delete", "production")}
               onClick={(e) => {

@@ -735,6 +735,7 @@ export default function PersonTimecardRoute() {
                             <Trans>Edit</Trans>
                           </DropdownMenuItem>
                           <DropdownMenuItem
+                            shortcut={MENU_ITEM_SHORTCUTS.delete}
                             onClick={() =>
                               setDeletingEntry({
                                 id: entry.id,

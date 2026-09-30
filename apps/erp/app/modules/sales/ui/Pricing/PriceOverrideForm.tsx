@@ -400,6 +400,7 @@ function PriceBreaks({
                       </DropdownMenuItem>
                     ) : null}
                     <DropdownMenuItem
+                      shortcut={MENU_ITEM_SHORTCUTS.delete}
                       onClick={() =>
                         setPendingDelete({
                           index: row.index,

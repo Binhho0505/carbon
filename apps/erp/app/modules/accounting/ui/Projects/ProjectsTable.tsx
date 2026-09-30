@@ -65,6 +65,7 @@ const ProjectsTable = memo(({ data, count }: ProjectsTableProps) => {
             <Trans>Edit Project</Trans>
           </MenuItem>
           <MenuItem
+            shortcut={MENU_ITEM_SHORTCUTS.delete}
             disabled={!permissions.can("delete", "accounting")}
             onClick={() => {
               navigate(`${path.to.deleteProject(row.id)}?${params.toString()}`);

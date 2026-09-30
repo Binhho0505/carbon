@@ -143,6 +143,7 @@ const SalesRulesTable = memo(({ data, count }: SalesRulesTableProps) => {
           <Trans>Edit Rule</Trans>
         </MenuItem>
         <MenuItem
+          shortcut={MENU_ITEM_SHORTCUTS.delete}
           disabled={!permissions.can("delete", "sales")}
           destructive
           onClick={() => {

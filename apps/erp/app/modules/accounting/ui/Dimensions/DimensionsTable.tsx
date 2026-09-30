@@ -105,6 +105,7 @@ const DimensionsTable = memo(({ data, count }: DimensionsTableProps) => {
             <Trans>Edit Dimension</Trans>
           </MenuItem>
           <MenuItem
+            shortcut={MENU_ITEM_SHORTCUTS.delete}
             disabled={!permissions.can("delete", "accounting")}
             onClick={() => {
               navigate(

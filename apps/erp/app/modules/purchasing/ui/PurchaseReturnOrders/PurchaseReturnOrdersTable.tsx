@@ -201,6 +201,7 @@ const PurchaseReturnOrdersTable = memo(
             <Trans>Edit</Trans>
           </MenuItem>
           <MenuItem
+            shortcut={MENU_ITEM_SHORTCUTS.delete}
             disabled={!permissions.can("delete", "purchasing")}
             destructive
             onClick={() => {

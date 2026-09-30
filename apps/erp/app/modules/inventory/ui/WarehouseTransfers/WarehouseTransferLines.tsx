@@ -205,6 +205,7 @@ function WarehouseTransferLineListItem({
                   <Trans>Edit</Trans>
                 </DropdownMenuItem>
                 <DropdownMenuItem
+                  shortcut={MENU_ITEM_SHORTCUTS.delete}
                   disabled={isDisabled}
                   destructive
                   onClick={deleteModalDisclosure.onOpen}

@@ -17,6 +17,7 @@ import {
   Input,
   InputGroup,
   InputRightElement,
+  MENU_ITEM_SHORTCUTS,
   Modal,
   ModalBody,
   ModalContent,
@@ -177,6 +178,7 @@ const SupplierQuoteHeader = () => {
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
+                  shortcut={MENU_ITEM_SHORTCUTS.delete}
                   disabled={
                     isLocked ||
                     !permissions.can("delete", "purchasing") ||

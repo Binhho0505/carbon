@@ -154,6 +154,7 @@ const AttributeCategoriesTable = memo(
               <Trans>Edit Category</Trans>
             </MenuItem>
             <MenuItem
+              shortcut={MENU_ITEM_SHORTCUTS.delete}
               destructive
               disabled={row.protected || !permissions.can("delete", "users")}
               onClick={() => onDelete(row)}

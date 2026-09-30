@@ -152,6 +152,7 @@ export default function FixedAssetDetailRoute() {
                   <>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
+                      shortcut={MENU_ITEM_SHORTCUTS.delete}
                       disabled={!permissions.can("delete", "accounting")}
                       destructive
                       onClick={deleteModal.onOpen}

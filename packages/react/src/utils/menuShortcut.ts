@@ -15,6 +15,7 @@ export function menuShortcutFromEvent(event: KeyLike): string | null {
   if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) {
     return null;
   }
+  if (event.key === "Backspace" || event.key === "Delete") return "backspace";
   const letter = /^Key([A-Z])$/.exec(event.code)?.[1];
   return letter ? letter.toLowerCase() : null;
 }

@@ -144,6 +144,7 @@ const MaterialTypesTable = memo(({ data, count }: MaterialTypesTableProps) => {
             <Trans>Edit Material Type</Trans>
           </MenuItem>
           <MenuItem
+            shortcut={MENU_ITEM_SHORTCUTS.delete}
             disabled={
               !permissions.can("delete", "parts") || row.companyId === null
             }

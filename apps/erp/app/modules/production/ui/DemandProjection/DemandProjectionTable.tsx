@@ -171,6 +171,7 @@ const DemandProjectionsTable = memo(
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem
+                      shortcut={MENU_ITEM_SHORTCUTS.delete}
                       onSelect={() => setSelectedItem(row.original)}
                       destructive
                     >

@@ -24,9 +24,14 @@ describe("menuShortcutFromEvent", () => {
     expect(menuShortcutFromEvent(key("KeyE", "у"))).toBe("e");
   });
 
-  it("ignores Backspace and Delete — delete has no menu key", () => {
-    expect(menuShortcutFromEvent(key("Backspace", "Backspace"))).toBe(null);
-    expect(menuShortcutFromEvent(key("Delete", "Delete"))).toBe(null);
+  it("maps Backspace and Delete to the delete key", () => {
+    expect(menuShortcutFromEvent(key("Backspace", "Backspace"))).toBe(
+      "backspace"
+    );
+    expect(menuShortcutFromEvent(key("Delete", "Delete"))).toBe("backspace");
+    expect(
+      menuShortcutFromEvent(key("Backspace", "Backspace", { metaKey: true }))
+    ).toBe(null);
   });
 
   it("ignores keys with any modifier", () => {

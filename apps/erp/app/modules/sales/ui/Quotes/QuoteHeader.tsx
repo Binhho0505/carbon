@@ -175,6 +175,7 @@ const QuoteHeader = () => {
                   <Trans>Reopen</Trans>
                 </DropdownMenuItem>
                 <DropdownMenuItem
+                  shortcut={MENU_ITEM_SHORTCUTS.delete}
                   disabled={
                     !permissions.can("delete", "sales") ||
                     !permissions.is("employee") ||

@@ -143,6 +143,7 @@ const InspectionDocumentTable = memo(
             Edit Diagram
           </MenuItem>
           <MenuItem
+            shortcut={MENU_ITEM_SHORTCUTS.delete}
             destructive
             disabled={!permissions.can("delete", "quality")}
             onClick={() => {

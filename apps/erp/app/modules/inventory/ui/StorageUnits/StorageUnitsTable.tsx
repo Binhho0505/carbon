@@ -555,6 +555,7 @@ const StorageUnitsTable = memo(
               <Trans>Add Child Storage Unit</Trans>
             </MenuItem>
             <MenuItem
+              shortcut={MENU_ITEM_SHORTCUTS.delete}
               disabled={!permissions.can("delete", "inventory")}
               destructive
               onClick={() => {

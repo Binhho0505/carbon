@@ -66,7 +66,7 @@ function CostCenterNodeComponent({
               <LuEllipsisVertical className="size-3.5 text-muted-foreground" />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-44">
+          <DropdownMenuContent align="end" className="min-w-44">
             <DropdownMenuItem
               shortcut={MENU_ITEM_SHORTCUTS.edit}
               onClick={() => onEdit(costCenter.id!)}
@@ -79,6 +79,7 @@ function CostCenterNodeComponent({
               <Trans>Add cost center</Trans>
             </DropdownMenuItem>
             <DropdownMenuItem
+              shortcut={MENU_ITEM_SHORTCUTS.delete}
               className="text-destructive focus:text-destructive"
               onClick={() => onDelete(costCenter.id!)}
             >
