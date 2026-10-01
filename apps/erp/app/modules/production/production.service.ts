@@ -9378,6 +9378,17 @@ export async function syncAssemblyInstructionToOperation(
       existingSynced
     );
 
+    // The operation's own steps number from 1 as well: the instruction's
+    // steps follow them, or the two interleave.
+    const syncedIds = new Set(existingSynced.map((step) => step.id));
+    const firstSortOrder =
+      Math.max(
+        0,
+        ...existingSteps
+          .filter((step) => !syncedIds.has(step.id))
+          .map((step) => step.sortOrder ?? 0)
+      ) + 1;
+
     const now = new Date().toISOString();
     let created = 0;
     let updated = 0;
@@ -9406,7 +9417,7 @@ export async function syncAssemblyInstructionToOperation(
         maxValue: source.maxValue,
         listValues: source.listValues,
         fileTypes: source.fileTypes,
-        sortOrder: source.sortOrder ?? index + 1
+        sortOrder: firstSortOrder + index
       };
 
       const existingId = targetIdBySourceId.get(source.id);
