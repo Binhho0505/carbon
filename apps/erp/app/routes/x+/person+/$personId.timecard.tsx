@@ -599,6 +599,7 @@ export default function PersonTimecardRoute() {
                           />
                         )}
                       <Button
+                        isLoading={fetcher.state !== "idle"}
                         variant="secondary"
                         type="submit"
                         disabled={isNaN(new Date(addClockIn).getTime())}
@@ -681,6 +682,7 @@ export default function PersonTimecardRoute() {
                             )}
                           <input type="hidden" name="note" value={editNote} />
                           <Button
+                            isLoading={fetcher.state !== "idle"}
                             variant="secondary"
                             type="submit"
                             disabled={isNaN(new Date(editClockIn).getTime())}

@@ -5478,6 +5478,30 @@ export type Database = {
           }
         ]
       }
+      changelogDispatch: {
+        Row: {
+          description: string | null
+          dispatchedAt: string
+          emailsSent: number
+          guid: string
+          title: string | null
+        }
+        Insert: {
+          description?: string | null
+          dispatchedAt?: string
+          emailsSent?: number
+          guid: string
+          title?: string | null
+        }
+        Update: {
+          description?: string | null
+          dispatchedAt?: string
+          emailsSent?: number
+          guid?: string
+          title?: string | null
+        }
+        Relationships: []
+      }
       changeOrder: {
         Row: {
           approvalRequirements: string[] | null
@@ -83198,6 +83222,42 @@ export type Database = {
       get_company_id_from_foreign_key: {
         Args: { foreign_key: string; tbl: string }
         Returns: string
+      }
+      get_completion_jobs: {
+        Args: {
+          company_id: string
+          location_id: string
+          search?: string
+          through_date?: string
+          time_zone: string
+        }
+        Returns: {
+          completionDate: string
+          customerId: string
+          customerName: string
+          customerReference: string
+          dropShipment: boolean
+          dueDate: string
+          id: string
+          itemName: string
+          itemReadableIdWithRevision: string
+          itemType: Database["public"]["Enums"]["itemType"]
+          jobId: string
+          jobOperations: Json
+          productionQuantity: number
+          projectedCompletionAt: string
+          promisedDate: string
+          quantityComplete: number
+          salesOrderId: string
+          salesOrderReadableId: string
+          shippingMethod: string
+          shipToCity: string
+          shipToCountryCode: string
+          shipToName: string
+          shipToState: string
+          status: Database["public"]["Enums"]["jobStatus"]
+          thumbnailPath: string
+        }[]
       }
       get_consumable_details: {
         Args: { item_id: string }

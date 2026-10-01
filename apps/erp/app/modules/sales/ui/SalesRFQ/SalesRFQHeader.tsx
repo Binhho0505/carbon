@@ -179,6 +179,7 @@ const SalesRFQHeader = () => {
           )}
 
           <Button
+            isLoading={statusFetcher.state !== "idle"}
             isDisabled={
               status !== "Ready for Quote" ||
               routeData?.lines?.length === 0 ||
