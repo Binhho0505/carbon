@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) Carbon Manufacturing Systems Corporation and contributors.
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 // Balloon overlay geometry shared by the inspection plan editor, its PDF
 // export, and the ERP and MES inspection drawing panes, so every view draws a
 // balloon and its leader line in the same place.
