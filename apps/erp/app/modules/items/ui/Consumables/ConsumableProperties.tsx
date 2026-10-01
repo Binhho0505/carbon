@@ -3,6 +3,7 @@ import { InputControlled, Select, ValidatedForm } from "@carbon/form";
 import {
   Badge,
   Button,
+  Copy,
   HStack,
   Subheading,
   Tooltip,
@@ -13,7 +14,7 @@ import {
 } from "@carbon/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Suspense, useCallback, useEffect } from "react";
-import { LuCopy, LuLink } from "react-icons/lu";
+import { LuCopy, LuKeySquare, LuLink } from "react-icons/lu";
 import { Await, Link, useFetcher, useParams } from "react-router";
 import { z } from "zod";
 import { zfd } from "zod-form-data";
@@ -229,6 +230,13 @@ const ConsumableProperties = ({ data }: ConsumablePropertiesProps) => {
                 </span>
               </TooltipContent>
             </Tooltip>
+            <Copy
+              text={itemId}
+              label={t`Copy consumable unique identifier`}
+              icon={<LuKeySquare className="size-3" />}
+              variant="ghost"
+              className="w-auto"
+            />
 
             <Tooltip>
               <TooltipTrigger asChild>

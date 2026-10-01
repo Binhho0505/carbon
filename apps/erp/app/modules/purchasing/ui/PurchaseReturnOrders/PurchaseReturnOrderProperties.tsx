@@ -9,6 +9,7 @@ import {
 import {
   Badge,
   Button,
+  Copy,
   HStack,
   Modal,
   ModalBody,
@@ -26,7 +27,7 @@ import {
 } from "@carbon/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { LuCopy, LuLink, LuUnlink2 } from "react-icons/lu";
+import { LuCopy, LuKeySquare, LuLink, LuUnlink2 } from "react-icons/lu";
 import { RiProgress8Line } from "react-icons/ri";
 import { useFetcher, useParams } from "react-router";
 import { z } from "zod";
@@ -249,6 +250,13 @@ const PurchaseReturnOrderProperties = () => {
                 </span>
               </TooltipContent>
             </Tooltip>
+            <Copy
+              text={id}
+              label={t`Copy purchase return order unique identifier`}
+              icon={<LuKeySquare className="size-3" />}
+              variant="ghost"
+              className="w-auto"
+            />
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button

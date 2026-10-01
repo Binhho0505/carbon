@@ -45,6 +45,7 @@ import { useFetcher } from "react-router";
 import { Confirm } from "~/components/Modals";
 import { usePermissions } from "~/hooks";
 import type {
+  InspectionGauge,
   InspectionMeasurement,
   InspectionRow,
   InspectionSample,
@@ -94,12 +95,20 @@ export type InspectionViewProps = {
   samples: InspectionSample[];
   features: InspectionSamplingPlan[];
   measurements: InspectionMeasurement[];
+  // Active gauges, and the ones most recently recorded at this lot's work
+  // center (receipts are their own), newest first.
+  gauges: InspectionGauge[];
+  recentGaugeIds: string[];
   balloons: {
     id: string;
     inspectionFeatureId: string;
     pageNumber: number;
     xCoordinate: number;
     yCoordinate: number;
+    regionX: number;
+    regionY: number;
+    regionWidth: number;
+    regionHeight: number;
   }[];
   documentName: string | null;
   pdfUrl: string | null;
@@ -124,6 +133,8 @@ const InspectionView = ({
   samples,
   features,
   measurements,
+  gauges,
+  recentGaugeIds,
   balloons,
   documentName,
   pdfUrl,
@@ -444,6 +455,10 @@ const InspectionView = ({
         pageNumber: b.pageNumber,
         xCoordinate: b.xCoordinate,
         yCoordinate: b.yCoordinate,
+        regionX: b.regionX,
+        regionY: b.regionY,
+        regionWidth: b.regionWidth,
+        regionHeight: b.regionHeight,
         label: labelByFeatureId.get(b.inspectionFeatureId) ?? ""
       }));
   }, [balloons, liveFeatures]);
@@ -599,7 +614,7 @@ const InspectionView = ({
               <div
                 role="separator"
                 aria-orientation="horizontal"
-                aria-label={t`Drag to resize drawing and features`}
+                aria-label={t`Drag to resize drawing and characteristics`}
                 aria-valuenow={Math.round(pdfPaneHeightPx)}
                 className={`group flex h-2 shrink-0 cursor-row-resize touch-none items-center justify-center rounded-md px-2 hover:bg-muted/80 ${
                   isResizingSplit ? "bg-muted" : ""
@@ -637,6 +652,8 @@ const InspectionView = ({
                   features={features}
                   samples={samples}
                   measurements={measurements}
+                  gauges={gauges}
+                  recentGaugeIds={recentGaugeIds}
                   maxSampleSize={maxSampleSize}
                   lotSize={inspection.lotSize}
                   lotAcceptanceNumber={inspection.acceptanceNumber}
@@ -652,8 +669,8 @@ const InspectionView = ({
                       aria-expanded={gridExpanded}
                       aria-label={
                         gridExpanded
-                          ? t`Collapse features table`
-                          : t`Expand features table`
+                          ? t`Collapse characteristics table`
+                          : t`Expand characteristics table`
                       }
                       icon={
                         gridExpanded ? (
@@ -684,6 +701,8 @@ const InspectionView = ({
                 features={features}
                 samples={samples}
                 measurements={measurements}
+                gauges={gauges}
+                recentGaugeIds={recentGaugeIds}
                 maxSampleSize={maxSampleSize}
                 lotSize={inspection.lotSize}
                 lotAcceptanceNumber={inspection.acceptanceNumber}
@@ -807,8 +826,8 @@ function DocumentSwitchModal({
           <VStack spacing={2}>
             <p className="text-sm text-muted-foreground">
               <Trans>
-                The lot's per-feature sampling plan will be re-resolved from the
-                selected document.
+                The lot's per-characteristic sampling plan will be re-resolved
+                from the selected document.
               </Trans>
             </p>
             <Select value={documentId} onValueChange={setDocumentId}>

@@ -28,10 +28,45 @@ export async function getInspectionSamplingPlans(
   return client
     .from("inspectionSamplingPlan")
     .select(
-      "*, inspectionFeature(id, label, description, pageNumber, type, nominalValue, tolerancePlus, toleranceMinus, unit)"
+      "*, inspectionFeature(id, label, description, pageNumber, type, nominalValue, tolerancePlus, toleranceMinus, unit, gaugeTypeId, gaugeType(name))"
     )
     .eq("inspectionId", inspectionId)
     .eq("companyId", companyId);
+}
+
+// The gauges an inspection lot's view needs: every Active gauge (the
+// selectable options — Inactive gauges are retired and never offered, the
+// engine refuses them too) plus any gauge already recorded on this lot, even
+// if it has since been retired, so the record keeps showing its readable id.
+export async function getInspectionGauges(
+  client: SupabaseClient<Database>,
+  companyId: string,
+  inspectionId: string
+) {
+  const recorded = await client
+    .from("inspectionSamplingPlan")
+    .select("gaugeId")
+    .eq("inspectionId", inspectionId)
+    .eq("companyId", companyId)
+    .not("gaugeId", "is", null);
+  const recordedIds = [
+    ...new Set((recorded.data ?? []).map((row) => row.gaugeId as string))
+  ];
+
+  const query = client
+    .from("gauges")
+    .select(
+      "id, gaugeId, description, gaugeTypeId, gaugeStatus, gaugeCalibrationStatusWithDueDate"
+    )
+    .eq("companyId", companyId);
+
+  return (
+    recordedIds.length > 0
+      ? query.or(
+          `gaugeStatus.eq.Active,id.in.(${recordedIds.map((id) => `"${id}"`).join(",")})`
+        )
+      : query.eq("gaugeStatus", "Active")
+  ).order("gaugeId");
 }
 
 export async function getInspectionMeasurements(
@@ -59,7 +94,7 @@ export async function getIssueTypesList(
 
 // The drawing pane needs the document's display name, its PDF preview URL, and
 // the balloon coordinates. This is a simplified read of what the ERP
-// production module assembles via mapInspectionDocument/mapBalloon.
+// quality module assembles via mapInspectionDocument/mapBalloon.
 export async function getInspectionDocumentWithBalloons(
   client: SupabaseClient<Database>,
   inspectionDocumentId: string
@@ -72,7 +107,9 @@ export async function getInspectionDocumentWithBalloons(
       .single(),
     client
       .from("balloon")
-      .select("id, inspectionFeatureId, pageNumber, xCoordinate, yCoordinate")
+      .select(
+        "id, inspectionFeatureId, pageNumber, xCoordinate, yCoordinate, regionX, regionY, regionWidth, regionHeight"
+      )
       .eq("inspectionDocumentId", inspectionDocumentId)
   ]);
 

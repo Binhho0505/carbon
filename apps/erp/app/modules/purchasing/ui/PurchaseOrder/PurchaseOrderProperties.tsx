@@ -4,6 +4,7 @@ import { DatePicker, InputControlled, ValidatedForm } from "@carbon/form";
 import {
   Badge,
   Button,
+  Copy,
   HStack,
   IconButton,
   Subheading,
@@ -20,6 +21,7 @@ import {
   LuCopy,
   LuExternalLink,
   LuInfo,
+  LuKeySquare,
   LuLink,
   LuRefreshCcw
 } from "react-icons/lu";
@@ -159,6 +161,13 @@ const PurchaseOrderProperties = () => {
                 <span>Copy link to Purchase Order</span>
               </TooltipContent>
             </Tooltip>
+            <Copy
+              text={orderId}
+              label={t`Copy purchase order unique identifier`}
+              icon={<LuKeySquare className="size-3" />}
+              variant="ghost"
+              className="w-auto"
+            />
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
