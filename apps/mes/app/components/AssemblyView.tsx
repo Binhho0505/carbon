@@ -1249,7 +1249,7 @@ export function AssemblyView({
         next.set("step", String(target));
         return next;
       },
-      { preventScrollReset: true }
+      { replace: true, preventScrollReset: true }
     );
   }
 
@@ -1288,7 +1288,7 @@ export function AssemblyView({
         next.delete(SUB_ASSEMBLY_PARAM);
         return next;
       },
-      { preventScrollReset: true }
+      { replace: true, preventScrollReset: true }
     );
   }
 

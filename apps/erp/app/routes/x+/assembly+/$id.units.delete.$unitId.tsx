@@ -30,6 +30,6 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
   return data(
     { success: true },
-    await flash(request, success("Successfully deleted unit"))
+    await flash(request, success("Successfully deleted component group"))
   );
 }

@@ -20,6 +20,8 @@ CREATE INDEX IF NOT EXISTS "assemblyInstructionStep_usedInStepId_idx"
 -- A sub-assembly installs nothing itself: its parts come from its steps. Header
 -- rows are never copied into job steps, so a part on one would never reach the floor.
 ALTER TABLE "assemblyInstructionStep"
+  DROP CONSTRAINT IF EXISTS "assemblyInstructionStep_subAssembly_no_parts";
+ALTER TABLE "assemblyInstructionStep"
   ADD CONSTRAINT "assemblyInstructionStep_subAssembly_no_parts"
   CHECK (NOT "isSubAssembly" OR cardinality("componentNodeIds") = 0);
 

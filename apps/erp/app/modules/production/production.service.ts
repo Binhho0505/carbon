@@ -9092,9 +9092,13 @@ function assemblyStepName(title: string | null, index: number) {
  * inserts duplicates beside them.
  *
  * Deliberately conservative: an orphan is claimed only when it matches a source
- * step on BOTH sortOrder and name AND no already-marked step claims that source
+ * step on BOTH position and name AND no already-marked step claims that source
  * step. Genuinely hand-authored steps match no source step and are untouched;
  * ambiguous cases are left alone rather than guessed at.
+ *
+ * Position is where the sync wrote the step: after the operation's own steps
+ * (the unmarked steps that share no name with a source step), in source order.
+ * Steps synced before that numbering sit at the source step's own sortOrder.
  */
 export function planOrphanStepAdoption(
   sourceSteps: { id: string; title: string | null; sortOrder: number | null }[],
@@ -9104,14 +9108,25 @@ export function planOrphanStepAdoption(
   const adoption = new Map<string, string>();
   const takenOrphans = new Set<string>();
 
+  const sourceNames = new Set(
+    sourceSteps.map((source, index) => assemblyStepName(source.title, index))
+  );
+  const lastOwnSortOrder = Math.max(
+    0,
+    ...orphanSteps
+      .filter((orphan) => orphan.name === null || !sourceNames.has(orphan.name))
+      .map((orphan) => orphan.sortOrder ?? 0)
+  );
+
   sourceSteps.forEach((source, index) => {
     if (claimedSourceIds.has(source.id)) return;
     const sourceName = assemblyStepName(source.title, index);
     const match = orphanSteps.find(
       (orphan) =>
         !takenOrphans.has(orphan.id) &&
-        orphan.sortOrder === source.sortOrder &&
-        orphan.name === sourceName
+        orphan.name === sourceName &&
+        (orphan.sortOrder === lastOwnSortOrder + 1 + index ||
+          orphan.sortOrder === source.sortOrder)
     );
     if (match) {
       adoption.set(match.id, source.id);
