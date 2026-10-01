@@ -41,7 +41,7 @@ export const navRailItemClasses = [
 /**
  * The primary left navigation shared by the ERP and MES app shells: a 56px
  * icon rail that grows to 208px while a mouse hovers it or while it is pinned
- * open (⌘B / a `SidebarTrigger`), and a left drawer below `md`. Open state
+ * open (a `SidebarTrigger`, or ⌘B where the provider binds it), and a left drawer below `md`. Open state
  * comes from `SidebarProvider`, so it must be rendered inside one.
  */
 // A pointer only passing over the rail (on its way to the page) shouldn't open it.

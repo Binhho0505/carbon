@@ -19002,9 +19002,6 @@ msgstr "Toggle level"
 msgid "Toggle Properties"
 msgstr "Toggle Properties"
 
-msgid "Toggle the sidebar"
-msgstr "Toggle the sidebar"
-
 msgid "Toggle views"
 msgstr "Toggle views"
 

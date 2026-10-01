@@ -19002,9 +19002,6 @@ msgstr "Alternar nivel"
 msgid "Toggle Properties"
 msgstr "Alternar Propiedades"
 
-msgid "Toggle the sidebar"
-msgstr "Alternar la barra lateral"
-
 msgid "Toggle views"
 msgstr "Alternar vistas"
 
