@@ -3308,9 +3308,6 @@ msgstr "Herhangi bir yeni çalışma oluşturun"
 msgid "Build integrations and customizations"
 msgstr "Entegrasyonlar ve özelleştirmeler oluşturun"
 
-msgid "Build off to the side"
-msgstr "Yanında inşa et"
-
 msgid "Build quotes pulling live part, cost, and Bill of Process data"
 msgstr "Canlı parça, maliyet ve Operasyon listesi verilerini çekerek teklifler oluşturun"
 
@@ -3319,9 +3316,6 @@ msgstr "Rol tabanlı eğitim materyalleri oluşturun"
 
 msgid "Build tailored, role-based training materials"
 msgstr "Özelleştirilmiş, rol tabanlı eğitim materyalleri oluşturun"
-
-msgid "Builds this step's components beside the model as a group, then carries the group in at a later join step."
-msgstr "Bu adımın bileşenlerini modelin yanında bir grup olarak inşa eder, ardından grubu daha sonraki bir birleştirme adımında taşır."
 
 msgid "Built after this step"
 msgstr ""

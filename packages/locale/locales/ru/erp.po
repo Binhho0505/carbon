@@ -3308,9 +3308,6 @@ msgstr "Создайте любую новую работу"
 msgid "Build integrations and customizations"
 msgstr "Создавайте интеграции и настройки"
 
-msgid "Build off to the side"
-msgstr "Собирать отдельно"
-
 msgid "Build quotes pulling live part, cost, and Bill of Process data"
 msgstr "Создавайте коммерческие предложения, используя данные о деталях, себестоимости и перечне операций в реальном времени"
 
@@ -3319,9 +3316,6 @@ msgstr "Создавайте материалы обучения на основ
 
 msgid "Build tailored, role-based training materials"
 msgstr "Создавайте адаптированные материалы обучения на основе ролей"
-
-msgid "Builds this step's components beside the model as a group, then carries the group in at a later join step."
-msgstr "Собирает компоненты этого шага рядом с моделью как группу, затем вносит группу на более позднем шаге присоединения."
 
 msgid "Built after this step"
 msgstr ""

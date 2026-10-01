@@ -3308,9 +3308,6 @@ msgstr "构建任何全新工作"
 msgid "Build integrations and customizations"
 msgstr "构建集成和自定义"
 
-msgid "Build off to the side"
-msgstr "侧面构建"
-
 msgid "Build quotes pulling live part, cost, and Bill of Process data"
 msgstr "通过拉取实时零件、成本和工序清单数据来创建报价单"
 
@@ -3319,9 +3316,6 @@ msgstr "构建基于角色的培训材料"
 
 msgid "Build tailored, role-based training materials"
 msgstr "构建定制的、基于角色的培训材料"
-
-msgid "Builds this step's components beside the model as a group, then carries the group in at a later join step."
-msgstr "在模型旁边将此步骤的组件作为一个组构建，然后在稍后的连接步骤中将该组带入。"
 
 msgid "Built after this step"
 msgstr ""

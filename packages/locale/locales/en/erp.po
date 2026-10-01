@@ -3308,9 +3308,6 @@ msgstr "Build any net-new work"
 msgid "Build integrations and customizations"
 msgstr "Build integrations and customizations"
 
-msgid "Build off to the side"
-msgstr "Build off to the side"
-
 msgid "Build quotes pulling live part, cost, and Bill of Process data"
 msgstr "Build quotes pulling live part, cost, and Bill of Process data"
 
@@ -3319,9 +3316,6 @@ msgstr "Build role-based training materials"
 
 msgid "Build tailored, role-based training materials"
 msgstr "Build tailored, role-based training materials"
-
-msgid "Builds this step's components beside the model as a group, then carries the group in at a later join step."
-msgstr "Builds this step's components beside the model as a group, then carries the group in at a later join step."
 
 msgid "Built after this step"
 msgstr "Built after this step"

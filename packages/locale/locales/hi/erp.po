@@ -3308,9 +3308,6 @@ msgstr "कोई भी नया काम बनाएं"
 msgid "Build integrations and customizations"
 msgstr "एकीकरण और अनुकूलन बनाएं"
 
-msgid "Build off to the side"
-msgstr "बग़ल में बनाएँ"
-
 msgid "Build quotes pulling live part, cost, and Bill of Process data"
 msgstr "लाइव पार्ट, लागत और प्रक्रिया सूची डेटा खींचकर कोटेशन बनाएँ"
 
@@ -3319,9 +3316,6 @@ msgstr "भूमिका-आधारित प्रशिक्षण सा
 
 msgid "Build tailored, role-based training materials"
 msgstr "अनुकूलित, भूमिका-आधारित प्रशिक्षण सामग्री बनाएं"
-
-msgid "Builds this step's components beside the model as a group, then carries the group in at a later join step."
-msgstr "इस चरण के घटकों को मॉडल के बगल में एक समूह के रूप में बनाता है, फिर समूह को बाद के जॉइन चरण में ले जाता है।"
 
 msgid "Built after this step"
 msgstr ""

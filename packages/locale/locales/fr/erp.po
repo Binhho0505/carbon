@@ -3308,9 +3308,6 @@ msgstr "Créer tout nouveau travail"
 msgid "Build integrations and customizations"
 msgstr "Créer des intégrations et des personnalisations"
 
-msgid "Build off to the side"
-msgstr "Construire sur le côté"
-
 msgid "Build quotes pulling live part, cost, and Bill of Process data"
 msgstr "Construire les devis en tirant les données de pièces, coûts et Liste des opérations en direct"
 
@@ -3319,9 +3316,6 @@ msgstr "Créer des matériels de formation basés sur les rôles"
 
 msgid "Build tailored, role-based training materials"
 msgstr "Créer des matériels de formation personnalisés et basés sur les rôles"
-
-msgid "Builds this step's components beside the model as a group, then carries the group in at a later join step."
-msgstr "Construit les composants de cette étape à côté du modèle en tant que groupe, puis apporte le groupe à une étape de jonction ultérieure."
 
 msgid "Built after this step"
 msgstr ""

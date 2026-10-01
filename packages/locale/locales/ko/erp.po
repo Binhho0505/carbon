@@ -3308,9 +3308,6 @@ msgstr "완전히 새로운 작업 구축"
 msgid "Build integrations and customizations"
 msgstr "연동과 커스터마이징 구축"
 
-msgid "Build off to the side"
-msgstr "옆에서 구축"
-
 msgid "Build quotes pulling live part, cost, and Bill of Process data"
 msgstr "부품, 원가 및 공정 목록 데이터를 가져와서 견적서를 작성합니다"
 
@@ -3319,9 +3316,6 @@ msgstr "역할 기반 교육 자료 제작"
 
 msgid "Build tailored, role-based training materials"
 msgstr "맞춤형 역할 기반 교육 자료 제작"
-
-msgid "Builds this step's components beside the model as a group, then carries the group in at a later join step."
-msgstr "이 단계의 구성품을 모델 옆에 그룹으로 구축한 후 나중의 조립 단계에서 그룹을 반입합니다."
 
 msgid "Built after this step"
 msgstr ""

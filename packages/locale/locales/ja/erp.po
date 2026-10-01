@@ -3308,9 +3308,6 @@ msgstr "新しい作業を構築する"
 msgid "Build integrations and customizations"
 msgstr "連携とカスタマイズを構築"
 
-msgid "Build off to the side"
-msgstr "サイドで構築"
-
 msgid "Build quotes pulling live part, cost, and Bill of Process data"
 msgstr "部品、原価、工程表データをリアルタイムで取得する見積を構築"
 
@@ -3319,9 +3316,6 @@ msgstr "ロールベースの教育訓練教材を構築"
 
 msgid "Build tailored, role-based training materials"
 msgstr "カスタマイズされたロールベースの教育訓練教材を構築"
-
-msgid "Builds this step's components beside the model as a group, then carries the group in at a later join step."
-msgstr "このステップのコンポーネントをモデルの横にグループとして構築し、後の結合ステップでグループを配置します。"
 
 msgid "Built after this step"
 msgstr ""
