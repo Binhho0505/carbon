@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import { assertIsPost, error, success } from "@carbon/auth";
 import { requirePermissions } from "@carbon/auth/auth.server";
 import { flash } from "@carbon/auth/session.server";
@@ -18,6 +22,7 @@ import {
 } from "~/modules/purchasing";
 import { getCompany } from "~/modules/settings";
 import { upsertExternalLink } from "~/modules/shared";
+import { requireCompanyRecord } from "~/modules/shared/shared.server";
 import { getUser } from "~/modules/users/users.server";
 import { path } from "~/utils/path";
 
@@ -35,6 +40,10 @@ export async function action(args: ActionFunctionArgs) {
 
   const { id } = params;
   if (!id) throw new Error("Could not find supplier quote id");
+
+  // bypassRls hands back the service role and every read/write below is keyed
+  // on the URL's id.
+  await requireCompanyRecord(client, "supplierQuote", companyId, { id });
 
   const quote = await getSupplierQuote(client, id);
   if (quote.error) {
@@ -101,7 +110,7 @@ export async function action(args: ActionFunctionArgs) {
         const [company, supplierContact, supplierQuote, user] =
           await Promise.all([
             getCompany(client, companyId),
-            getSupplierContact(client, supplierContactId),
+            getSupplierContact(client, supplierContactId, companyId),
             getSupplierQuote(client, id),
             getUser(client, userId)
           ]);

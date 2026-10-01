@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 // Follow this setup guide to integrate the Deno language server with your editor:
 // https://deno.land/manual/getting_started/setup_your_environment
 // This enables autocomplete, go to definition, etc.
@@ -6,10 +10,17 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { generateEmbedding } from "../lib/ai/embedding.ts";
 import { corsPreflight, errorResponse, jsonResponse } from "../lib/response.ts";
+import { requireCaller } from "../lib/supabase.ts";
 
 Deno.serve(async (req) => {
   const preflight = corsPreflight(req);
   if (preflight) return preflight;
+
+  try {
+    await requireCaller(req);
+  } catch (err) {
+    return errorResponse(err, (err as { status?: number }).status ?? 401);
+  }
 
   try {
     const { text } = await req.json();

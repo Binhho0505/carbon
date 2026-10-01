@@ -1,6 +1,10 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import { requirePermissions } from "@carbon/auth/auth.server";
 import { getCarbonServiceRole } from "@carbon/auth/client.server";
-import { getCompanyPrivateBucket } from "@carbon/files";
+import { getCompanyPrivateBucket, TEMP_STAGING_BUCKET } from "@carbon/files";
 import { isModelRawDownloadable } from "@carbon/files/cad";
 import type { LoaderFunctionArgs } from "react-router";
 import { redirect } from "react-router";
@@ -55,7 +59,11 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   // is the right one — never derive it from the path.
   const companyBucket = getCompanyPrivateBucket(companyId);
   let bucket: string | null = null;
-  for (const candidateBucket of [companyBucket, "private", "temp-staging"]) {
+  for (const candidateBucket of [
+    companyBucket,
+    "private",
+    TEMP_STAGING_BUCKET
+  ]) {
     const found = await probe(candidateBucket);
     if (!found.error && found.data) {
       bucket = candidateBucket;

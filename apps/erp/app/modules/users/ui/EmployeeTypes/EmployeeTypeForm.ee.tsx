@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: LicenseRef-Carbon-Commercial
+// Carbon Enterprise file, licensed only under the Carbon Commercial License
+// (packages/ee/LICENSE). Not AGPL. Running, modifying, or copying it beyond those terms requires a commercial license.
+
 import { ValidatedForm } from "@carbon/form";
 import {
   Button,
@@ -82,7 +86,6 @@ const EmployeeTypeForm = ({ initialValues }: EmployeeTypeFormProps) => {
               : path.to.newEmployeeType
           }
           defaultValues={initialValues}
-          className="flex flex-col h-full"
         >
           <ModalHeader>
             <ModalTitle>
@@ -93,7 +96,7 @@ const EmployeeTypeForm = ({ initialValues }: EmployeeTypeFormProps) => {
               )}
             </ModalTitle>
           </ModalHeader>
-          <ModalBody className="max-h-[70dvh] overflow-y-auto">
+          <ModalBody>
             <Hidden name="id" />
             <VStack spacing={4}>
               <Input name="name" label={t`Employee Type`} />

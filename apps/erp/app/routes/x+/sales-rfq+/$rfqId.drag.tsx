@@ -1,7 +1,11 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import { assertIsPost, error } from "@carbon/auth";
 import { requirePermissions } from "@carbon/auth/auth.server";
 import { flash } from "@carbon/auth/session.server";
-import { storage } from "@carbon/files";
+import { storage, TEMP_STAGING_BUCKET } from "@carbon/files";
 import { trigger } from "@carbon/jobs";
 import { nanoid } from "nanoid";
 import type { ActionFunctionArgs } from "react-router";
@@ -130,7 +134,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
       );
     }
     const staged = await client.storage
-      .from("temp-staging")
+      .from(TEMP_STAGING_BUCKET)
       .upload(newPath, raw.data, { upsert: true });
     if (staged.error) {
       throw redirect(

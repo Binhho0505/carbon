@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import { assertIsPost, error, notFound } from "@carbon/auth";
 import { requirePermissions } from "@carbon/auth/auth.server";
 import { getCarbonServiceRole } from "@carbon/auth/client.server";
@@ -19,6 +23,7 @@ import {
   ModalTitle,
   VStack
 } from "@carbon/react";
+import { getClientIp } from "@carbon/utils";
 import { Trans } from "@lingui/react/macro";
 import { LuShield } from "react-icons/lu";
 import type {
@@ -190,7 +195,7 @@ export async function action({ request }: ActionFunctionArgs) {
     );
   }
 
-  const ip = request.headers.get("x-forwarded-for") ?? undefined;
+  const ip = getClientIp(request) ?? undefined;
 
   const result = await updateEmployee(client, {
     id,

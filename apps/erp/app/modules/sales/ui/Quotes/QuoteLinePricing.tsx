@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import { useCarbon } from "@carbon/auth";
 import { getLogger } from "@carbon/logger";
 import {
@@ -15,6 +19,7 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
   HStack,
+  IconButton,
   Input,
   NumberField,
   NumberInput,
@@ -36,6 +41,7 @@ import { getLocalTimeZone, today } from "@internationalized/date";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  LuCalendarClock,
   LuChevronDown,
   LuChevronRight,
   LuCirclePlus,
@@ -61,12 +67,14 @@ import {
   quoteLineAdditionalChargesValidator,
   quoteLineCategoryMarkupsValidator
 } from "../../sales.models";
+import { asConfiguration } from "../../sales.utils";
 import type {
   Costs,
   Quotation,
   QuotationLine,
   QuotationPrice
 } from "../../types";
+import QuoteLeadTimeModal from "./QuoteLeadTimeModal";
 
 const logger = getLogger("erp", "sales", "quote-line-pricing");
 
@@ -97,7 +105,9 @@ const QuoteLinePricing = ({
   const permissions = usePermissions();
 
   const hasCalculatedCost = line.methodType !== "Pull from Inventory";
-  const quantities = line.quantity ?? [1];
+  // Present quantity breaks least-to-greatest; every column loop and the
+  // derived `...ByQuantity` arrays read from this one variable.
+  const quantities = [...(line.quantity ?? [1])].sort((a, b) => a - b);
 
   const { quoteId, lineId } = useParams();
   if (!quoteId) throw new Error("Could not find quoteId");
@@ -364,7 +374,51 @@ const QuoteLinePricing = ({
     return netPrice;
   });
 
-  const onRecalculate = (markup: number) => {
+  // A cost-plus rollup is only the starting price: the line's pricing rules,
+  // including its configuration prices, apply on top — the same pipeline as
+  // recalculateQuoteLinePrices on the server. Null when the rules could not
+  // be applied.
+  const customerId = routeData?.quote?.customerId;
+  const [isRepricing, setIsRepricing] = useState(false);
+  const resolveRollupPrice = useCallback(
+    async (quantity: number, rollupPrice: number): Promise<number | null> => {
+      if (!line.itemId) return round(rollupPrice, unitPricePrecision);
+      const configuration = asConfiguration(line.configuration);
+      try {
+        const response = await fetch(path.to.api.salesResolvePrice, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            itemId: line.itemId,
+            quantity,
+            existingBasePrice: rollupPrice,
+            ...(customerId ? { customerId } : {}),
+            ...(configuration ? { configuration } : {})
+          })
+        });
+        if (!response.ok) {
+          logger.error("Failed to resolve quote line price", {
+            lineId,
+            quantity,
+            status: response.status
+          });
+          return null;
+        }
+        const result = await response.json();
+        return round(result.finalPrice, unitPricePrecision);
+      } catch (error) {
+        logger.error("Failed to resolve quote line price", {
+          lineId,
+          quantity,
+          error
+        });
+        return null;
+      }
+    },
+    [line.itemId, line.configuration, customerId, lineId, unitPricePrecision]
+  );
+
+  const onRecalculate = async (markup: number) => {
     const newMarkups: Record<string, number> = {};
     for (const key of costCategoryKeys) {
       newMarkups[key] = markup;
@@ -378,9 +432,21 @@ const QuoteLinePricing = ({
       newCategoryMarkupsByQuantity[quantity] = newMarkups;
     }
 
-    const unitPricesByQuantity = costsByQuantity.map((costs) =>
-      computeUnitPriceFromMarkups(costs, newMarkups)
+    setIsRepricing(true);
+    const unitPricesByQuantity = await Promise.all(
+      costsByQuantity.map((costs, index) =>
+        resolveRollupPrice(
+          quantities[index],
+          computeUnitPriceFromMarkups(costs, newMarkups)
+        )
+      )
     );
+    setIsRepricing(false);
+
+    if (unitPricesByQuantity.some((price) => price === null)) {
+      toast.error(t`Failed to apply pricing rules`);
+      return;
+    }
 
     const formData = new FormData();
     formData.append(
@@ -446,7 +512,14 @@ const QuoteLinePricing = ({
 
       const quantityIndex = quantities.indexOf(quantity);
       const categoryCosts = costsByQuantity[quantityIndex];
-      const unitPrice = computeUnitPriceFromMarkups(categoryCosts, newMarkups);
+      const unitPrice = await resolveRollupPrice(
+        quantity,
+        computeUnitPriceFromMarkups(categoryCosts, newMarkups)
+      );
+      if (unitPrice === null) {
+        toast.error(t`Failed to apply pricing rules`);
+        return;
+      }
 
       setEditableFields((prev) => ({
         ...prev,
@@ -488,6 +561,7 @@ const QuoteLinePricing = ({
       costsByQuantity,
       quantities,
       computeUnitPriceFromMarkups,
+      resolveRollupPrice,
       t
     ]
   );
@@ -583,6 +657,76 @@ const QuoteLinePricing = ({
     ]
   );
 
+  const [leadTimeModalOpen, setLeadTimeModalOpen] = useState(false);
+
+  // Applies one predicted lead time per quantity break in ONE state update:
+  // onUpdatePrice snapshots editableFields.prices per call and replaces the
+  // whole map, so looping it would keep only the last quantity's value.
+  const onUpdateLeadTimes = useCallback(
+    async (leadTimeByQuantity: Record<number, number>) => {
+      const prices = { ...editableFields.prices };
+      const missing: number[] = [];
+      for (const [key, days] of Object.entries(leadTimeByQuantity)) {
+        const quantity = Number(key);
+        if (prices[quantity]) {
+          prices[quantity] = { ...prices[quantity], leadTime: days };
+        } else {
+          missing.push(quantity);
+          prices[quantity] = {
+            quoteId,
+            quoteLineId: lineId,
+            quantity,
+            leadTime: days,
+            unitPrice: 0,
+            discountPercent: 0,
+            exchangeRate: exchangeRate ?? 1,
+            shippingCost: 0,
+            createdBy: userId
+          } as unknown as QuotationPrice;
+        }
+      }
+      setEditableFields((prev) => ({ ...prev, prices }));
+      const writes = Object.entries(leadTimeByQuantity).map(([key, days]) => {
+        const quantity = Number(key);
+        return missing.includes(quantity)
+          ? carbon
+              ?.from("quoteLinePrice")
+              .insert({ ...prices[quantity], quoteLineId: lineId, quantity })
+          : carbon
+              ?.from("quoteLinePrice")
+              .update({ leadTime: days, quoteLineId: lineId, quantity })
+              .eq("quoteLineId", lineId)
+              .eq("quantity", quantity);
+      });
+      const results = await Promise.all(writes);
+      const failed = Object.keys(leadTimeByQuantity)
+        .map(Number)
+        .filter((_, i) => results[i]?.error);
+      if (failed.length > 0) {
+        logger.error("Failed to update quote line lead times", {
+          errors: results.map((r) => r?.error).filter(Boolean)
+        });
+        // Roll back only the rows that did not save, so the state matches the
+        // database and a retry updates saved rows instead of re-inserting them.
+        setEditableFields((prev) => {
+          const reconciled = { ...prev.prices };
+          for (const quantity of failed) {
+            if (editableFields.prices[quantity]) {
+              reconciled[quantity] = editableFields.prices[quantity];
+            } else {
+              delete reconciled[quantity];
+            }
+          }
+          return { ...prev, prices: reconciled };
+        });
+        toast.error(t`Failed to update lead times`);
+        // Reject so the modal stays open instead of closing on a partial save.
+        throw new Error("Failed to update lead times");
+      }
+    },
+    [editableFields.prices, carbon, lineId, quoteId, exchangeRate, userId, t]
+  );
+
   return (
     <Card>
       <HStack className="justify-between">
@@ -636,12 +780,14 @@ const QuoteLinePricing = ({
                     leftIcon={<LuRefreshCcw />}
                     rightIcon={<LuChevronDown />}
                     isLoading={
-                      fetcher.state === "loading" &&
-                      fetcher.formAction ===
-                        path.to.quoteLineRecalculatePrice(quoteId, lineId)
+                      isRepricing ||
+                      (fetcher.state === "loading" &&
+                        fetcher.formAction ===
+                          path.to.quoteLineRecalculatePrice(quoteId, lineId))
                     }
                     isDisabled={
                       !isEditable ||
+                      isRepricing ||
                       (fetcher.state === "loading" &&
                         fetcher.formAction ===
                           path.to.quoteLineRecalculatePrice(quoteId, lineId))
@@ -750,6 +896,15 @@ const QuoteLinePricing = ({
               <Td className="border-r border-border group-hover:bg-muted/50">
                 <HStack className="w-full justify-between ">
                   <span>Lead Time</span>
+                  {isEmployee && hasCalculatedCost && (
+                    <IconButton
+                      aria-label={t`Predict lead time`}
+                      icon={<LuCalendarClock />}
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setLeadTimeModalOpen(true)}
+                    />
+                  )}
                 </HStack>
               </Td>
               {quantities.map((quantity) => {
@@ -1361,6 +1516,16 @@ const QuoteLinePricing = ({
           </Tbody>
         </Table>
       </CardContent>
+      {leadTimeModalOpen && (
+        <QuoteLeadTimeModal
+          quoteId={quoteId}
+          lineId={lineId}
+          quantities={quantities}
+          isEditable={isEditable}
+          onApply={onUpdateLeadTimes}
+          onClose={() => setLeadTimeModalOpen(false)}
+        />
+      )}
     </Card>
   );
 };

@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import {
   CarbonEdition,
   CarbonProvider,
@@ -6,17 +10,21 @@ import {
   getCarbon,
   getCompanies,
   getUser,
+  hasPermission,
   ITAR_RIDER_PDF_PATH,
   isAuthProviderEnabled,
   SESSION_HEARTBEAT_MS,
   SESSION_IDLE_LOCK_MS
 } from "@carbon/auth";
 import { getCarbonServiceRole } from "@carbon/auth/client.server";
+import { setConsolePinIn } from "@carbon/auth/console-pin.server";
 import { userHasVerifiedTotpFactor } from "@carbon/auth/mfa.server";
 import {
   destroyAuthSession,
   requireAuthSession
 } from "@carbon/auth/session.server";
+import { getUserClaims } from "@carbon/auth/users.server";
+import { isConsoleModeEnabledForCompany } from "@carbon/ee/console.server";
 import type { PrintingSettings } from "@carbon/printing";
 import { getPrinterRoutes } from "@carbon/printing";
 import { PrintingProvider } from "@carbon/printing/ui";
@@ -65,7 +73,6 @@ import { TimeCardWarning } from "~/components/TimeCardWarning";
 import { userContext } from "~/context";
 import { useIdle } from "~/hooks";
 import { userMiddleware } from "~/middleware/user";
-import { refreshConsolePinIn } from "~/services/console.server";
 import { getItarCertificationStatus } from "~/services/itar.service";
 import { getActiveMaintenanceEventsCount } from "~/services/maintenance.service";
 import {
@@ -191,7 +198,26 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
   const locationEmployeeIds =
     locationEmployees.data?.map((e: { id: string }) => e.id) ?? [];
   const timeCardEnabled = companySettings.data?.timeCardEnabled ?? false;
-  const consoleEnabled = companySettings.data?.consoleEnabled ?? false;
+  // Console mode as the gate sees it (flag AND entitlement), never the raw
+  // flag. A console session was already checked by `userMiddleware`, which
+  // kept it through a settings read error (`null`); otherwise the flag this
+  // loader read is passed in, so the entitlement check adds no second read.
+  const consoleEnabled = consoleMode
+    ? ctx?.consoleEnabled !== false
+    : (await isConsoleModeEnabledForCompany(client, companyId, {
+        consoleEnabled: companySettings.data?.consoleEnabled ?? false
+      })) === true;
+  // Entering console mode needs `settings_update` on the SESSION user (the
+  // console.toggle action enforces it); the sidebar only offers the switch to
+  // them, or to a terminal already in console mode so it can always leave.
+  const canEnterConsoleMode =
+    consoleEnabled &&
+    hasPermission(
+      (await getUserClaims(userId, companyId)).permissions,
+      "settings",
+      "update",
+      companyId
+    );
 
   // Org-enforced MFA, mirroring the ERP shell. Enrollment itself lives only in
   // the ERP (MES has no account settings), so the gate here points there.
@@ -239,7 +265,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
   if (pinnedInUser && ctx) {
     headers.append(
       "Set-Cookie",
-      refreshConsolePinIn(companyId, {
+      await setConsolePinIn(companyId, userId, {
         userId: pinnedInUser.userId,
         name: pinnedInUser.name,
         avatarUrl: pinnedInUser.avatarUrl,
@@ -260,6 +286,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
       company,
       companies: companies.data ?? [],
       consoleEnabled,
+      canEnterConsoleMode,
       consoleMode: consoleEnabled && consoleMode,
       location: locationId,
       locationEmployeeIds,
@@ -304,6 +331,7 @@ export default function AuthenticatedRoute() {
     company,
     companies,
     consoleEnabled,
+    canEnterConsoleMode,
     consoleMode,
     location,
     locationEmployeeIds,
@@ -334,7 +362,7 @@ export default function AuthenticatedRoute() {
   // Console (shared-kiosk) idle lock (NIST 3.1.10). A controlled-environment
   // console session is exempt from the session-wide lock above (sessionTimeout.
   // enabled is false for it) — its lock is the operator pin-in. On idle, reload:
-  // the server-tightened pin-in (console.server) has by then expired, so the
+  // the server-tightened pin-in (console-pin.server) has by then expired, so the
   // reload surfaces the PinInOverlay and the operator must re-PIN.
   const { isIdle: consoleIsIdle } = useIdle({
     enabled: CONTROLLED_ENVIRONMENT && consoleMode,
@@ -476,14 +504,16 @@ export default function AuthenticatedRoute() {
             }}
           >
             <RealtimeDataProvider>
-              <SidebarProvider defaultOpen={false} touch>
+              <SidebarProvider defaultOpen={false}>
                 <TooltipProvider delayDuration={0}>
                   <AppSidebar
                     activeEvents={activeEvents}
                     activeMaintenanceCount={activeMaintenanceCount}
                     company={company}
                     companies={companies}
-                    consoleEnabled={consoleEnabled}
+                    consoleEnabled={
+                      consoleEnabled && (consoleMode || canEnterConsoleMode)
+                    }
                     consoleMode={consoleMode}
                     location={location}
                     locations={locations}

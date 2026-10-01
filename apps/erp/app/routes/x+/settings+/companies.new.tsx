@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import {
   assertIsPost,
   CONTROLLED_ENVIRONMENT,
@@ -9,6 +13,7 @@ import { getCarbonServiceRole } from "@carbon/auth/client.server";
 import { flash } from "@carbon/auth/session.server";
 import { enableAuditLog } from "@carbon/ee/audit.server";
 import { validationError, validator } from "@carbon/form";
+import { getLogger } from "@carbon/logger";
 import {
   Modal,
   ModalBody,
@@ -31,9 +36,11 @@ import {
 } from "~/modules/settings";
 import { path } from "~/utils/path";
 
+const logger = getLogger("erp", "settings-companies-new");
+
 export async function action({ request }: ActionFunctionArgs) {
   assertIsPost(request);
-  const { userId, email } = await requirePermissions(request, {
+  const { companyGroupId, userId, email } = await requirePermissions(request, {
     create: "settings"
   });
 
@@ -57,6 +64,28 @@ export async function action({ request }: ActionFunctionArgs) {
   } = validation.data;
 
   const client = getCarbonServiceRole();
+
+  // seed-company joins the new company to its parent's group, so a parent id
+  // from another group would place it inside another tenant's group.
+  if (parentCompanyId) {
+    const parent = await client
+      .from("company")
+      .select("id")
+      .eq("id", parentCompanyId)
+      .eq("companyGroupId", companyGroupId)
+      .maybeSingle();
+    if (parent.error || !parent.data) {
+      logger.error("Parent company not found in the caller's company group", {
+        companyGroupId,
+        parentCompanyId,
+        error: parent.error
+      });
+      throw redirect(
+        path.to.companies,
+        await flash(request, error(parent.error, "Parent company not found"))
+      );
+    }
+  }
 
   const companyInsert = await insertCompany(client, {
     ...locationData,

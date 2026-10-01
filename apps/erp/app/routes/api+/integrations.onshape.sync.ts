@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import { requirePermissions } from "@carbon/auth/auth.server";
 import { getCarbonServiceRole } from "@carbon/auth/client.server";
 import { onShapeDataValidator } from "@carbon/ee/onshape";
@@ -70,7 +74,8 @@ export async function action({ request }: ActionFunctionArgs) {
       .delete()
       .eq("entityType", "item")
       .eq("entityId", itemId)
-      .eq("integration", "onshape");
+      .eq("integration", "onshape")
+      .eq("companyId", companyId);
 
     await client.from("externalIntegrationMapping").insert({
       entityType: "item",

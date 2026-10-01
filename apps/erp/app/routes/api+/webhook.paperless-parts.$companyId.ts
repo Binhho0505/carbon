@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import { getCarbonServiceRole } from "@carbon/auth/client.server";
 import { resolveIntegrationSecrets } from "@carbon/ee";
 import { trigger } from "@carbon/jobs";
@@ -160,8 +164,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
   } catch (err) {
     logger.error("Paperless Parts webhook failed", {
       companyId,
-      error: err instanceof Error ? err.message : String(err),
-      stack: err instanceof Error ? err.stack : undefined
+      error: err
     });
     return data({ success: false }, { status: 500 });
   }

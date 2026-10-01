@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import type { BatchPlacement } from "./batch-scheduler.ts";
 import {
   type CalendarWindow,
@@ -442,6 +446,9 @@ export class WorkCenterSelector {
             earliestMs = Math.max(earliestMs, depEnd);
           }
         }
+        if (op.materialReadyAt !== undefined) {
+          earliestMs = Math.max(earliestMs, op.materialReadyAt);
+        }
         const start = earliestMs;
         const outsideDurationHours =
           op.durationHours ??
@@ -533,6 +540,10 @@ export class WorkCenterSelector {
           earliestMs = depEnd;
           dominantDepId = depId;
         }
+      }
+      if (op.materialReadyAt !== undefined && op.materialReadyAt > earliestMs) {
+        earliestMs = op.materialReadyAt;
+        dominantDepId = null;
       }
       const earliestStart = earliestMs;
       // Cap at the precomputed windows: walking past them finds nothing and

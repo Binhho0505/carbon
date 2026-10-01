@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import type { Database } from "@carbon/database";
 
 /**
@@ -53,6 +57,12 @@ export type BaseOperation = {
    * operation row; never read by forward placement.
    */
   operationLeadTime?: number | null;
+  /**
+   * Earliest instant this op's material is available (epoch ms). Only set by
+   * the quote lead-time what-if for ops that consume a purchased part; never
+   * set on job operations, so live scheduling is unchanged.
+   */
+  materialReadyAt?: number;
   /**
    * Manufacturing lead time (in business days) of the make method's item that
    * this operation belongs to. Applied only at assembly boundaries so a

@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import { assertIsPost, error, success } from "@carbon/auth";
 import { requirePermissions } from "@carbon/auth/auth.server";
 import { getCarbonServiceRole } from "@carbon/auth/client.server";
@@ -20,6 +24,7 @@ import { datetime } from "@carbon/utils";
 import type { ActionFunctionArgs } from "react-router";
 import { redirect } from "react-router";
 import { supplierApprovalDecisionValidator } from "~/modules/purchasing";
+import { requireCompanyRecord } from "~/modules/shared/shared.server";
 import { getDatabaseClient } from "~/services/database.server";
 import { path } from "~/utils/path";
 
@@ -33,6 +38,12 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
   const { supplierId } = params;
   if (!supplierId) throw new Error("Could not find supplierId");
+
+  // Approval requests, their lookups and the approve/reject status writes all
+  // go through the service role (or Kysely) keyed on the URL's supplierId.
+  await requireCompanyRecord(getCarbonServiceRole(), "supplier", companyId, {
+    id: supplierId
+  });
 
   const formData = await request.formData();
   const intent = formData.get("intent");
@@ -163,7 +174,11 @@ export async function action({ request, params }: ActionFunctionArgs) {
     supplierId
   );
 
-  if (!approvalRequest.data || approvalRequest.data.id !== approvalRequestId) {
+  if (
+    !approvalRequest.data ||
+    approvalRequest.data.id !== approvalRequestId ||
+    approvalRequest.data.companyId !== companyId
+  ) {
     throw redirect(
       path.to.supplier(supplierId),
       await flash(request, error(null, "Approval request not found"))

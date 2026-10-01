@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: LicenseRef-Carbon-Commercial
+// Carbon Enterprise file, licensed only under the Carbon Commercial License
+// (packages/ee/LICENSE). Not AGPL. Running, modifying, or copying it beyond those terms requires a commercial license.
+
 import type { Database } from "@carbon/database";
 import type { Kysely, KyselyDatabase, KyselyTx } from "@carbon/database/client";
 import type z from "zod";
@@ -90,7 +94,7 @@ function toErrorMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
 
-async function getCompanyGroupId(
+export async function getCompanyGroupId(
   db: Db,
   companyId: string
 ): Promise<string | null> {
@@ -330,6 +334,23 @@ export async function upsertAccountMapping(
   args: UpsertAccountMappingInput
 ): Promise<{ data: ExternalIntegrationMapping | null; error: string | null }> {
   try {
+    // The account id comes from the caller (a form field on the mapping tab),
+    // and this Kysely client bypasses RLS. Accounts are company-group scoped:
+    // refuse one from outside the caller's group, whose number and name the
+    // mapping list would otherwise display.
+    const companyGroupId = await getCompanyGroupId(db, args.companyId);
+    const account = companyGroupId
+      ? await db
+          .selectFrom("account")
+          .select("id")
+          .where("id", "=", args.accountId)
+          .where("companyGroupId", "=", companyGroupId)
+          .executeTakeFirst()
+      : undefined;
+    if (!account) {
+      return { data: null, error: `Account ${args.accountId} not found` };
+    }
+
     const mappingService = createMappingService(db, args.companyId);
 
     await mappingService.link(

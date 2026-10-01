@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import { assertIsPost, error } from "@carbon/auth";
 import { requirePermissions } from "@carbon/auth/auth.server";
 import { getCarbonServiceRole } from "@carbon/auth/client.server";
@@ -70,6 +74,7 @@ import {
 import QuoteLinePricingHistory from "~/modules/sales/ui/Quotes/QuoteLinePricingHistory";
 import QuoteLineRiskRegister from "~/modules/sales/ui/Quotes/QuoteLineRiskRegister";
 import { getTagsList, type SupplierPriceMap } from "~/modules/shared";
+import { requireCompanyRecord } from "~/modules/shared/shared.server";
 import { getCustomFields, setCustomFields } from "~/utils/form";
 import { requireUnlocked } from "~/utils/lockedGuard.server";
 import { path } from "~/utils/path";
@@ -85,6 +90,11 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   if (!lineId) throw new Error("Could not find lineId");
 
   const serviceRole = await getCarbonServiceRole();
+  // Every read below uses the service role and keys on the URL line id.
+  await requireCompanyRecord(serviceRole, "quoteLine", companyId, {
+    id: lineId,
+    quoteId
+  });
 
   const [line, operations, prices] = await Promise.all([
     getQuoteLine(serviceRole, lineId),
@@ -146,10 +156,11 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
     : null;
 
   return {
-    // Quantity breaks are stored in entry order; every surface renders them
-    // least-to-most (the summary, share page, and PDF sort the same way).
     line: {
       ...line.data,
+      // Present quantity breaks least-to-greatest everywhere they're consumed
+      // (line form, costing grid, pricing grid). Preserve null so the `?? [1]`
+      // fallbacks downstream still apply.
       quantity: line.data.quantity
         ? [...line.data.quantity].sort((a, b) => a - b)
         : line.data.quantity
@@ -178,6 +189,13 @@ export async function action({ request, params }: ActionFunctionArgs) {
   const { quoteId, lineId } = params;
   if (!quoteId) throw new Error("Could not find quoteId");
   if (!lineId) throw new Error("Could not find lineId");
+
+  // The rule evaluation, evidence and price writes below use the service role
+  // (or Kysely) and key on the URL ids.
+  await requireCompanyRecord(getCarbonServiceRole(), "quoteLine", companyId, {
+    id: lineId,
+    quoteId
+  });
 
   const { client: viewClient } = await requirePermissions(request, {
     view: "sales"
@@ -246,7 +264,8 @@ export async function action({ request, params }: ActionFunctionArgs) {
   const existingPrices = await serviceRole
     .from("quoteLinePrice")
     .select("quantity")
-    .eq("quoteLineId", lineId);
+    .eq("quoteLineId", lineId)
+    .eq("companyId", companyId);
 
   if (existingPrices.error) {
     throw redirect(
@@ -327,6 +346,8 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
   try {
     await saveQuoteLineWithPrices({
+      companyId,
+      quoteId,
       lineId,
       line: {
         ...sanitize({ ...d, updatedBy: userId }),

@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import { useCarbon } from "@carbon/auth";
 import { useRuleViolations } from "@carbon/ee/rules";
 import { TextArea, ValidatedForm } from "@carbon/form";
@@ -113,6 +117,12 @@ const QuoteLineForm = ({
   const isEditable = !isLocked;
 
   const isEditing = initialValues.id !== undefined;
+
+  // Quantity breaks are always presented least-to-greatest, regardless of the
+  // order they were entered/stored in.
+  const sortedQuantity = [...(initialValues.quantity ?? [])].sort(
+    (a, b) => a - b
+  );
 
   const [itemData, setItemData] = useState<{
     customerPartId: string;
@@ -306,7 +316,7 @@ const QuoteLineForm = ({
           <ModalCardContent size="xxlarge">
             <ValidatedForm
               fetcher={fetcher}
-              defaultValues={initialValues}
+              defaultValues={{ ...initialValues, quantity: sortedQuantity }}
               validator={quoteLineValidator}
               method="post"
               action={
@@ -338,7 +348,7 @@ const QuoteLineForm = ({
                             className="flex items-center gap-2"
                           >
                             <MethodIcon type={itemData.methodType} />
-                            {initialValues?.quantity.join(", ")}
+                            {sortedQuantity.join(", ")}
                           </Badge>
                           {initialValues?.taxPercent > 0 ? (
                             <Badge variant="red">

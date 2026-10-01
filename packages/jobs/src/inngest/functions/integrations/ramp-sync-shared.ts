@@ -1,6 +1,17 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import type { Database } from "@carbon/database";
-import type { createMappingService } from "@carbon/ee/accounting";
 import {
+  clearResolvedSyncOperations,
+  type createMappingService,
+  insertTerminalSyncOperation,
+  type SyncOperationDirection,
+  type SyncOperationTrigger
+} from "@carbon/ee/accounting";
+import {
+  buildRampIdempotencyKey,
   parseVerifiedRampMinorAmount,
   type RampIntegrationMetadata,
   rampMinorAmountToMajor,
@@ -13,8 +24,12 @@ import type { getJobDatabaseClient } from "../../../db";
 
 type CarbonClient = SupabaseClient<Database>;
 
-const CARD_TRANSACTIONS_PATH = "/x/invoicing/card-transactions";
+const CHARGES_PATH = "/x/invoicing/charges";
 const PURCHASE_INVOICE_PATH = "/x/purchase-invoice";
+// `path.to.reimbursement(id)` in the ERP. Jobs cannot import app code, so the
+// two are kept in step by hand — the document is a full page of its own, NOT a
+// child of the invoicing list.
+const REIMBURSEMENT_PATH = "/x/reimbursements";
 
 export type SyncItem = {
   id: string;
@@ -40,7 +55,115 @@ export type RampSyncContext = {
   companyGroupId: string | null;
   decimalsCache: Map<string, number>;
   exchangeRateCache: Map<string, number>;
+  /** User the recorded sync operations are attributed to (integration configurer, else "system"). */
+  createdBy: string;
+  /** How this sync run was triggered — stamped on recorded sync operations. */
+  trigger: SyncOperationTrigger;
 };
+
+const RAMP_INTEGRATION_ID = "ramp";
+
+/**
+ * Record each failed/skipped sync item as a terminal `Warning` operation on the
+ * shared `accountingSyncOperation` ledger, so the integration's Sync Activity
+ * tab shows WHY a Ramp record did not come through instead of it vanishing into
+ * the Inngest logs. Idempotent per (entityType, entityId, direction): a
+ * persistently-failing record does not stack rows. Failures to record are
+ * logged, never thrown — observability must not fail the sync.
+ */
+export async function recordRampSyncFailures(
+  ctx: RampSyncContext,
+  args: {
+    entityType: string;
+    direction: SyncOperationDirection;
+    failures: FailItem[];
+  }
+): Promise<void> {
+  for (const failure of args.failures) {
+    // Observability is strictly best-effort: a record that throws (or returns
+    // an error) must never fail or pollute the family sync result.
+    try {
+      const { error } = await insertTerminalSyncOperation(ctx.client, {
+        companyId: ctx.companyId,
+        integration: RAMP_INTEGRATION_ID,
+        entityType: args.entityType,
+        entityId: failure.id,
+        direction: args.direction,
+        trigger: ctx.trigger,
+        status: "Warning",
+        errorCode: "RAMP_SYNC_FAILED",
+        errorMessage: failure.message,
+        idempotencyKey: buildRampIdempotencyKey({
+          companyId: ctx.companyId,
+          operation: `sync-fail:${args.entityType}:${args.direction}`,
+          scope: failure.id
+        }),
+        createdBy: ctx.createdBy
+      });
+      if (error) {
+        console.error(
+          `[RAMP SYNC] ${ctx.companyId}: failed to record ${args.entityType} sync failure for ${failure.id}`,
+          error
+        );
+      }
+    } catch (recordError) {
+      console.error(
+        `[RAMP SYNC] ${ctx.companyId}: recording ${args.entityType} sync failure for ${failure.id} threw`,
+        recordError
+      );
+    }
+  }
+}
+
+/**
+ * Clear any prior failed operation for records that synced successfully this
+ * run — a Ramp charge recoded and posted after an earlier failure must drop out
+ * of the Sync Activity inbox (Ramp's inbound families re-evaluate every run,
+ * unlike accounting journals whose disposition is permanent). Logged, never
+ * thrown.
+ *
+ * An INBOUND run also clears `Pending`, because Sync Activity's Retry button
+ * moves a failed row back to `Pending` and nothing else ever queues inbound
+ * work: the pull families re-read every ready record and record terminal rows
+ * themselves. Clearing only `Warning` left a retried record that then synced
+ * sitting in the inbox as "Pending" forever. OUTBOUND keeps the
+ * `Warning`-only rule — there a `Pending` row is real queued work the push
+ * drain owns, and it may have been enqueued by a change made after this push.
+ */
+export async function resolveRampSyncOperations(
+  ctx: RampSyncContext,
+  args: {
+    entityType: string;
+    direction: SyncOperationDirection;
+    entityIds: string[];
+  }
+): Promise<void> {
+  // Best-effort: clearing a resolved Warning must never fail the sync.
+  try {
+    const { error } = await clearResolvedSyncOperations(ctx.client, {
+      companyId: ctx.companyId,
+      integration: RAMP_INTEGRATION_ID,
+      entityType: args.entityType,
+      direction: args.direction,
+      entityIds: args.entityIds,
+      statuses:
+        args.direction === "pull-from-accounting"
+          ? ["Warning", "Pending"]
+          : ["Warning"]
+    });
+    if (error) {
+      console.error(
+        `[RAMP SYNC] ${ctx.companyId}: failed to clear resolved ${args.entityType} sync operations`,
+        error
+      );
+    }
+  } catch (resolveError) {
+    console.error(
+      `[RAMP SYNC] ${ctx.companyId}: clearing resolved ${args.entityType} sync operations threw`,
+      resolveError
+    );
+  }
+}
 
 export async function verifyCostCenters(
   ctx: RampSyncContext,
@@ -92,12 +215,16 @@ export async function verifyProjects(
   return null;
 }
 
-export function cardTransactionsDeepLinkUrl(): string {
-  return `${getAppUrl()}${CARD_TRANSACTIONS_PATH}`;
+export function chargesDeepLinkUrl(): string {
+  return `${getAppUrl()}${CHARGES_PATH}`;
 }
 
 export function invoiceDeepLinkUrl(invoiceRowId: string): string {
   return `${getAppUrl()}${PURCHASE_INVOICE_PATH}/${invoiceRowId}`;
+}
+
+export function reimbursementDeepLinkUrl(reimbursementRowId: string): string {
+  return `${getAppUrl()}${REIMBURSEMENT_PATH}/${reimbursementRowId}`;
 }
 
 export async function getRampCurrencyDecimals(

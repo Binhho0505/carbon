@@ -1,9 +1,14 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import { error, safeRedirect, success } from "@carbon/auth";
 import { requirePermissions } from "@carbon/auth/auth.server";
 import { flash } from "@carbon/auth/session.server";
 import { deactivateUser } from "@carbon/auth/users.server";
 import { validationError, validator } from "@carbon/form";
 import { batchTrigger } from "@carbon/jobs";
+import { getClientIp } from "@carbon/utils";
 import type {
   ActionFunctionArgs,
   ClientActionFunctionArgs
@@ -27,7 +32,7 @@ export async function action({ request }: ActionFunctionArgs) {
 
   const { users, redirectTo } = validation.data;
 
-  const ip = request.headers.get("x-forwarded-for") ?? undefined;
+  const ip = getClientIp(request) ?? undefined;
 
   if (users.includes(userId)) {
     throw redirect(

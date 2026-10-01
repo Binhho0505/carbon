@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import { getLogger } from "@carbon/logger";
 import { path } from "./path";
 
@@ -87,11 +91,15 @@ export function safeRedirect(
   to: FormDataEntryValue | string | null | undefined,
   defaultRedirect = path.to.authenticatedRoot
 ) {
+  // Only a same-origin path. Browsers read `/\host` like `//host` (a
+  // protocol-relative URL to another origin), so a backslash in second place is
+  // refused along with `//`.
   if (
     !to ||
     typeof to !== "string" ||
     !to.startsWith("/") ||
-    to.startsWith("//")
+    to.startsWith("//") ||
+    to.startsWith("/\\")
   ) {
     return defaultRedirect;
   }

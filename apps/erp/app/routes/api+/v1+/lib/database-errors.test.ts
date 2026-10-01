@@ -1,8 +1,14 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import { FunctionsHttpError, PostgrestError } from "@supabase/supabase-js";
 import { describe, expect, it } from "vitest";
+import { ruleError } from "~/utils/supabase";
 import {
   classifyDatabaseFailure,
   DATABASE_ERROR_MESSAGES,
+  isServiceRuleError,
   publicDatabaseError
 } from "./database-errors";
 
@@ -103,6 +109,23 @@ describe("publicDatabaseError", () => {
     for (const message of Object.values(DATABASE_ERROR_MESSAGES)) {
       expect(message).toMatch(/^Database error: [a-z]/);
       expect(message).not.toMatch(/[${}]/);
+    }
+  });
+});
+
+describe("isServiceRuleError", () => {
+  it("recognizes only a service's own refusal", () => {
+    expect(isServiceRuleError(ruleError("Grade X is not a grade of Y"))).toBe(
+      true
+    );
+    for (const error of [
+      postgrestError({ code: "23505", message: "duplicate key" }),
+      postgrestError({ message: "boom" }),
+      edgeFunctionError,
+      null,
+      undefined
+    ]) {
+      expect(isServiceRuleError(error)).toBe(false);
     }
   });
 });

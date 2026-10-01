@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: LicenseRef-Carbon-Commercial
+// Carbon Enterprise file, licensed only under the Carbon Commercial License
+// (packages/ee/LICENSE). Not AGPL. Running, modifying, or copying it beyond those terms requires a commercial license.
+
 import type { Database } from "@carbon/database";
 import {
   auditConfig,
@@ -365,23 +369,24 @@ export async function getAuditLogArchives(
  */
 export async function getArchiveDownloadUrl(
   client: SupabaseClient,
-  archiveId: string
+  archiveId: string,
+  companyId: string
 ): Promise<string> {
-  // First get the archive record to get the path
+  // First get the archive record to get the path. The id comes from the
+  // caller and `client` is the service role, so scope it to the caller's
+  // company — otherwise any archive id signs another tenant's audit log.
   const { data: archive, error: fetchError } = await client
     .from("auditLogArchive")
     .select("archivePath, companyId")
     .eq("id", archiveId)
+    .eq("companyId", companyId)
     .single();
 
   if (fetchError || !archive) {
     throw new Error(`Archive not found: ${fetchError?.message}`);
   }
 
-  const { archivePath, companyId } = archive as {
-    archivePath: string;
-    companyId: string;
-  };
+  const { archivePath } = archive as { archivePath: string };
 
   // Generate signed URL (1 hour expiry). New archives live in the company's
   // own private bucket (bucket id = companyId); pre-migration archives live in

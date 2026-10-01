@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import {
   Badge,
   Popover,
@@ -33,6 +37,8 @@ const STEP_BADGE: Record<
   "All Override": { label: "All Override", variant: "gray" },
   Discount: { label: "Discount", variant: "red" },
   Markup: { label: "Markup", variant: "green" },
+  // Labelled with the parameter's name (`step.label`) when it has one.
+  Configuration: { label: "Configuration", variant: "purple" },
   "Final Price": null
 };
 
@@ -172,7 +178,7 @@ function StepTypeBadge({ step }: { step: PriceTraceStep }) {
   const mapping = STEP_BADGE[step.step];
   if (mapping === null) return null;
   if (!mapping) return <Badge variant="gray">{step.step}</Badge>;
-  return <Badge variant={mapping.variant}>{mapping.label}</Badge>;
+  return <Badge variant={mapping.variant}>{step.label ?? mapping.label}</Badge>;
 }
 
 export function DeltaPill({

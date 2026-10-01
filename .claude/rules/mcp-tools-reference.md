@@ -137,6 +137,15 @@ not substring filtering. The typed, tested logic lives OUTSIDE the
   size, plus the compact response schema when the generator derived one.
 - Server instructions live in `packages/ee/src/mcp/instructions.ts` (module list + interpolated
   `MCP_DEFAULT_LIMIT`), importable by tests without server.ts's auth/env chain.
+- `expandQueryTerm` also adds each word's inflection stem (`stemInflection`,
+  `@carbon/content/search`: zbsearch's Porter limited to plural/-ed/-ing/-e) to the
+  QUERY, never the index — "scrapping" finds the scrap tools. Stemming the index
+  collapsed "orders" into "order" and ranked single-record tools above list tools;
+  full Porter turned "customer" into "custom". The docs site uses the same stemmer.
+- The in-app agent's `search_docs` reuses this engine over the docs corpus —
+  `createDocSearch` in `packages/ee/src/mcp/doc-search.ts` shares `expandQueryTerm`
+  (so a new alias improves both) and the typo retry. It indexes page SECTIONS, weights
+  each page's intro ×2 via `sortBy`, and returns at most two sections per page.
 - Pinned by `lib/catalog-search.test.ts` and `lib/describe-format.test.ts`;
   `lib/manifest.ts` carries its own copies of the meta-tool descriptions
   (pinned >40 chars by `manifest.test.ts`) — keep them in sync with
@@ -278,9 +287,20 @@ dispatcher (`apps/erp/app/routes/api+/inngest.ts`). There is no separate
   addressed on its own pass. When a payload param is an **array** of rows,
   `enrichWithAuthContext` stamps `createdBy` into each element (insert only) —
   the top-level stamp never reached inside, so a NOT NULL `createdBy` on the row
-  table (e.g. `quoteLinePrice`) used to fail. Only `createdBy` is injected per
-  element; `companyId`/`updatedBy` are left to the service, since element keys
-  spread straight into an INSERT.
+  table (e.g. `quoteLinePrice`) used to fail. `createdBy` is the only key ever
+  ADDED to an element (element keys spread straight into an INSERT). But an
+  identity key the CALLER supplied — `createdBy`, `updatedBy`, `companyId`,
+  `companyGroupId` — is always OVERWRITTEN with the authenticated value, in
+  top-level array elements, in objects nested one level inside an object
+  payload (`{ itemUpdate: {...} }`), and in array elements one level down
+  (`{ lines: [...] }`), on every operation including reads (where it can only
+  narrow to the caller's own company). `userId` is deliberately NOT
+  overwritten inside rows — there it is usually data (the assigned employee).
+  Anything deeper (an array inside a nested object) is NOT reached, so a
+  service must not spread such a structure into a write. Pinned by
+  `dispatch-parity.test.ts` h, h3, h3b, h4. A Kysely service takes
+  `companyId`/`userId` as POSITIONAL params so they always come from context
+  (h2 — `updateQuoteLineOrder(db, companyId, userId, quoteId, updates)`).
 - Blocked tools (`lib/mcp-blocked-tools.ts`, `MCP_BLOCKED_TOOL_NAMES`) are
   rejected in `call_tool`, in `callOperation`, and (belt-and-braces) in the
   `gate()` middleware — though the primary gate is that the generator excludes
@@ -332,6 +352,12 @@ dispatcher (`apps/erp/app/routes/api+/inngest.ts`). There is no separate
     one. It used to interpolate `JSON.stringify(error)`, which handed a caller the
     column, constraint and value out of the PostgREST body, and later an edge
     function's own text — CWE-209 either way.
+  - The one exception is a service's own refusal: an error built with
+    `ruleError(message)` (`~/utils/supabase`, code `CARBON_RULE`) is written for
+    the caller, so `isServiceRuleError` lets `callOperation` return its message
+    as an `execution` error. Return one for a broken business rule a caller can
+    fix ("Grade X is not a grade of substance Y"); never wrap a database error
+    in it.
   - The **full detail is logged** instead (`logger.error("Operation failed", …)` in
     `call.server.ts`) with the operation name, the classification, the raw Supabase
     error, and — for an edge function — the message read off the unread `Response`
@@ -497,6 +523,15 @@ the model context or the MCP dispatch.
   *different*, still-current concept — don't conflate them.
 - To block a tool from MCP, add its `<module>_<func>` name to
   `MCP_BLOCKED_TOOL_NAMES` and regenerate metadata.
+- **Moving a service function to another module RENAMES its published tool**
+  (`production_getInspectionDocument` → `quality_getInspectionDocument`). Add the
+  old name to `OPERATION_ALIASES` (`api+/v1+/lib/operations.server.ts`) in the same
+  change. `operationsByName` maps the old name to the NEW entry, so `call_tool`,
+  `describe_tool` (which prints a deprecation line), the agent, workflows and
+  `callOperation` all resolve it; `router.server.ts` mounts the old HTTP path,
+  marked `deprecated` in the spec. The alias runs and is gated as the new
+  operation (its permission, not the old module's). Search and the docs never list
+  aliases. `dispatch-parity.test.ts` fails on a dangling or shadowing alias.
 - **A `{module}.service.ts` must not import a `*.server` module** (`@carbon/auth/users.server`,
   `@carbon/ee/rules.server`, an app `*.server.ts`, …) — even via `await import(...)`.
   The module barrel (`~/modules/{module}`) re-exports the service, and client components

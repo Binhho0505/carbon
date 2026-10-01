@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import { getCarbonServiceRole } from "@carbon/auth/client.server";
 import { getQuoteDisplayId } from "@carbon/documents/utils";
 import { Input, ValidatedForm } from "@carbon/form";
@@ -64,11 +68,7 @@ import {
 } from "~/hooks";
 import { getCurrenciesList, getPaymentTermsList } from "~/modules/accounting";
 import { getShippingMethodsList } from "~/modules/inventory";
-import type {
-  QuotationLine,
-  QuotationPrice,
-  SalesOrderLine
-} from "~/modules/sales";
+import type { SalesOrderLine } from "~/modules/sales";
 import {
   externalQuoteValidator,
   getOpportunity,
@@ -153,6 +153,13 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
     getOpportunity(serviceRole, quote.data.opportunityId)
   ]);
 
+  // A No Quote line is the company's own decision not to bid — the customer
+  // never sees it, its prices, or its thumbnail.
+  const quotedLines = (quoteLines.data ?? []).filter(
+    (line) => line.status !== "No Quote"
+  );
+  const quotedLineIds = new Set(quotedLines.map((line) => line.id));
+
   // Started before the conditional await below so this costs no extra round trip.
   // The group's configured currency.decimalPlaces is authoritative over CLDR, and
   // useCurrencies' own fetcher is permission-gated, so a public page has to carry
@@ -172,7 +179,7 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
     );
   }
 
-  const thumbnailPaths = quoteLines.data?.reduce<Record<string, string | null>>(
+  const thumbnailPaths = quotedLines.reduce<Record<string, string | null>>(
     (acc, line) => {
       if (line.thumbnailPath) {
         acc[line.id!] = line.thumbnailPath;
@@ -205,19 +212,52 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
       return acc;
     }, {}) ?? {};
 
+  // Anyone holding the share link receives this payload, so it carries only
+  // what the page renders — never whole rows (unit cost, price trace, pricing
+  // rule, category markups, internal notes, notification groups…).
+  const { internalNotes: _internalNotes, ...publicQuote } = quote.data;
+
   return {
     state: QuoteState.Valid,
     data: {
-      quote: quote.data,
+      quote: publicQuote,
       company: company.data,
-      companySettings: companySettings.data,
+      companySettings: companySettings.data
+        ? {
+            digitalQuoteEnabled: companySettings.data.digitalQuoteEnabled,
+            digitalQuoteIncludesPurchaseOrders:
+              companySettings.data.digitalQuoteIncludesPurchaseOrders,
+            showCurrencyTrailingZeros:
+              companySettings.data.showCurrencyTrailingZeros
+          }
+        : null,
       currencies: (await currenciesPromise)?.data ?? [],
-      quoteLines:
-        quoteLines.data?.map(({ internalNotes, ...line }) => ({
-          ...line
-        })) ?? [],
+      quoteLines: quotedLines.map((line) => ({
+        id: line.id,
+        description: line.description,
+        itemReadableId: line.itemReadableId,
+        quantity: line.quantity,
+        additionalCharges: line.additionalCharges,
+        taxPercent: line.taxPercent,
+        unitPricePrecision: line.unitPricePrecision,
+        externalNotes: line.externalNotes
+      })),
       thumbnails: thumbnails,
-      quoteLinePrices: quoteLinePrices.data,
+      quoteLinePrices:
+        quoteLinePrices.data
+          ?.filter((price) => quotedLineIds.has(price.quoteLineId))
+          .map((price) => ({
+            quoteLineId: price.quoteLineId,
+            quantity: price.quantity,
+            unitPrice: price.unitPrice,
+            convertedUnitPrice: price.convertedUnitPrice,
+            netUnitPrice: price.netUnitPrice,
+            convertedNetUnitPrice: price.convertedNetUnitPrice,
+            discountPercent: price.discountPercent,
+            shippingCost: price.shippingCost,
+            convertedShippingCost: price.convertedShippingCost,
+            leadTime: price.leadTime
+          })) ?? null,
       customerDetails: customerDetails.data,
       quotePayment: quotePayment.data,
       quoteShipment: quoteShipment.data,
@@ -228,7 +268,11 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
       shippingMethod: shippingMethods.data?.find(
         (method) => method.id === quoteShipment.data?.shippingMethodId
       )?.name,
-      salesOrderLines: salesOrderLines?.data ?? null
+      salesOrderLines:
+        salesOrderLines?.data?.map((line) => ({
+          id: line.id,
+          saleQuantity: line.saleQuantity
+        })) ?? null
     }
   };
 }
@@ -358,24 +402,27 @@ const LineItems = ({
   });
   const pricingByLine = useMemo(
     () =>
-      quoteLines?.reduce<Record<string, QuotationPrice[]>>((acc, line) => {
-        if (!line.id) {
+      quoteLines?.reduce<Record<string, QuoteLinePriceOption[]>>(
+        (acc, line) => {
+          if (!line.id) {
+            return acc;
+          }
+          // Scope to the breaks the line actually offers. A removed break can
+          // leave its price row behind, and an orphan here becomes a selectable
+          // option the customer was never meant to see.
+          acc[line.id!] =
+            quoteLinePrices
+              ?.filter(
+                (p) =>
+                  p.quoteLineId === line.id &&
+                  Array.isArray(line.quantity) &&
+                  line.quantity.includes(p.quantity)
+              )
+              .sort((a, b) => a.quantity - b.quantity) ?? [];
           return acc;
-        }
-        // Scope to the breaks the line actually offers. A removed break can
-        // leave its price row behind, and an orphan here becomes a selectable
-        // option the customer was never meant to see.
-        acc[line.id!] =
-          quoteLinePrices
-            ?.filter(
-              (p) =>
-                p.quoteLineId === line.id &&
-                Array.isArray(line.quantity) &&
-                line.quantity.includes(p.quantity)
-            )
-            .sort((a, b) => a.quantity - b.quantity) ?? [];
-        return acc;
-      }, {}) ?? {},
+        },
+        {}
+      ) ?? {},
     [quoteLines, quoteLinePrices]
   );
 
@@ -508,8 +555,8 @@ const LineItems = ({
 };
 
 type LinePricingOptionsProps = {
-  line: Omit<QuotationLine, "internalNotes">;
-  options: QuotationPrice[];
+  line: QuoteData["quoteLines"][number];
+  options: QuoteLinePriceOption[];
   quoteCurrency: string;
   shouldConvertCurrency: boolean;
   quoteExchangeRate: number;
@@ -1595,6 +1642,7 @@ export const ErrorMessage = ({
 };
 
 type QuoteData = NonNullable<Awaited<ReturnType<typeof loader>>["data"]>;
+type QuoteLinePriceOption = NonNullable<QuoteData["quoteLinePrices"]>[number];
 
 export default function ExternalQuote() {
   const { state, data } = useLoaderData<typeof loader>();

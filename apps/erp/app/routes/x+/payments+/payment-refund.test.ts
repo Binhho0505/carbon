@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import { beforeEach, expect, it, vi } from "vitest";
 
 const h = vi.hoisted(() => ({
@@ -28,6 +32,9 @@ vi.mock("@carbon/form", () => ({
   validator: vi.fn()
 }));
 vi.mock("@carbon/react", () => ({ VStack: vi.fn() }));
+vi.mock("@lingui/core/macro", () => ({
+  msg: (strings: TemplateStringsArray) => ({ id: strings.join("") })
+}));
 vi.mock("~/utils/handle", () => ({ detailBreadcrumb: vi.fn() }));
 vi.mock("~/utils/form", () => ({ setCustomFields: vi.fn() }));
 vi.mock("~/utils/path", () => ({

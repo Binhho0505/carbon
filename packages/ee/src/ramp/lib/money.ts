@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: LicenseRef-Carbon-Commercial
+// Carbon Enterprise file, licensed only under the Carbon Commercial License
+// (packages/ee/LICENSE). Not AGPL. Running, modifying, or copying it beyond those terms requires a commercial license.
+
 import { round } from "@carbon/utils";
 import { fromMinorUnits } from "./models";
 
@@ -64,7 +68,7 @@ export function parseVerifiedRampMinorAmount(
   };
 }
 
-export function normalizeRampCardTransactionAmount(args: {
+export function normalizeRampTransactionAmount(args: {
   entityAmount: unknown;
   deprecatedMajorAmount: number | null | undefined;
   currencyCode: string;
@@ -73,7 +77,7 @@ export function normalizeRampCardTransactionAmount(args: {
   if (args.entityAmount !== null && args.entityAmount !== undefined) {
     const parsed = parseVerifiedRampMinorAmount(
       args.entityAmount,
-      "Card transaction entity amount"
+      "Charge entity amount"
     );
     if (!parsed.ok) return parsed;
     if (
@@ -82,7 +86,7 @@ export function normalizeRampCardTransactionAmount(args: {
     ) {
       return {
         ok: false,
-        error: `Card transaction entity amount currency ${parsed.value.currencyCode} does not match ${args.currencyCode}`
+        error: `Charge entity amount currency ${parsed.value.currencyCode} does not match ${args.currencyCode}`
       };
     }
     return {
@@ -101,7 +105,7 @@ export function normalizeRampCardTransactionAmount(args: {
   ) {
     return {
       ok: false,
-      error: "Card transaction amount is missing or invalid"
+      error: "Charge amount is missing or invalid"
     };
   }
 

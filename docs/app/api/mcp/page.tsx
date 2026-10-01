@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import { CodeBlock } from "@/components/api/code-block";
 import { DEFAULT_MCP_ENDPOINT } from "@/components/api/config-constants";
 import { McpEndpoint } from "@/components/api/config-inline";
@@ -75,7 +79,7 @@ const FAQ: FaqEntry[] = [
   },
   {
     q: "Is the Carbon API available on my plan?",
-    a: "On Carbon Cloud, API and MCP access is a Business-plan feature — Starter keys are rejected with 403. Self-hosted, it's part of the Enterprise feature set and requires a commercial license. See Licensing for the full picture."
+    a: "On Carbon Cloud, API and MCP access is a Business-plan feature — Starter keys are rejected with 403. Self-hosted, it's one of the Business features, which Enterprise Edition (EE) unlocks with a commercial license. See Licensing for the full picture."
   },
   {
     q: "Is there a rate limit?",

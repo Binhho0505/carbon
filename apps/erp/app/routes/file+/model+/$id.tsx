@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import { notFound } from "@carbon/auth";
 import { getCarbonServiceRole } from "@carbon/auth/client.server";
 import { ModelCanvas } from "@carbon/viewer/canvas";
@@ -11,9 +15,12 @@ export async function loader({ params }: LoaderFunctionArgs) {
   const { id } = params;
   if (!id) throw notFound("id not found");
 
+  // Unauthenticated (the headless thumbnail renderer loads it): the model id
+  // is the credential, so return only the GLB keys the viewer draws — not the
+  // rest of the row (companyId, raw source path, name, size…).
   const model = await client
     .from("modelUpload")
-    .select("*")
+    .select("glbPath, optimizedModelPath")
     .eq("id", id)
     .single();
   if (!model.data) throw notFound("model not found");

@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 // @carbon/planning — the planning engines (MRP + finite scheduling),
 // relocated from the Supabase edge runtime to run in-process in Node. Every
 // entry point takes an injected Kysely handle (and, for MRP, a service-role
@@ -18,6 +22,11 @@ export {
   resolveWorkCenterWindows,
   type WorkCenterAvailabilityInput
 } from "./scheduling/machine-availability.ts";
+export {
+  type QuoteLeadTimeForecast,
+  type QuoteLeadTimeScenario,
+  runQuoteLeadTimeWhatIf
+} from "./scheduling/quote-lead-time.ts";
 export {
   type ExpediteWhatIfResult,
   type LocationScheduleResult,

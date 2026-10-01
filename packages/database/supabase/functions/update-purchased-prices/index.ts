@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import { serve } from "https://deno.land/std@0.175.0/http/server.ts";
 
 import { sql } from "kysely";
@@ -5,6 +9,7 @@ import z from "npm:zod@^4.5.4";
 import { DB, getConnectionPool, getDatabaseClient } from "../lib/database.ts";
 import { datetime, getCompanyTimeZone } from "../lib/datetime.ts";
 import { getFunctionLogger } from "../lib/logging.ts";
+import { RecordNotFoundError } from "../lib/company-records.ts";
 import { corsPreflight, errorResponse, jsonResponse } from "../lib/response.ts";
 import { requirePermissions } from "../lib/supabase.ts";
 import { Database } from "../lib/types.ts";
@@ -84,15 +89,19 @@ serve(async (req: Request) => {
             .from("purchaseOrder")
             .select("*")
             .eq("id", purchaseOrderId)
-            .single(),
+            .eq("companyId", companyId)
+            .maybeSingle(),
           client
             .from("purchaseOrderLine")
             .select("*")
-            .eq("purchaseOrderId", purchaseOrderId),
+            .eq("purchaseOrderId", purchaseOrderId)
+            .eq("companyId", companyId),
         ]);
 
         if (purchaseOrder.error)
           throw new Error("Failed to fetch purchaseOrder");
+        if (!purchaseOrder.data)
+          throw new RecordNotFoundError("Purchase order not found");
         if (purchaseOrderLines.error)
           throw new Error("Failed to fetch purchase order lines");
         if (!purchaseOrder.data.supplierId)
@@ -163,15 +172,19 @@ serve(async (req: Request) => {
             .from("purchaseInvoice")
             .select("*")
             .eq("id", invoiceId)
-            .single(),
+            .eq("companyId", companyId)
+            .maybeSingle(),
           client
             .from("purchaseInvoiceLine")
             .select("*")
-            .eq("invoiceId", invoiceId),
+            .eq("invoiceId", invoiceId)
+            .eq("companyId", companyId),
         ]);
 
         if (purchaseInvoice.error)
           throw new Error("Failed to fetch purchaseInvoice");
+        if (!purchaseInvoice.data)
+          throw new RecordNotFoundError("Purchase invoice not found");
         if (purchaseInvoiceLines.error)
           throw new Error("Failed to fetch invoice lines");
         if (!purchaseInvoice.data.supplierId)
@@ -501,6 +514,7 @@ serve(async (req: Request) => {
             .updateTable("supplierPart")
             .set(supplierPartUpdate)
             .where("id", "=", supplierPartUpdate.id!)
+            .where("companyId", "=", companyId)
             .execute();
         }
       }
@@ -511,6 +525,7 @@ serve(async (req: Request) => {
             .updateTable("itemReplenishment")
             .set(itemReplenishmentUpdate)
             .where("itemId", "=", itemReplenishmentUpdate.itemId!)
+            .where("companyId", "=", companyId)
             .execute();
         }
       }

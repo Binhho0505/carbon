@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import { serve } from "https://deno.land/std@0.175.0/http/server.ts";
 import { nanoid } from "https://deno.land/x/nanoid@v3.0.0/mod.ts";
 import { z } from "https://deno.land/x/zod@v3.21.4/mod.ts";
@@ -7,7 +11,7 @@ import { corsPreflight, errorResponse, jsonResponse } from "../lib/response.ts";
 import { requirePermissions } from "../lib/supabase.ts";
 import type { Database, Json } from "../lib/types.ts";
 import { TrackedEntityAttributes, credit, debit, journalReference } from "../lib/utils.ts";
-import { buildBatchSplitRecords } from "../shared/batch-split.ts";
+import { buildBatchSplitRecords, isFullDraw } from "../shared/batch-split.ts";
 import {
   buildJournalLineDimensionInserts,
   type JournalDimensionMeta,
@@ -53,18 +57,28 @@ serve(async (req: Request) => {
     const today = datetime.today(await getCompanyTimeZone(client, companyId)).toString();
 
     const [shipment, shipmentLines, shipmentLineTracking] = await Promise.all([
-      client.from("shipment").select("*").eq("id", shipmentId).single(),
+      // The client is service-role: requirePermissions proved the caller may
+      // act in companyId, not that shipmentId belongs to it.
+      client
+        .from("shipment")
+        .select("*")
+        .eq("id", shipmentId)
+        .eq("companyId", companyId)
+        .maybeSingle(),
       client
         .from("shipmentLine")
         .select("*, fulfillment(*)")
-        .eq("shipmentId", shipmentId),
+        .eq("shipmentId", shipmentId)
+        .eq("companyId", companyId),
       client
         .from("trackedEntity")
         .select("*")
-        .eq("attributes->> Shipment", shipmentId),
+        .eq("attributes->> Shipment", shipmentId)
+        .eq("companyId", companyId),
     ]);
 
     if (shipment.error) throw new Error("Failed to fetch shipment");
+    if (!shipment.data) return errorResponse("Shipment not found", 404);
     if (shipmentLines.error) throw new Error("Failed to fetch shipment lines");
 
     const itemIds = shipmentLines.data.reduce<string[]>((acc, shipmentLine) => {
@@ -210,6 +224,7 @@ serve(async (req: Request) => {
               itemId: string | null;
               itemPostingGroupId: string | null;
               locationId: string | null;
+              // Always null: salesOrderLine has no cost center column.
               costCenterId: string | null;
               fixedAssetClassId: string | null;
             }[] = [];
@@ -474,7 +489,7 @@ serve(async (req: Request) => {
                     itemId: shipmentLine.itemId ?? null,
                     itemPostingGroupId,
                     locationId: shipmentLine.locationId ?? locationId ?? null,
-                    costCenterId: salesOrderLine?.costCenterId ?? null,
+                    costCenterId: null,
                     fixedAssetClassId: null,
                   });
                 }
@@ -613,7 +628,7 @@ serve(async (req: Request) => {
                     itemId: null,
                     itemPostingGroupId: null,
                     locationId: locationId ?? assetRecord.data.locationId ?? null,
-                    costCenterId: faSoLine.costCenterId ?? null,
+                    costCenterId: null,
                     fixedAssetClassId: assetRecord.data.fixedAssetClassId ?? null,
                   });
                 }
@@ -645,7 +660,7 @@ serve(async (req: Request) => {
                     itemId: null,
                     itemPostingGroupId: null,
                     locationId: locationId ?? assetRecord.data.locationId ?? null,
-                    costCenterId: faSoLine.costCenterId ?? null,
+                    costCenterId: null,
                     fixedAssetClassId: assetRecord.data.fixedAssetClassId ?? null,
                   });
                 }
@@ -672,7 +687,7 @@ serve(async (req: Request) => {
                   itemId: null,
                   itemPostingGroupId: null,
                   locationId: locationId ?? assetRecord.data.locationId ?? null,
-                  costCenterId: faSoLine.costCenterId ?? null,
+                  costCenterId: null,
                   fixedAssetClassId: assetRecord.data.fixedAssetClassId ?? null,
                 });
 
@@ -741,10 +756,20 @@ serve(async (req: Request) => {
                     ]
                 );
 
+                // Round both, then ask isFullDraw first: a residue lot
+                // (holding 0.020000000000000018 after an earlier split)
+                // shipped in full reads as `shipped < quantity` on a raw
+                // compare, and the split loop below then throws the builder's
+                // `draw >= parentQty` guard on a legitimate full shipment.
+                const entityQuantity = round(Number(trackedEntity.quantity));
+                const shippedQuantity = round(
+                  Number(shipmentLine?.shippedQuantity)
+                );
                 if (
                   shipmentLine?.shippedQuantity !== undefined &&
                   trackedEntity.quantity !== undefined &&
-                  shipmentLine.shippedQuantity < trackedEntity.quantity
+                  !isFullDraw(entityQuantity, shippedQuantity) &&
+                  shippedQuantity < entityQuantity
                 ) {
                   // Partial shipment → split. The shelf entity keeps its id
                   // and is only decremented (split loop below); the SHIPPED
@@ -752,10 +777,9 @@ serve(async (req: Request) => {
                   // update on the parent here.
                   trackedEntitySplits[trackedEntity.id] = {
                     originalEntityId: trackedEntity.id,
-                    originalQuantity: trackedEntity.quantity,
-                    shippedQuantity: shipmentLine.shippedQuantity,
-                    remainingQuantity:
-                      trackedEntity.quantity - shipmentLine.shippedQuantity,
+                    originalQuantity: entityQuantity,
+                    shippedQuantity,
+                    remainingQuantity: round(entityQuantity - shippedQuantity),
                     readableId: trackedEntity.readableId,
                     attributes:
                       trackedEntity.attributes as TrackedEntityAttributes,
@@ -772,8 +796,14 @@ serve(async (req: Request) => {
 
                 acc[trackedEntity.id] = {
                   status: "Consumed",
-                  quantity:
-                    shipmentLine?.shippedQuantity ?? trackedEntity.quantity,
+                  // Keep the ?? fallback exactly as it was and just round it:
+                  // a null shippedQuantity must still fall through to the
+                  // entity's own quantity, which `!== undefined` would not do.
+                  quantity: round(
+                    Number(
+                      shipmentLine?.shippedQuantity ?? trackedEntity.quantity
+                    )
+                  ),
                 };
 
                 return acc;
@@ -1391,10 +1421,20 @@ serve(async (req: Request) => {
                     ]
                 );
 
+                // Round both, then ask isFullDraw first: a residue lot
+                // (holding 0.020000000000000018 after an earlier split)
+                // shipped in full reads as `shipped < quantity` on a raw
+                // compare, and the split loop below then throws the builder's
+                // `draw >= parentQty` guard on a legitimate full shipment.
+                const entityQuantity = round(Number(trackedEntity.quantity));
+                const shippedQuantity = round(
+                  Number(shipmentLine?.shippedQuantity)
+                );
                 if (
                   shipmentLine?.shippedQuantity !== undefined &&
                   trackedEntity.quantity !== undefined &&
-                  shipmentLine.shippedQuantity < trackedEntity.quantity
+                  !isFullDraw(entityQuantity, shippedQuantity) &&
+                  shippedQuantity < entityQuantity
                 ) {
                   // Partial shipment → split. The shelf entity keeps its id
                   // and is only decremented (split loop below); the SHIPPED
@@ -1402,10 +1442,9 @@ serve(async (req: Request) => {
                   // the parent here.
                   trackedEntitySplits[trackedEntity.id] = {
                     originalEntityId: trackedEntity.id,
-                    originalQuantity: trackedEntity.quantity,
-                    shippedQuantity: shipmentLine.shippedQuantity,
-                    remainingQuantity:
-                      trackedEntity.quantity - shipmentLine.shippedQuantity,
+                    originalQuantity: entityQuantity,
+                    shippedQuantity,
+                    remainingQuantity: round(entityQuantity - shippedQuantity),
                     readableId: trackedEntity.readableId,
                     attributes:
                       trackedEntity.attributes as TrackedEntityAttributes,
@@ -1421,8 +1460,14 @@ serve(async (req: Request) => {
                 }
 
                 acc[trackedEntity.id] = {
-                  quantity:
-                    shipmentLine?.shippedQuantity ?? trackedEntity.quantity,
+                  // Keep the ?? fallback exactly as it was and just round it:
+                  // a null shippedQuantity must still fall through to the
+                  // entity's own quantity, which `!== undefined` would not do.
+                  quantity: round(
+                    Number(
+                      shipmentLine?.shippedQuantity ?? trackedEntity.quantity
+                    )
+                  ),
                 };
 
                 return acc;
@@ -2396,17 +2441,17 @@ serve(async (req: Request) => {
                     createdBy: userId,
                     companyId,
                   });
-                  if (draw + 0.00001 >= entityQty) {
+                  if (isFullDraw(entityQty, draw)) {
                     trackedEntityUpdates[entity.id] = {
                       status: "Consumed",
-                      quantity: entityQty,
+                      quantity: round(entityQty),
                     };
                   } else {
                     // Partial → split at post; the negative ledger row above is
                     // retargeted to the departing child in the transaction.
                     trackedEntitySplits.push({
                       entity,
-                      drawQuantity: draw,
+                      drawQuantity: round(draw),
                       storageUnitId: shipmentLine.storageUnitId,
                       itemId: shipmentLine.itemId,
                       ledgerIndex,
@@ -4460,7 +4505,8 @@ serve(async (req: Request) => {
       await client
         .from("shipment")
         .update({ status: "Draft" })
-        .eq("id", payload.shipmentId);
+        .eq("id", payload.shipmentId)
+        .eq("companyId", payload.companyId);
     }
     return errorResponse(err, 500);
   }

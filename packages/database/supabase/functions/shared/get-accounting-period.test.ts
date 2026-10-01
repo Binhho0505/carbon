@@ -1,11 +1,15 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import { assertEquals } from "https://deno.land/std@0.175.0/testing/asserts.ts";
 import { createClient } from "@supabase/supabase-js";
 import { sql } from "kysely";
 import type { Database } from "../lib/types.ts";
 import {
-  cardTransactionFixture,
+  chargeFixture,
   databaseTest,
-} from "../post-card-transaction/post-card-transaction-test-fixture.ts";
+} from "../post-charge/post-charge-test-fixture.ts";
 import {
   getAccountingPeriodForDate,
   getCurrentAccountingPeriod,
@@ -34,7 +38,7 @@ for (
   databaseTest(
     `${name} period resolution sees the caller's uncommitted period`,
     async () => {
-      const f = await cardTransactionFixture();
+      const f = await chargeFixture();
       try {
         await f.db.deleteFrom("accountingPeriod").where(
           "companyId",
@@ -67,7 +71,7 @@ for (
 databaseTest(
   "period creation uses the fiscal start and leap-month boundary",
   async () => {
-    const f = await cardTransactionFixture();
+    const f = await chargeFixture();
     try {
       await f.db.deleteFrom("accountingPeriod").where(
         "companyId",
@@ -110,7 +114,7 @@ databaseTest(
 databaseTest(
   "concurrent first-period resolution converges to one row",
   async () => {
-    const f = await cardTransactionFixture();
+    const f = await chargeFixture();
     const left = await f.connect();
     const right = await f.connect();
     try {

@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import { requirePermissions } from "@carbon/auth/auth.server";
 import { getCarbonServiceRole } from "@carbon/auth/client.server";
 import type { Database } from "@carbon/database";
@@ -105,7 +109,8 @@ async function processToActive(
         updatedBy: userId,
         updatedAt: new Date().toISOString()
       })
-      .eq("id", docId);
+      .eq("id", docId)
+      .eq("companyId", companyId);
   }
   const idsToUpdateToActive = ids.filter((id) => !idsToSkipActive.includes(id));
   if (idsToUpdateToActive.length === 0) {
@@ -118,7 +123,8 @@ async function processToActive(
       updatedBy: userId,
       updatedAt: new Date().toISOString()
     })
-    .in("id", idsToUpdateToActive);
+    .in("id", idsToUpdateToActive)
+    .eq("companyId", companyId);
 }
 
 /**
@@ -199,7 +205,8 @@ export async function action({ request }: ActionFunctionArgs) {
           updatedBy: userId,
           updatedAt: new Date().toISOString()
         })
-        .in("id", ids as string[]);
+        .in("id", ids as string[])
+        .eq("companyId", companyId);
     case "status": {
       const statusValue = value as (typeof qualityDocumentStatus)[number];
       if (!qualityDocumentStatus.includes(statusValue)) {
@@ -209,7 +216,10 @@ export async function action({ request }: ActionFunctionArgs) {
       const currentDocs = await client
         .from("qualityDocument")
         .select("id, status")
-        .in("id", ids as string[]);
+        .in("id", ids as string[])
+        // docList drives service-role approval writes below — this company's
+        // documents only.
+        .eq("companyId", companyId);
 
       if (currentDocs.error) {
         return { error: currentDocs.error, data: null };
@@ -247,7 +257,8 @@ export async function action({ request }: ActionFunctionArgs) {
           updatedBy: userId,
           updatedAt: new Date().toISOString()
         })
-        .in("id", idList);
+        .in("id", idList)
+        .eq("companyId", companyId);
     }
     case "tags":
       return await client
@@ -257,7 +268,8 @@ export async function action({ request }: ActionFunctionArgs) {
           updatedBy: userId,
           updatedAt: new Date().toISOString()
         })
-        .in("id", ids as string[]);
+        .in("id", ids as string[])
+        .eq("companyId", companyId);
 
     default:
       return { error: { message: "Invalid field" }, data: null };

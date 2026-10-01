@@ -47,8 +47,17 @@ verify_jwt = true                              # JWT required (the common case)
 # entrypoint = "./functions/<name>/index.ts"   # optional; only if not default index.ts
 ```
 
-- `verify_jwt = true` — protected (almost all Carbon functions; the JWT/API-key is
-  re-checked in-function anyway, see step 4).
+- `verify_jwt = true` — the gateway checks the JWT's signature, nothing more. The anon key
+  published in the apps' HTML IS a valid JWT, so this alone lets anyone in. The function must
+  still authorize in-function: `requirePermissions` when it acts on a company's data, or
+  `requireCaller` (`lib/supabase.ts` — service role, signed-in user, or valid API key) when it
+  touches none, or `requireServiceRole` when only servers call it (`thumbnail`). `embedding`,
+  `post-picking`, `post-stock-transfer`, `reschedule` and `thumbnail` all served the anon key
+  until they got one. The `edge-function-authorizes-caller` check (`@carbon/checks`) fails a
+  function that calls none of them. `embed`, `event-wake` and `trigger` are still open —
+  Postgres calls them with the anon key from the `config` table (`util.invoke_edge_function`,
+  `util.wake_event_queue`, `finish_job_operation`), so they cannot tell it from an anonymous
+  caller until Postgres sends a server credential.
 - `verify_jwt = false` — only for genuinely public endpoints (`logo-resizer`).
   Image processing for API/server callers is `process-image` (`verify_jwt = true`,
   in-function `requirePermissions`); it runs the shared pipeline in
@@ -57,9 +66,13 @@ verify_jwt = true                              # JWT required (the common case)
 ## 3. Function skeleton
 
 Real imports (note: `serve` from deno.land std, **default** `z` import, lib paths
-relative to the function dir):
+relative to the function dir; the AGPL license header comes first — the fixer
+`pnpm --filter @carbon/checks license-headers` writes it):
 
 ```typescript
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
 import { serve } from "https://deno.land/std@0.175.0/http/server.ts";
 import z from "npm:zod@^4.5.4";
 import { corsHeaders } from "../lib/headers.ts";
@@ -174,7 +187,24 @@ was is what produced the cross-tenant write in
 `companyId`; it proves nothing about the RECORD IDS in the body, which usually come
 straight from the URL. When the invocation is service-role, RLS is not there to
 catch the mismatch either. So a function that takes a record id must re-read that
-record under `companyId` itself and 404 on a miss — `schedule` does this for `jobId`.
+record under `companyId` itself and 404 on a miss.
+
+The pattern is `functions/lib/company-records.ts`:
+
+- **Ids the function only writes as references** (a ledger's `locationId`, an
+  activity's `trackedEntityId`, a caller-chosen `purchaseOrderId`) — call
+  `assertCompanyRecords(db, table, ids, companyId, label)` once per table, right
+  after `requirePermissions`. It ignores null/undefined/duplicate ids (optional
+  fields stay optional), runs one query, and throws `RecordNotFoundError`. A table
+  must be on its `CompanyScopedTable` allow-list; add it there.
+- **The document the function acts on** (the receipt being posted, the invoice being
+  voided) — scope the EXISTING header read with `.eq("companyId", companyId)` and
+  `.maybeSingle()`, and 404 on a miss. Do not add a second pre-check query.
+- **Any other "X not found" miss** — throw `RecordNotFoundError`, not `Error`.
+
+`RecordNotFoundError` carries `status = 404`, and `errorResponse` (`lib/response.ts`)
+uses a numeric 4xx/5xx `err.status` over the status the catch block passes, so a
+catch block needs no `instanceof RecordNotFoundError` mapping.
 
 ## 6. Local dev
 
@@ -198,6 +228,7 @@ don't run a deploy manually; merging to `main` is what ships it.
 ## Checklist
 
 - [ ] `pnpm db:function:new <name>` (file at `functions/<name>/index.ts`)
+- [ ] AGPL SPDX license header at the top of every new file (`pnpm --filter @carbon/checks license-headers`)
 - [ ] `[functions.<name>]` added to `config.toml` (`enabled`, `verify_jwt`) — for
       the settings and for discoverability, NOT because it gates the deploy
 - [ ] CORS `OPTIONS` short-circuit returning `corsHeaders`

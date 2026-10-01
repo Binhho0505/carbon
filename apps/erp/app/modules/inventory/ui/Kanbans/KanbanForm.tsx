@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import { useCarbon } from "@carbon/auth";
 import { Boolean, Hidden, SelectControlled, ValidatedForm } from "@carbon/form";
 import {
@@ -316,6 +320,7 @@ const KanbanForm = ({ initialValues, onClose }: KanbanFormProps) => {
                       name="autoRelease"
                       label={t`Auto Release`}
                       termId="kanban-auto-release"
+                      bordered
                       value={autoRelease}
                       onChange={(value) => {
                         setAutoRelease(value);
@@ -329,6 +334,7 @@ const KanbanForm = ({ initialValues, onClose }: KanbanFormProps) => {
                       name="autoStartJob"
                       label={t`Auto Start Job`}
                       termId="kanban-auto-start-job"
+                      bordered
                       value={autoStartJob}
                       onChange={setAutoStartJob}
                       isDisabled={!autoRelease}

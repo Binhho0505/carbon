@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import { parseAbsolute } from "@internationalized/date";
 import { it } from "vitest";
 import type { MasterDataProvider } from "./master-data-provider.ts";
@@ -172,6 +176,53 @@ it("an untouched op books the full standard hours", async () => {
   assert(selection?.placedStart && selection.placedEnd);
   const spanMs = utc(selection.placedEnd) - utc(selection.placedStart);
   assertEquals(spanMs, 4 * 60 * 60 * 1000); // full 4h
+});
+
+it("materialReadyAt floors the placement", async () => {
+  // Same fixture placed twice: an op WITHOUT the floor starts at now; the same
+  // op WITH materialReadyAt three days out starts no earlier than that floor.
+  const now = utc("2026-01-05T00:00:00.000Z"); // Monday
+  const floor = now + 3 * 24 * 3_600_000;
+
+  const baseOp = () =>
+    makeOp({
+      id: "op-1",
+      workCenterId: "wc1",
+      startDate: null,
+      dueDate: null,
+      setupTime: 0,
+      laborTime: 4,
+      laborUnit: "Total Hours" as const,
+      machineTime: 0,
+      operationQuantity: 10,
+      quantityComplete: 0
+    });
+
+  const unfloored = new WorkCenterSelector(
+    {} as unknown as MasterDataProvider,
+    "loc1"
+  );
+  unfloored.setFiniteContext(makeContext());
+  const unflooredSelections = await unfloored.selectWorkCentersForOperations(
+    [baseOp()],
+    { jobDueDate: null }
+  );
+  const unflooredSelection = unflooredSelections.get("op-1");
+  assert(unflooredSelection?.placedStart);
+  assertEquals(utc(unflooredSelection.placedStart), now);
+
+  const floored = new WorkCenterSelector(
+    {} as unknown as MasterDataProvider,
+    "loc1"
+  );
+  floored.setFiniteContext(makeContext());
+  const flooredSelections = await floored.selectWorkCentersForOperations(
+    [{ ...baseOp(), materialReadyAt: floor }],
+    { jobDueDate: null }
+  );
+  const flooredSelection = flooredSelections.get("op-1");
+  assert(flooredSelection?.placedStart);
+  assert(utc(flooredSelection.placedStart) >= floor);
 });
 
 // --- load balancing across equivalent work centers --------------------------

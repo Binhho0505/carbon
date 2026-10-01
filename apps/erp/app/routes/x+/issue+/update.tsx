@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import { requirePermissions } from "@carbon/auth/auth.server";
 import { getCarbonServiceRole } from "@carbon/auth/client.server";
 import { getLogger } from "@carbon/logger";
@@ -28,7 +32,8 @@ export async function action({ request }: ActionFunctionArgs) {
   const issues = await client
     .from("nonConformance")
     .select("id, status")
-    .in("id", ids as string[]);
+    .in("id", ids as string[])
+    .eq("companyId", companyId);
 
   const lockedError = requireUnlockedBulk({
     statuses: (issues.data ?? []).map((i) => i.status),
@@ -48,7 +53,8 @@ export async function action({ request }: ActionFunctionArgs) {
           updatedBy: userId,
           updatedAt: new Date().toISOString()
         })
-        .in("id", ids as string[]);
+        .in("id", ids as string[])
+        .eq("companyId", companyId);
 
       if (update.error) {
         logger.error(update.error);
@@ -60,8 +66,9 @@ export async function action({ request }: ActionFunctionArgs) {
 
       const serviceRole = await getCarbonServiceRole();
       // A silent reconcile failure leaves the column and the task list disagreeing.
+      // Only the issues the scoped read above found are this company's.
       const reconciled = await Promise.all(
-        ids.map((id) =>
+        (issues.data ?? []).map(({ id }) =>
           serviceRole.functions.invoke("create", {
             body: {
               type: "nonConformanceTasks",
@@ -102,7 +109,8 @@ export async function action({ request }: ActionFunctionArgs) {
           updatedBy: userId,
           updatedAt: new Date().toISOString()
         })
-        .in("id", ids as string[]);
+        .in("id", ids as string[])
+        .eq("companyId", companyId);
     default:
       return {
         error: { message: `Invalid field: ${field}` },

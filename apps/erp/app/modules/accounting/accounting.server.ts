@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import { requirePermissions } from "@carbon/auth/auth.server";
 import { getCarbonServiceRole } from "@carbon/auth/client.server";
 import type { Database } from "@carbon/database";
@@ -600,6 +604,7 @@ export async function postDepreciationRun(
         .updateTable("depreciationRunLine")
         .set({ journalId: journal.id })
         .where("id", "=", line.id)
+        .where("companyId", "=", companyId)
         .execute();
 
       const newAccumulated = Number(asset.accumulatedDepreciation) + amount;
@@ -628,6 +633,7 @@ export async function postDepreciationRun(
         .updateTable("fixedAsset")
         .set(assetUpdate)
         .where("id", "=", line.fixedAssetId)
+        .where("companyId", "=", companyId)
         .execute();
     }
 
@@ -799,6 +805,7 @@ export async function postDepreciationRun(
         postedBy: userId
       })
       .where("id", "=", depreciationRunId)
+      .where("companyId", "=", companyId)
       .execute();
   });
 }

@@ -1,6 +1,11 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import { notFound } from "@carbon/auth";
 import { requirePermissions } from "@carbon/auth/auth.server";
 import { getCarbonServiceRole } from "@carbon/auth/client.server";
+import { rejectCrossSiteNavigation } from "@carbon/auth/middleware/security.server";
 import type { Database } from "@carbon/database";
 import { trigger } from "@carbon/jobs";
 import { trackWorkEvent } from "@carbon/lib/telemetry";
@@ -52,16 +57,7 @@ async function handleKanban({
   userId: string;
   id: string;
 }): Promise<{ data: string; error: null } | { data: null; error: string }> {
-  const kanban = await getKanban(client, id);
-  if (
-    kanban.data?.replenishmentSystem === "Make" &&
-    kanban.data?.jobReadableId
-  ) {
-    return {
-      data: path.to.api.kanbanCollision(id),
-      error: null
-    };
-  }
+  const kanban = await getKanban(client, id, companyId);
 
   if (kanban.error || !kanban.data) {
     return {
@@ -70,10 +66,10 @@ async function handleKanban({
     };
   }
 
-  if (kanban.data.companyId !== companyId) {
+  if (kanban.data.replenishmentSystem === "Make" && kanban.data.jobReadableId) {
     return {
-      data: null,
-      error: "Kanban is not active"
+      data: path.to.api.kanbanCollision(id),
+      error: null
     };
   }
 
@@ -438,8 +434,12 @@ async function handleKanban({
 }
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
+  // Writes on GET: a link on another site must not trigger it.
+  rejectCrossSiteNavigation(request);
   const { client, companyId, companyGroupId, userId } =
-    await requirePermissions(request, {});
+    await requirePermissions(request, {
+      role: "employee"
+    });
 
   const { id } = params;
   if (!id) throw notFound("id not found");

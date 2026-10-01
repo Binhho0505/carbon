@@ -1,10 +1,10 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import { assertIsPost, error, success } from "@carbon/auth";
 import { requirePermissions } from "@carbon/auth/auth.server";
 import { flash } from "@carbon/auth/session.server";
-import {
-  getSalesRuleAssignmentsForItem,
-  getSalesRulesList
-} from "@carbon/ee/rules";
 import { getStorageRulesDataForTarget } from "@carbon/ee/rules.server";
 import { validationError, validator } from "@carbon/form";
 import { VStack } from "@carbon/react";
@@ -32,7 +32,6 @@ import {
 } from "~/modules/items";
 import { PickMethodForm } from "~/modules/items/ui/Item";
 import { getLocationsList } from "~/modules/resources";
-import { SalesRuleAssignmentsList } from "~/modules/sales/ui/SalesRules";
 import { getUserDefaults } from "~/modules/users/users.server";
 import { getDatabaseClient } from "~/services/database.server";
 import { useItems } from "~/stores/items";
@@ -154,9 +153,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     shelfLife,
     bomHasShelfLifeManagedInput,
     trackedEntityExpirations,
-    rulesData,
-    salesRuleAssignments,
-    salesRuleLibrary
+    rulesData
   ] = await Promise.all([
     getItemShelfLife(client, itemId),
     getBomHasShelfLifeManagedInput(client, itemId, companyId),
@@ -165,9 +162,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
       targetType: "item",
       targetId: itemId,
       companyId
-    }),
-    getSalesRuleAssignmentsForItem(client, { itemId, companyId }),
-    getSalesRulesList(client, companyId)
+    })
   ]);
 
   return {
@@ -180,15 +175,13 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     itemId,
     locationId,
     ruleAssignments: rulesData.assignments,
-    ruleLibrary: rulesData.library,
-    salesRuleAssignments: salesRuleAssignments.data ?? [],
-    salesRuleLibrary: salesRuleLibrary.data ?? []
+    ruleLibrary: rulesData.library
   };
 }
 
 export async function action({ request, params }: ActionFunctionArgs) {
   assertIsPost(request);
-  const { userId } = await requirePermissions(request, {
+  const { companyId, userId } = await requirePermissions(request, {
     update: "parts"
   });
 
@@ -220,6 +213,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
       defaultStorageUnitId: pickMethodFields.defaultStorageUnitId,
       sortMethod: pickMethodFields.sortMethod,
       customFields: setCustomFields(formData),
+      companyId,
       userId,
       shelfLife: {
         mode: shelfLifeMode,
@@ -257,9 +251,7 @@ export default function ToolInventoryRoute() {
     trackedEntityExpirations,
     itemId,
     ruleAssignments,
-    ruleLibrary,
-    salesRuleAssignments,
-    salesRuleLibrary
+    ruleLibrary
   } = useLoaderData<typeof loader>();
 
   const toolData = useRouteData<{
@@ -315,11 +307,6 @@ export default function ToolInventoryRoute() {
         targetId={itemId}
         assignments={ruleAssignments as never}
         library={ruleLibrary as never}
-      />
-      <SalesRuleAssignmentsList
-        itemId={itemId}
-        assignments={salesRuleAssignments as never}
-        library={salesRuleLibrary as never}
       />
     </VStack>
   );

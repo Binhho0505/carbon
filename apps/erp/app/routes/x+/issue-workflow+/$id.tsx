@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import { assertIsPost, error, success } from "@carbon/auth";
 import { requirePermissions } from "@carbon/auth/auth.server";
 import { flash } from "@carbon/auth/session.server";
@@ -56,6 +60,16 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
         error(workflow.error, "Failed to load issue workflow")
       )
     );
+  }
+
+  // bypassRls makes `client` the service role, so the URL id is only proven to
+  // exist — not to be this company's.
+  if (workflow.data.companyId !== companyId) {
+    logger.error("Issue workflow is not in the caller's company", {
+      companyId,
+      issueWorkflowId: id
+    });
+    throw redirect(path.to.issueWorkflows);
   }
 
   return {

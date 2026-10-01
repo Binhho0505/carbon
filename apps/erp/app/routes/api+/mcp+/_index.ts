@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import type { ManifestEntry } from "@carbon/api";
 import { hashOAuthSecret } from "@carbon/auth/auth.server";
 import {
@@ -10,7 +14,7 @@ import { createMcpServer } from "@carbon/ee/mcp.server";
 import { getAppUrl } from "@carbon/env";
 import { Ratelimit, redis } from "@carbon/kv";
 import { withLogContext } from "@carbon/logger/middleware.server";
-import { datetime } from "@carbon/utils";
+import { datetime, getRequestOrigin } from "@carbon/utils";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import type { ActionFunctionArgs } from "react-router";
 import { getCompanyTimeZone } from "~/modules/shared/timezone.server";
@@ -117,7 +121,8 @@ function makeMcpDisabledResponse(): Response {
 }
 
 function make401Response(request: Request): Response {
-  const origin = getAppUrl() || new URL(request.url).origin;
+  const origin =
+    getAppUrl() || getRequestOrigin(request) || new URL(request.url).origin;
   return new Response(null, {
     status: 401,
     headers: {

@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import { spawnSync } from "node:child_process";
 import {
   closeSync,
@@ -42,13 +46,13 @@ function validateDatabaseUrl(value: string | undefined): string {
 // local DB's seeded companies — committing them makes types.ts
 // machine-dependent. The static `searchIndexRegistry` / `auditLogArchive`
 // tables (no underscore) are unaffected.
-function stripPerTenantTables(source: string): string {
+export function stripPerTenantTables(source: string): string {
   const lines: string[] = [];
   let skipping = false;
   for (const line of source.split("\n")) {
     if (
       !skipping &&
-      /^      (searchIndex|auditLog)_[A-Za-z0-9]+: \{$/.test(line)
+      /^      "?(searchIndex|auditLog)_[A-Za-z0-9-]+"?: \{$/.test(line)
     ) {
       skipping = true;
       continue;

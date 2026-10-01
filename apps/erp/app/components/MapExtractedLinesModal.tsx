@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import { ValidatedForm } from "@carbon/form";
 import {
   Button,
@@ -129,7 +133,7 @@ export default function MapExtractedLinesModal({
             {title}
             <ModalClose />
           </ModalHeader>
-          <ModalBody className="max-h-[70vh] overflow-y-auto">
+          <ModalBody>
             <div className="mb-6 space-y-1">
               <p className="max-w-[70ch] text-pretty text-sm text-muted-foreground">
                 <Trans>

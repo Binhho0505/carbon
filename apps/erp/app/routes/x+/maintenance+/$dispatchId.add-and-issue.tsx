@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import { assertIsPost } from "@carbon/auth";
 import { requirePermissions } from "@carbon/auth/auth.server";
 import { getCarbonServiceRole } from "@carbon/auth/client.server";
@@ -32,7 +36,11 @@ const logger = getLogger("erp", "maintenance", "dispatch");
 
 export async function action({ request, params }: ActionFunctionArgs) {
   assertIsPost(request);
-  const { userId, companyId } = await requirePermissions(request, {});
+  // Issuing parts to a dispatch is an edit of the dispatch, like every other
+  // write under $dispatchId (the Add Part button is gated the same way).
+  const { userId, companyId } = await requirePermissions(request, {
+    update: "resources"
+  });
   const { dispatchId } = params;
 
   if (!dispatchId) {
@@ -46,6 +54,21 @@ export async function action({ request, params }: ActionFunctionArgs) {
     view: "resources"
   });
   const dispatch = await getMaintenanceDispatch(viewClient, dispatchId);
+  if (
+    dispatch.error ||
+    !dispatch.data ||
+    dispatch.data.companyId !== companyId
+  ) {
+    logger.error("Maintenance dispatch not found for add-and-issue", {
+      companyId,
+      dispatchId,
+      error: dispatch.error
+    });
+    return data(
+      { success: false, message: "Dispatch not found" },
+      { status: 404 }
+    );
+  }
   await requireUnlocked({
     request,
     isLocked: isMaintenanceDispatchLocked(dispatch.data?.status),

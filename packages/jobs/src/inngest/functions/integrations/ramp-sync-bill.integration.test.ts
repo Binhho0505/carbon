@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import { createMappingService } from "@carbon/ee/accounting";
 import {
   confirmSyncs,
@@ -167,6 +171,8 @@ describe.skipIf(process.env.RUN_RAMP_DB_TESTS !== "true")(
         mapping: createMappingService(db, scope.companyId),
         decimalsCache: new Map(),
         exchangeRateCache: new Map(),
+        createdBy: "system",
+        trigger: "event",
         metadata: { sync: { pullBills: true } } as RampSyncContext["metadata"]
       };
       const bill: RampBill = {

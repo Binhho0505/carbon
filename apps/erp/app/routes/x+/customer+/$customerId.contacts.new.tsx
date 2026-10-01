@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import { assertIsPost, error, notFound, success } from "@carbon/auth";
 import { requirePermissions } from "@carbon/auth/auth.server";
 import { getCarbonServiceRole } from "@carbon/auth/client.server";
@@ -13,6 +17,7 @@ import {
   insertCustomerContact
 } from "~/modules/sales";
 import { CustomerContactForm } from "~/modules/sales/ui/Customer";
+import { requireCompanyRecord } from "~/modules/shared/shared.server";
 import { setCustomFields } from "~/utils/form";
 import { path } from "~/utils/path";
 import { customerContactsQuery } from "~/utils/react-query";
@@ -42,6 +47,18 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
   // biome-ignore lint/correctness/noUnusedVariables: suppressed due to migration
   const { id, contactId, customerLocationId, ...contact } = validation.data;
+
+  // The contact is written through the service role: the customer in the URL
+  // (and the location on the form) must belong to this company.
+  await Promise.all([
+    requireCompanyRecord(client, "customer", companyId, { id: customerId }),
+    customerLocationId
+      ? requireCompanyRecord(client, "customerLocation", companyId, {
+          id: customerLocationId,
+          customerId
+        })
+      : null
+  ]);
 
   const createCustomerContact = await insertCustomerContact(client, {
     customerId,

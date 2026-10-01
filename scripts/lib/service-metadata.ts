@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 /**
  * Service metadata parser — the pure core behind the MCP tool manifest and the
  * Carbon API contract.
@@ -97,16 +101,39 @@ const DESCRIPTION_OVERRIDES: Record<string, string> = {
 //   - accounting_upsertFixedAssetUsageLog       → fixedAssetUsageLog
 // account_upsertNotificationPreference spreads its argument into an upsert on
 // notificationPreference, which (like userModulePreference) carries no
-// createdBy/updatedBy columns at all — injecting them breaks the write.
+// createdBy/updatedBy columns at all — injecting them breaks the write. The
+// four lean material lookups (dimension, finish, grade, type) are the same:
+// no audit columns, argument spread into the row.
 const INJECT_AUTH_OVERRIDES: Record<string, AuthField[]> = {
   inventory_insertManualInventoryAdjustment: ["companyId", "createdBy"],
   accounting_upsertFixedAssetUsageLog: ["companyId", "createdBy"],
   account_upsertNotificationPreference: ["companyId"],
+  items_upsertMaterialDimension: ["companyId"],
+  items_upsertMaterialFinish: ["companyId"],
+  items_upsertMaterialGrade: ["companyId"],
+  items_upsertMaterialType: ["companyId"],
   // Both operations replace settlement rows in a transaction. Their verbs do
   // not imply INSERT to the name-based rule, but the service requires the
   // authenticated creator for every replacement row.
   invoicing_replaceInvoiceSettlements: ["companyId", "createdBy"],
   invoicing_applyCreditsToInvoices: ["companyId", "createdBy"],
+  // Both read the caller's group-scoped currency with the payload's
+  // companyGroupId and write a memo, so it must come from the auth context —
+  // a caller-supplied group would resolve another group's currency rows.
+  purchasing_createPurchaseReturnOrderCredit: [
+    "companyId",
+    "companyGroupId",
+    "createdBy",
+    "updatedBy",
+    "userId",
+  ],
+  sales_createSalesReturnOrderCredit: [
+    "companyId",
+    "companyGroupId",
+    "createdBy",
+    "updatedBy",
+    "userId",
+  ],
 };
 
 // service-module → permission-module. `items` operations are gated by the `parts`

@@ -1,12 +1,16 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import { requirePermissions } from "@carbon/auth/auth.server";
 import { getCarbonServiceRole } from "@carbon/auth/client.server";
 import { getLogger } from "@carbon/logger";
 import {
   Button,
+  CarbonPulse,
   ClientOnly,
   Heading,
   Input,
-  LoadingBars,
   Popover,
   PopoverContent,
   PopoverTrigger,
@@ -228,7 +232,7 @@ export default function AssignedRoute() {
 
   return (
     <div className="flex flex-col flex-1 min-w-0">
-      <header className="sticky top-0 z-10 flex h-[var(--header-height)] overflow-y-scroll scrollbar-thin scrollbar-thumb-accent scrollbar-track-transparent shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12 border-b bg-card">
+      <header className="sticky top-0 z-10 flex h-[var(--header-height)] overflow-y-scroll scrollbar-thin scrollbar-thumb-accent scrollbar-track-transparent shrink-0 items-center gap-2 border-b bg-card">
         <div className="flex items-center gap-2 px-2">
           <SidebarTrigger />
           <Heading size="h4">
@@ -351,7 +355,7 @@ export default function AssignedRoute() {
             <ClientOnly
               fallback={
                 <div className="flex w-full h-[calc(100%-var(--header-height))] items-center justify-center">
-                  <LoadingBars />
+                  <CarbonPulse />
                 </div>
               }
             >

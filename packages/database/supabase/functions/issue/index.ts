@@ -1,9 +1,14 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import { serve } from "https://deno.land/std@0.175.0/http/server.ts";
 import { type CalendarDate, parseDate } from "@internationalized/date";
 import { sql, Transaction } from "kysely";
 import { z } from "npm:zod@^4.5.4";
 
 import { DB, getConnectionPool, getDatabaseClient } from "../lib/database.ts";
+import { assertCompanyRecords, RecordNotFoundError } from "../lib/company-records.ts";
 import { datetime, getCompanyTimeZone } from "../lib/datetime.ts";
 
 import { nanoid } from "https://deno.land/x/nanoid@v3.0.0/nanoid.ts";
@@ -18,11 +23,19 @@ import { Database } from "../lib/types.ts";
 import type { Json } from "../lib/types.ts";
 import { TrackedEntityAttributes, credit, debit, journalReference } from "../lib/utils.ts";
 
-import { buildBatchSplitRecords } from "../shared/batch-split.ts";
+import { buildBatchSplitRecords, isFullDraw } from "../shared/batch-split.ts";
 import { buildBatchMergeRecords } from "../shared/batch-merge.ts";
+import { round } from "../shared/precision.ts";
 import { splitPickAcrossMembers } from "../shared/batch-pick-split.ts";
-import { getCurrentAccountingPeriod } from "../shared/get-accounting-period.ts";
-import { bookAdjustment } from "../shared/post-adjustment.ts";
+import {
+  getCurrentAccountingPeriod,
+  resolveAccountingPeriod,
+} from "../shared/get-accounting-period.ts";
+import {
+  bookAdjustment,
+  createAdjustmentJournal,
+  valueMovement,
+} from "../shared/post-adjustment.ts";
 import { getNextSequence } from "../shared/get-next-sequence.ts";
 import { applyScrapReplacement } from "./scrap-replacement.ts";
 import { getNextSerialNumbers } from "../shared/get-next-serial-number.ts";
@@ -40,6 +53,7 @@ import {
   type SharedTakes,
   splitTakeByBin,
 } from "../lib/picked-consumption.ts";
+import { resolveMaintenanceReturnCost } from "./maintenance-return-cost.ts";
 import { resolveTrackedEntityBin } from "./resolve-tracked-entity-bin.ts";
 
 type ExpiredEntityPolicy = "Warn" | "Block" | "BlockWithOverride";
@@ -151,6 +165,7 @@ async function issueJobOperationMaterials(
   const materialsToIssue = await trx
     .selectFrom("jobMaterial")
     .where("jobOperationId", "=", jobOperationId)
+    .where("companyId", "=", companyId)
     .where("itemType", "in", ["Material", "Part", "Consumable"])
     .where("methodType", "!=", "Make to Order")
     .where("estimatedQuantity", ">", 0)
@@ -162,6 +177,7 @@ async function issueJobOperationMaterials(
   const kittedChildren = await trx
     .selectFrom("jobMaterialWithMakeMethodId")
     .where("jobOperationId", "=", jobOperationId)
+    .where("companyId", "=", companyId)
     .where("itemType", "in", ["Material", "Part", "Consumable"])
     .where("methodType", "=", "Make to Order")
     .where("kit", "=", true)
@@ -368,8 +384,9 @@ async function issueJobOperationMaterials(
     await trx
       .updateTable("jobMaterial")
       .set({
-        quantityIssued:
-          (Number(material.quantityIssued) ?? 0) + quantityToIssue,
+        quantityIssued: round(
+          round(Number(material.quantityIssued) ?? 0) + round(quantityToIssue)
+        ),
       })
       .where("id", "=", material.id)
       .execute();
@@ -861,6 +878,18 @@ async function createMaterialWipEntries(
   }
 }
 
+// Each child's quantity is its own persist boundary — it becomes one
+// Consumption ledger row — so round PER CHILD and then round the sum. That is
+// what makes jobMaterial.quantityIssued net exactly against those rows; a
+// single round of the raw sum can differ from them by a minor unit.
+function roundedChildTotal(
+  children: { quantity: number | string }[]
+): number {
+  return round(
+    children.reduce((sum, child) => sum + round(Number(child.quantity)), 0)
+  );
+}
+
 const pool = getConnectionPool(1);
 const db = getDatabaseClient<DB>(pool);
 const logger = getFunctionLogger("issue");
@@ -1071,6 +1100,40 @@ const payloadValidator = z.discriminatedUnion("type", [
 ]);
 
 
+// The production-event and inspection links a completion/scrap payload carries
+// are written verbatim into productionQuantity, whose single-column FKs accept
+// any company's row — re-read them under companyId first (one query per table).
+async function assertProductionQuantityLinks(
+  companyId: string,
+  links: {
+    laborProductionEventId?: string;
+    machineProductionEventId?: string;
+    setupProductionEventId?: string;
+    inspectionId?: string;
+    inspectionSampleId?: string;
+  }
+) {
+  await assertCompanyRecords(
+    db,
+    "productionEvent",
+    [
+      links.laborProductionEventId,
+      links.machineProductionEventId,
+      links.setupProductionEventId,
+    ],
+    companyId,
+    "Production event"
+  );
+  await assertCompanyRecords(db, "inspection", [links.inspectionId], companyId, "Inspection");
+  await assertCompanyRecords(
+    db,
+    "inspectionSample",
+    [links.inspectionSampleId],
+    companyId,
+    "Inspection sample"
+  );
+}
+
 // Shared accounting context for the tracked-consumption paths (the per-op and
 // per-batch cases): whether accounting is enabled, the posting-group defaults,
 // and the active dimension map.
@@ -1114,6 +1177,188 @@ async function loadConsumeAccountingContext(
   }
 
   return { accountingEnabled, accountDefaults, dimensionMap };
+}
+
+// Spare parts issued to a maintenance dispatch are an expense the moment they
+// leave stock. The caller writes the item ledger rows; this values them: each
+// movement relieves (or, on a return, restores) the item's cost layers and,
+// with accounting enabled, posts Dr maintenanceAccount / Cr inventory through
+// the shared adjustment core — one journal per call, tagged with the dispatch's
+// work center. A return reverses at what the dispatch actually booked
+// (`resolveMaintenanceReturnCost`), so a part issued before maintenance
+// consumption carried value comes back with no value either.
+async function valueMaintenanceMovements(
+  trx: Transaction<DB>,
+  args: {
+    dispatch: {
+      id: string;
+      maintenanceDispatchId: string;
+      workCenterId: string | null;
+      locationId: string | null;
+    };
+    // SIGNED: < 0 issued to the dispatch, > 0 returned from it
+    movements: Array<{ itemId: string; quantity: number }>;
+    postingDate: string;
+    companyId: string;
+    userId: string;
+  }
+) {
+  const { dispatch, postingDate, companyId, userId } = args;
+  const movements = args.movements.filter((m) => Number(m.quantity) !== 0);
+  if (movements.length === 0) return;
+
+  const itemIds = [...new Set(movements.map((m) => m.itemId))];
+  const hasReturns = movements.some((m) => Number(m.quantity) > 0);
+
+  const [settings, items, itemCosts, bookedRows] = await Promise.all([
+    trx
+      .selectFrom("companySettings")
+      .select("accountingEnabled")
+      .where("id", "=", companyId)
+      .executeTakeFirst(),
+    trx
+      .selectFrom("item")
+      .select(["id", "itemTrackingType", "replenishmentSystem"])
+      .where("id", "in", itemIds)
+      .where("companyId", "=", companyId)
+      .execute(),
+    trx
+      .selectFrom("itemCost")
+      .select([
+        "itemId",
+        "costingMethod",
+        "unitCost",
+        "standardCost",
+        "itemPostingGroupId",
+      ])
+      .where("itemId", "in", itemIds)
+      .where("companyId", "=", companyId)
+      .execute(),
+    hasReturns
+      ? trx
+          .selectFrom("costLedger")
+          .select(["itemId", "quantity", "cost"])
+          .where("documentId", "=", dispatch.id)
+          .where("documentType", "=", "Maintenance Consumption")
+          .where("itemId", "in", itemIds)
+          .where("companyId", "=", companyId)
+          .execute()
+      : Promise.resolve([]),
+  ]);
+
+  const itemById = new Map(items.map((item) => [item.id, item]));
+  const itemCostById = new Map(itemCosts.map((cost) => [cost.itemId, cost]));
+  const bookedByItem = new Map<string, Array<{ quantity: number; cost: number }>>();
+  for (const row of bookedRows) {
+    const list = bookedByItem.get(row.itemId as string) ?? [];
+    list.push({ quantity: Number(row.quantity), cost: Number(row.cost) });
+    bookedByItem.set(row.itemId as string, list);
+  }
+
+  let accounting: Parameters<typeof valueMovement>[1]["accounting"] = null;
+  if (settings?.accountingEnabled) {
+    const accountDefaults = await trx
+      .selectFrom("accountDefault")
+      .selectAll()
+      .where("companyId", "=", companyId)
+      .executeTakeFirst();
+    if (!accountDefaults) throw new Error("Error getting account defaults");
+
+    const dimensions = await trx
+      .selectFrom("dimension")
+      .innerJoin("company", "company.companyGroupId", "dimension.companyGroupId")
+      .select(["dimension.id", "dimension.entityType"])
+      .where("company.id", "=", companyId)
+      .where("dimension.active", "=", true)
+      .where("dimension.entityType", "in", [
+        "Item",
+        "ItemPostingGroup",
+        "Location",
+        "WorkCenter",
+      ])
+      .execute();
+
+    const accountingPeriodId = (
+      await resolveAccountingPeriod(trx, companyId, postingDate, "current")
+    ).id;
+    const description = `Maintenance Consumption ${dispatch.maintenanceDispatchId}`;
+    let journalId: string | null = null;
+
+    accounting = {
+      accountingPeriodId,
+      accountDefaults: {
+        rawMaterialsAccount: accountDefaults.rawMaterialsAccount,
+        finishedGoodsAccount: accountDefaults.finishedGoodsAccount,
+        inventoryAdjustmentVarianceAccount:
+          accountDefaults.inventoryAdjustmentVarianceAccount,
+      },
+      offsetAccount: accountDefaults.maintenanceAccount,
+      offsetDescription: "Maintenance Expense",
+      description,
+      userId,
+      dimensions: Object.fromEntries(
+        dimensions
+          .filter((dim) => dim.entityType)
+          .map((dim) => [dim.entityType as string, dim.id])
+      ),
+      extraDimensions: dispatch.workCenterId
+        ? [{ entityType: "WorkCenter", valueId: dispatch.workCenterId }]
+        : [],
+      getJournalId: async () => {
+        journalId ??= await createAdjustmentJournal(trx, {
+          companyId,
+          accountingPeriodId,
+          description,
+          postingDate,
+          userId,
+        });
+        return journalId;
+      },
+    };
+  }
+
+  for (const movement of movements) {
+    let quantity = Number(movement.quantity);
+    let fixedUnitCost: number | undefined;
+
+    if (quantity > 0) {
+      const booked = bookedByItem.get(movement.itemId) ?? [];
+      const reversal = resolveMaintenanceReturnCost(booked, quantity);
+      if (!reversal) continue;
+      quantity = reversal.quantity;
+      fixedUnitCost = reversal.unitCost;
+      // A later return of the same item in this call sees this one.
+      booked.push({ quantity, cost: quantity * fixedUnitCost });
+      bookedByItem.set(movement.itemId, booked);
+    }
+
+    const item = itemById.get(movement.itemId);
+    const itemCost = itemCostById.get(movement.itemId);
+    await valueMovement(trx, {
+      movement: {
+        postingDate,
+        itemId: movement.itemId,
+        quantity,
+        locationId: dispatch.locationId,
+        entryType: "Consumption",
+        documentType: "Maintenance Consumption",
+        documentId: dispatch.id,
+        companyId,
+      },
+      item: {
+        itemTrackingType: item?.itemTrackingType ?? null,
+        replenishmentSystem: item?.replenishmentSystem ?? null,
+        itemPostingGroupId: itemCost?.itemPostingGroupId ?? null,
+      },
+      itemCost: {
+        costingMethod: itemCost?.costingMethod ?? "Average",
+        unitCost: Number(itemCost?.unitCost ?? 0),
+        standardCost: Number(itemCost?.standardCost ?? 0),
+      },
+      accounting,
+      fixedUnitCost,
+    });
+  }
 }
 
 // The per-operation tracked-consumption write sequence, extracted verbatim from
@@ -1178,6 +1423,7 @@ async function consumeTrackedEntitiesIntoOperation(
               "in",
               children.map((child) => child.trackedEntityId)
             )
+            .where("companyId", "=", companyId)
             .selectAll()
             .execute();
 
@@ -1229,6 +1475,7 @@ async function consumeTrackedEntitiesIntoOperation(
             jobMaterial = await trx
               .selectFrom("jobMaterial")
               .where("id", "=", materialId)
+              .where("companyId", "=", companyId)
               .selectAll()
               .executeTakeFirst();
 
@@ -1239,9 +1486,7 @@ async function consumeTrackedEntitiesIntoOperation(
               firstTrackedEntity.sourceDocumentId !== jobMaterial.itemId
             ) {
               // Create a new jobMaterial for the tracked entity's item
-              const totalChildQuantity = children.reduce((sum, child) => {
-                return sum + Number(child.quantity);
-              }, 0);
+              const totalChildQuantity = roundedChildTotal(children);
 
               const itemCost = await trx
                 .selectFrom("itemCost")
@@ -1285,6 +1530,7 @@ async function consumeTrackedEntitiesIntoOperation(
             const jobOperation = await trx
               .selectFrom("jobOperation")
               .where("id", "=", jobOperationId)
+              .where("companyId", "=", companyId)
               .select(["jobId", "jobMakeMethodId"])
               .executeTakeFirst();
 
@@ -1295,6 +1541,7 @@ async function consumeTrackedEntitiesIntoOperation(
             const item = await trx
               .selectFrom("item")
               .where("id", "=", itemId)
+              .where("companyId", "=", companyId)
               .select(["name", "type", "itemTrackingType", "defaultMethodType"])
               .executeTakeFirst();
 
@@ -1302,9 +1549,7 @@ async function consumeTrackedEntitiesIntoOperation(
               throw new Error("Item not found");
             }
 
-            const totalChildQuantity = children.reduce((sum, child) => {
-              return sum + Number(child.quantity);
-            }, 0);
+            const totalChildQuantity = roundedChildTotal(children);
 
             const itemCost = await trx
               .selectFrom("itemCost")
@@ -1379,6 +1624,7 @@ async function consumeTrackedEntitiesIntoOperation(
           const parentTrackedEntity = await trx
             .selectFrom("trackedEntity")
             .where("id", "=", parentTrackedEntityId)
+            .where("companyId", "=", companyId)
             .select([
               "id",
               "sourceDocumentId",
@@ -1452,7 +1698,16 @@ async function consumeTrackedEntitiesIntoOperation(
             if (!trackedEntity) {
               throw new Error("Tracked entity not found");
             }
-            const { trackedEntityId, quantity } = child;
+            const { trackedEntityId } = child;
+
+            // ONE canonical quantity for this child, rounded at the persist
+            // boundary. On a FULL draw it is the lot's own on-hand: the entity
+            // is flipped Consumed without its quantity being rewritten, so
+            // booking the requested figure instead would leave the Consumption
+            // ledger row disagreeing with the lot it just emptied.
+            const entityQuantity = round(Number(trackedEntity.quantity));
+            const fullDraw = isFullDraw(entityQuantity, child.quantity);
+            const quantity = fullDraw ? entityQuantity : round(child.quantity);
 
             // Partial consume → split: the lineside entity keeps its id and
             // is decremented; a NEW child entity carries the consumed
@@ -1460,7 +1715,7 @@ async function consumeTrackedEntitiesIntoOperation(
             // Consumption ledger) books against the child — flipping the
             // entity half without the ledger half would double-count on-hand.
             let consumedEntityId = trackedEntityId;
-            if (Number(trackedEntity.quantity) !== quantity) {
+            if (!fullDraw) {
               const consumedChildId = nanoid();
               consumedEntityId = consumedChildId;
 
@@ -1468,7 +1723,7 @@ async function consumeTrackedEntitiesIntoOperation(
                 parent: {
                   id: trackedEntity.id!,
                   readableId: trackedEntity.readableId,
-                  quantity: Number(trackedEntity.quantity),
+                  quantity: entityQuantity,
                   sourceDocument: trackedEntity.sourceDocument,
                   sourceDocumentId: trackedEntity.sourceDocumentId,
                   sourceDocumentReadableId:
@@ -1639,16 +1894,16 @@ async function consumeTrackedEntitiesIntoOperation(
             }
           }
 
-          const totalChildQuantity = children.reduce((sum, child) => {
-            return sum + Number(child.quantity);
-          }, 0);
+          const totalChildQuantity = roundedChildTotal(children);
 
           // Only update if we didn't create a new jobMaterial (in which case it's already set)
           if (actualMaterialId === materialId) {
-            const currentQuantityIssued =
-              Number(jobMaterial?.quantityIssued) || 0;
-            const newQuantityIssued =
-              currentQuantityIssued + totalChildQuantity;
+            const currentQuantityIssued = round(
+              Number(jobMaterial?.quantityIssued) || 0
+            );
+            const newQuantityIssued = round(
+              currentQuantityIssued + totalChildQuantity
+            );
 
             await trx
               .updateTable("jobMaterial")
@@ -1819,17 +2074,20 @@ serve(async (req: Request) => {
       case "jobOperationBatchComplete": {
         const { trackedEntityId, companyId, userId, ...row } = validatedPayload;
         const client = await requirePermissions(req, companyId, userId, { update: "production" });
+        await assertProductionQuantityLinks(companyId, row);
 
         const [jobOperation, productionQuantities] = await Promise.all([
           client
             .from("jobOperation")
             .select("*")
             .eq("id", row.jobOperationId)
+            .eq("companyId", companyId)
             .single(),
           client
             .from("productionQuantity")
             .select("*")
             .eq("jobOperationId", row.jobOperationId)
+            .eq("companyId", companyId)
             .eq("type", "Production"),
         ]);
 
@@ -1903,6 +2161,7 @@ serve(async (req: Request) => {
             .from("productionQuantity")
             .select("quantity")
             .eq("jobOperationId", jobOperationId)
+            .eq("companyId", companyId)
             .eq("type", "Production"),
         ]);
         if (entity.error || !entity.data) {
@@ -1959,11 +2218,13 @@ serve(async (req: Request) => {
       case "jobOperationSerialComplete": {
         const { trackedEntityId, companyId, userId, ...row } = validatedPayload;
         const client = await requirePermissions(req, companyId, userId, { update: "production" });
+        await assertProductionQuantityLinks(companyId, row);
 
         const jobOperation = await client
           .from("jobOperation")
           .select("*")
           .eq("id", row.jobOperationId)
+          .eq("companyId", companyId)
           .single();
         if (!jobOperation.data || !jobOperation.data.jobMakeMethodId) {
           throw new Error("Job operation not found");
@@ -1973,6 +2234,7 @@ serve(async (req: Request) => {
           .from("trackedEntity")
           .select("*")
           .eq("attributes->>Job Make Method", jobOperation.data.jobMakeMethodId)
+          .eq("companyId", companyId)
           .order("createdAt", { ascending: true });
 
         if (!trackedEntities.data || trackedEntities.data.length === 0) {
@@ -2034,6 +2296,7 @@ serve(async (req: Request) => {
           const trackedEntity = await trx
             .selectFrom("trackedEntity")
             .where("id", "=", trackedEntityId)
+            .where("companyId", "=", companyId)
             .selectAll()
             .executeTakeFirst();
 
@@ -2185,6 +2448,14 @@ serve(async (req: Request) => {
         } = validatedPayload;
         const client = await requirePermissions(req, companyId, userId, {
           update: "production",
+        });
+        // Lands on productionQuantity, the Scrap activity and the journal's
+        // ScrapReason dimension — all this company's rows.
+        await assertCompanyRecords(db, "scrapReason", [scrapReasonId], companyId, "Scrap reason");
+        await assertProductionQuantityLinks(companyId, {
+          laborProductionEventId,
+          machineProductionEventId,
+          setupProductionEventId,
         });
 
         const operationRes = await client
@@ -2657,6 +2928,14 @@ serve(async (req: Request) => {
         } = validatedPayload;
 
         const client = await requirePermissions(req, companyId, userId, { update: "production" });
+        // Written into jobMaterialStep for an unplanned part (no companyId there).
+        await assertCompanyRecords(
+          db,
+          "jobOperationStep",
+          [jobOperationStepId],
+          companyId,
+          "Job operation step"
+        );
 
         const [accountingSettings, companyRecord] = await Promise.all([
           client
@@ -2696,8 +2975,10 @@ serve(async (req: Request) => {
           const jobOperation = await trx
             .selectFrom("jobOperation")
             .where("id", "=", id)
+            .where("companyId", "=", companyId)
             .select(["jobId", "jobMakeMethodId"])
             .executeTakeFirst();
+          if (!jobOperation) throw new RecordNotFoundError("Job operation not found");
 
           const [job, item] = await Promise.all([
             trx
@@ -2708,6 +2989,7 @@ serve(async (req: Request) => {
             trx
               .selectFrom("item")
               .where("id", "=", itemId)
+              .where("companyId", "=", companyId)
               .select([
                 "id",
                 "itemTrackingType",
@@ -2722,8 +3004,10 @@ serve(async (req: Request) => {
             const material = await trx
               .selectFrom("jobMaterial")
               .where("id", "=", materialId)
+              .where("companyId", "=", companyId)
               .selectAll()
               .executeTakeFirst();
+            if (!material) throw new RecordNotFoundError("Job material not found");
 
             let storageUnitId: string | null | undefined;
             // Prioritize material.storageUnitId if available
@@ -2745,12 +3029,16 @@ serve(async (req: Request) => {
               );
             }
 
-            const quantityToIssue =
+            // Rounded once here: it drives the ledger rows, the budget
+            // allocation and the quantityIssued write below.
+            const quantityToIssue = round(
               adjustmentType === "Positive Adjmt."
                 ? Number(quantity)
                 : adjustmentType === "Negative Adjmt."
                 ? Number(quantity)
-                : Number(quantity) - Number(material?.quantityIssued); // set quantity
+                : round(Number(quantity)) -
+                  round(Number(material?.quantityIssued)) // set quantity
+            );
 
             if (material && material.methodType !== "Make to Order") {
               let remaining = Number(quantityToIssue);
@@ -2816,11 +3104,12 @@ serve(async (req: Request) => {
                 // A positive adjustment returns material to inventory, so it
                 // reduces quantityIssued — otherwise the backflush cap sees
                 // returned material as still issued.
-                quantityIssued:
-                  (Number(material?.quantityIssued) ?? 0) +
-                  (adjustmentType === "Positive Adjmt."
-                    ? -Number(quantityToIssue)
-                    : Number(quantityToIssue)),
+                quantityIssued: round(
+                  round(Number(material?.quantityIssued) ?? 0) +
+                    (adjustmentType === "Positive Adjmt."
+                      ? -quantityToIssue
+                      : quantityToIssue)
+                ),
               })
               .where("id", "=", materialId)
               .execute();
@@ -2899,7 +3188,7 @@ serve(async (req: Request) => {
                 storageUnitId: storageUnitId ?? undefined,
                 methodType: "Pull from Inventory",
                 quantity: 0,
-                quantityIssued: Number(quantity ?? 0),
+                quantityIssued: round(Number(quantity ?? 0)),
                 unitCost: itemCost?.unitCost ?? 0,
               })
               .returning("id")
@@ -2989,6 +3278,16 @@ serve(async (req: Request) => {
         const client = await requirePermissions(req, companyId, userId, {
           update: "production",
         });
+        // The parent lands in trackedActivityOutput and the reason on the ledger,
+        // the activity and the journal dimension — both must be this company's.
+        await assertCompanyRecords(
+          db,
+          "trackedEntity",
+          [parentTrackedEntityId],
+          companyId,
+          "Parent tracked entity"
+        );
+        await assertCompanyRecords(db, "scrapReason", [scrapReasonId], companyId, "Scrap reason");
 
         const [trackedEntity, jobMaterial] = await Promise.all([
           client
@@ -3352,11 +3651,16 @@ serve(async (req: Request) => {
 
             // Reopen the requirement — the consumed part is gone, so the
             // assembly needs a replacement issued.
-            const currentQuantityIssued = Number(material.quantityIssued) || 0;
+            const currentQuantityIssued = round(
+              Number(material.quantityIssued) || 0
+            );
             await trx
               .updateTable("jobMaterial")
               .set({
-                quantityIssued: Math.max(0, currentQuantityIssued - quantity),
+                quantityIssued: Math.max(
+                  0,
+                  round(currentQuantityIssued - round(quantity))
+                ),
               })
               .where("id", "=", materialId)
               .execute();
@@ -3512,6 +3816,14 @@ serve(async (req: Request) => {
         }
 
         const client = await requirePermissions(req, companyId, userId, { update: "production" });
+        // Stamped on the Consume activity and written into jobMaterialStep.
+        await assertCompanyRecords(
+          db,
+          "jobOperationStep",
+          [jobOperationStepId],
+          companyId,
+          "Job operation step"
+        );
         const companyToday = datetime.today(await getCompanyTimeZone(client, companyId));
         const accounting = await loadConsumeAccountingContext(client, companyId);
 
@@ -3960,6 +4272,7 @@ serve(async (req: Request) => {
               "in",
               children.map((child) => child.trackedEntityId)
             )
+            .where("companyId", "=", companyId)
             .selectAll()
             .execute();
 
@@ -3985,8 +4298,10 @@ serve(async (req: Request) => {
           const jobMaterial = await trx
             .selectFrom("jobMaterial")
             .where("id", "=", materialId)
+            .where("companyId", "=", companyId)
             .selectAll()
             .executeTakeFirst();
+          if (!jobMaterial) throw new RecordNotFoundError("Job material not found");
 
           // Get item details
           const item = await trx
@@ -4006,6 +4321,7 @@ serve(async (req: Request) => {
           const parentTrackedEntity = await trx
             .selectFrom("trackedEntity")
             .where("id", "=", parentTrackedEntityId)
+            .where("companyId", "=", companyId)
             .select([
               "id",
               "sourceDocumentId",
@@ -4152,13 +4468,14 @@ serve(async (req: Request) => {
             }
           }
 
-          const totalChildQuantity = children.reduce((sum, child) => {
-            return sum + Number(child.quantity);
-          }, 0);
+          const totalChildQuantity = roundedChildTotal(children);
 
-          const currentQuantityIssued =
-            Number(jobMaterial?.quantityIssued) || 0;
-          const newQuantityIssued = currentQuantityIssued - totalChildQuantity;
+          const currentQuantityIssued = round(
+            Number(jobMaterial?.quantityIssued) || 0
+          );
+          const newQuantityIssued = round(
+            currentQuantityIssued - totalChildQuantity
+          );
 
           await trx
             .updateTable("jobMaterial")
@@ -4175,10 +4492,14 @@ serve(async (req: Request) => {
         const { trackedEntityId, newRevision, quantity, companyId, userId } =
           validatedPayload;
 
+        // Kysely below bypasses RLS, so the caller must hold this permission in the company it names.
+        await requirePermissions(req, companyId, userId, { update: "inventory" });
+
         const convertedEntity = await db.transaction().execute(async (trx) => {
           const trackedEntity = await trx
             .selectFrom("trackedEntity")
             .where("id", "=", trackedEntityId)
+            .where("companyId", "=", companyId)
             .selectAll()
             .executeTakeFirstOrThrow();
 
@@ -4422,11 +4743,19 @@ serve(async (req: Request) => {
           userId,
         } = validatedPayload;
 
+        // Kysely below bypasses RLS, so the caller must hold this permission in the company it names.
+        await requirePermissions(req, companyId, userId, { update: "resources" });
+
+        const postingDate = datetime
+          .today(await getCompanyTimeZone(db, companyId))
+          .toString();
+
         await db.transaction().execute(async (trx) => {
           // Get the maintenance dispatch to find the location
           const dispatch = await trx
             .selectFrom("maintenanceDispatch")
             .where("id", "=", maintenanceDispatchId)
+            .where("companyId", "=", companyId)
             .select(["id", "maintenanceDispatchId", "workCenterId", "locationId"])
             .executeTakeFirstOrThrow();
 
@@ -4436,6 +4765,7 @@ serve(async (req: Request) => {
           const item = await trx
             .selectFrom("item")
             .where("id", "=", itemId)
+            .where("companyId", "=", companyId)
             .select(["id", "itemTrackingType"])
             .executeTakeFirstOrThrow();
 
@@ -4480,6 +4810,14 @@ serve(async (req: Request) => {
               })
               .execute();
 
+            await valueMaintenanceMovements(trx, {
+              dispatch,
+              movements: [{ itemId, quantity: -quantity }],
+              postingDate,
+              companyId,
+              userId,
+            });
+
             // Update pickMethod defaultStorageUnitId if needed
             if (locationId) {
               await updatePickMethodDefaultStorageUnitIfNeeded(
@@ -4511,6 +4849,9 @@ serve(async (req: Request) => {
           userId,
         } = validatedPayload;
 
+        // Kysely below bypasses RLS, so the caller must hold this permission in the company it names.
+        await requirePermissions(req, companyId, userId, { update: "resources" });
+
         if (children.length === 0) {
           throw new Error("At least one tracked entity is required");
         }
@@ -4523,6 +4864,7 @@ serve(async (req: Request) => {
           const dispatch = await trx
             .selectFrom("maintenanceDispatch")
             .where("id", "=", maintenanceDispatchId)
+            .where("companyId", "=", companyId)
             .select(["id", "maintenanceDispatchId", "workCenterId", "locationId"])
             .executeTakeFirstOrThrow();
 
@@ -4556,6 +4898,7 @@ serve(async (req: Request) => {
               "in",
               children.map((child) => child.trackedEntityId)
             )
+            .where("companyId", "=", companyId)
             .selectAll()
             .execute();
 
@@ -4601,6 +4944,7 @@ serve(async (req: Request) => {
           const item = await trx
             .selectFrom("item")
             .where("id", "=", itemId)
+            .where("companyId", "=", companyId)
             .select(["id", "readableIdWithRevision"])
             .executeTakeFirstOrThrow();
 
@@ -4654,7 +4998,13 @@ serve(async (req: Request) => {
             if (!trackedEntity) {
               throw new Error("Tracked entity not found");
             }
-            const { trackedEntityId, quantity } = child;
+            const { trackedEntityId } = child;
+
+            // Same canonical quantity as the job-consumption loop above: a
+            // full draw books the lot's own rounded on-hand.
+            const entityQuantity = round(Number(trackedEntity.quantity));
+            const fullDraw = isFullDraw(entityQuantity, child.quantity);
+            const quantity = fullDraw ? entityQuantity : round(child.quantity);
 
             // Book against the entity's ACTUAL bin (net on-hand), not an
             // arbitrary first ledger row — aligns with the job-consumption
@@ -4670,7 +5020,7 @@ serve(async (req: Request) => {
             // Maintenance Consumption ledger, junction row) books against
             // the child.
             let consumedEntityId = trackedEntityId;
-            if (Number(trackedEntity.quantity) !== quantity) {
+            if (!fullDraw) {
               const consumedChildId = nanoid();
               consumedEntityId = consumedChildId;
 
@@ -4678,7 +5028,7 @@ serve(async (req: Request) => {
                 parent: {
                   id: trackedEntity.id!,
                   readableId: trackedEntity.readableId,
-                  quantity: Number(trackedEntity.quantity),
+                  quantity: entityQuantity,
                   sourceDocument: trackedEntity.sourceDocument,
                   sourceDocumentId: trackedEntity.sourceDocumentId,
                   sourceDocumentReadableId:
@@ -4810,6 +5160,18 @@ serve(async (req: Request) => {
               .values(itemLedgerInserts)
               .execute();
 
+            // Only the consumption rows carry value; batch-split legs move
+            // stock between entities at the same bin.
+            await valueMaintenanceMovements(trx, {
+              dispatch,
+              movements: itemLedgerInserts
+                .filter((l) => l.documentType === "Maintenance Consumption")
+                .map((l) => ({ itemId: l.itemId, quantity: Number(l.quantity) })),
+              postingDate: companyToday.toString(),
+              companyId,
+              userId,
+            });
+
             // Update pickMethod defaultStorageUnitId if needed
             for (const ledger of itemLedgerInserts) {
               await updatePickMethodDefaultStorageUnitIfNeeded(
@@ -4837,15 +5199,23 @@ serve(async (req: Request) => {
         const { maintenanceDispatchItemId, children, companyId, userId } =
           validatedPayload;
 
+        // Kysely below bypasses RLS, so the caller must hold this permission in the company it names.
+        await requirePermissions(req, companyId, userId, { update: "resources" });
+
         if (children.length === 0) {
           throw new Error("At least one tracked entity is required");
         }
+
+        const postingDate = datetime
+          .today(await getCompanyTimeZone(db, companyId))
+          .toString();
 
         await db.transaction().execute(async (trx) => {
           // Get the maintenance dispatch item with related data
           const dispatchItem = await trx
             .selectFrom("maintenanceDispatchItem")
             .where("id", "=", maintenanceDispatchItemId)
+            .where("companyId", "=", companyId)
             .selectAll()
             .executeTakeFirstOrThrow();
 
@@ -4866,6 +5236,7 @@ serve(async (req: Request) => {
               "in",
               children.map((child) => child.trackedEntityId)
             )
+            .where("companyId", "=", companyId)
             .selectAll()
             .execute();
 
@@ -4990,6 +5361,17 @@ serve(async (req: Request) => {
               .values(itemLedgerInserts)
               .execute();
 
+            await valueMaintenanceMovements(trx, {
+              dispatch,
+              movements: itemLedgerInserts.map((l) => ({
+                itemId: l.itemId,
+                quantity: Number(l.quantity),
+              })),
+              postingDate,
+              companyId,
+              userId,
+            });
+
             // Update pickMethod defaultStorageUnitId if needed
             for (const ledger of itemLedgerInserts) {
               await updatePickMethodDefaultStorageUnitIfNeeded(
@@ -5004,12 +5386,13 @@ serve(async (req: Request) => {
           }
 
           // Update the dispatch item quantity
-          const totalChildQuantity = children.reduce((sum, child) => {
-            return sum + Number(child.quantity);
-          }, 0);
+          const totalChildQuantity = roundedChildTotal(children);
 
-          const currentQuantity = Number(dispatchItem.quantity) || 0;
-          const newQuantity = Math.max(0, currentQuantity - totalChildQuantity);
+          const currentQuantity = round(Number(dispatchItem.quantity) || 0);
+          const newQuantity = Math.max(
+            0,
+            round(currentQuantity - totalChildQuantity)
+          );
 
           await trx
             .updateTable("maintenanceDispatchItem")
@@ -5031,11 +5414,19 @@ serve(async (req: Request) => {
         const { maintenanceDispatchItemId, companyId, userId } =
           validatedPayload;
 
+        // Kysely below bypasses RLS, so the caller must hold this permission in the company it names.
+        await requirePermissions(req, companyId, userId, { update: "resources" });
+
+        const postingDate = datetime
+          .today(await getCompanyTimeZone(db, companyId))
+          .toString();
+
         await db.transaction().execute(async (trx) => {
           // Get the maintenance dispatch item
           const dispatchItem = await trx
             .selectFrom("maintenanceDispatchItem")
             .where("id", "=", maintenanceDispatchItemId)
+            .where("companyId", "=", companyId)
             .selectAll()
             .executeTakeFirstOrThrow();
 
@@ -5170,6 +5561,17 @@ serve(async (req: Request) => {
                 .insertInto("itemLedger")
                 .values(itemLedgerInserts)
                 .execute();
+
+              await valueMaintenanceMovements(trx, {
+                dispatch,
+                movements: itemLedgerInserts.map((l) => ({
+                  itemId: l.itemId,
+                  quantity: Number(l.quantity),
+                })),
+                postingDate,
+                companyId,
+                userId,
+              });
             }
           } else if (
             item.itemTrackingType !== "Serial" &&
@@ -5203,6 +5605,14 @@ serve(async (req: Request) => {
                   createdBy: userId,
                 })
                 .execute();
+
+              await valueMaintenanceMovements(trx, {
+                dispatch,
+                movements: [{ itemId: dispatchItem.itemId, quantity }],
+                postingDate,
+                companyId,
+                userId,
+              });
             }
           }
 

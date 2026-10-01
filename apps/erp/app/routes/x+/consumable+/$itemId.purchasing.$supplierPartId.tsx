@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import { assertIsPost, success } from "@carbon/auth";
 import { requirePermissions } from "@carbon/auth/auth.server";
 import { flash } from "@carbon/auth/session.server";
@@ -101,6 +105,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
       await trx
         .deleteFrom("supplierPartPrice")
         .where("supplierPartId", "=", supplierPartId)
+        .where("companyId", "=", companyId)
         .execute();
       if (priceBreaks.length > 0) {
         await trx

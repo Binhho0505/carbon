@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import { serve } from "https://deno.land/std@0.175.0/http/server.ts";
 import puppeteer from "npm:puppeteer-core@16.2.0";
 import { z } from "npm:zod@^4.5.4";
@@ -5,6 +9,7 @@ import { Buffer } from "node:buffer";
 import { corsHeaders } from "../lib/headers.ts";
 import { getFunctionLogger } from "../lib/logging.ts";
 import { corsPreflight, errorResponse } from "../lib/response.ts";
+import { requireServiceRole } from "../lib/supabase.ts";
 
 import {
   decodeImage,
@@ -27,6 +32,13 @@ const browserWSEndpoint =
 serve(async (req: Request) => {
   const preflight = corsPreflight(req);
   if (preflight) return preflight;
+
+  // It drives a browser to whatever URL it is handed: servers only.
+  try {
+    requireServiceRole(req);
+  } catch (err) {
+    return errorResponse(err, 401);
+  }
 
   let browser;
   try {

@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import type { Result } from "@carbon/auth";
 import { useCarbon } from "@carbon/auth";
 import type { Database } from "@carbon/database";
@@ -791,7 +795,7 @@ export const JobOperation = ({
         // the viewport itself, less the frame's md:my-2 inset.
         className="grid h-svh md:h-[calc(100svh-1rem)] min-h-0 w-full min-w-0 bg-card grid-cols-[minmax(0,1fr)] grid-rows-[auto_auto_auto_minmax(0,1fr)_auto_auto] [grid-template-areas:'header'_'context'_'sep'_'main'_'status'_'dock'] lg:grid-cols-[minmax(0,1fr)_auto] lg:grid-rows-[auto_auto_auto_minmax(0,1fr)_auto] lg:[grid-template-areas:'header_header'_'context_context'_'sep_sep'_'main_dock'_'status_dock']"
       >
-        <header className="[grid-area:header] flex h-[var(--header-height)] shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12 border-b px-2">
+        <header className="[grid-area:header] flex h-[var(--header-height)] shrink-0 items-center gap-2 border-b px-2">
           <HStack className="w-full justify-between">
             <div className="flex items-center gap-0">
               <SidebarTrigger />
@@ -1224,7 +1228,7 @@ export const JobOperation = ({
                     </div>
                   </HStack>
                   <div className="flex flex-col shrink-0 items-end">
-                    <Heading size="h2">
+                    <Heading size="h2" className="font-sans">
                       {formatDurationMilliseconds(
                         ((progress.setup ?? 0) +
                           (progress.labor ?? 0) +
@@ -1264,7 +1268,7 @@ export const JobOperation = ({
                       </CardHeader>
 
                       <CardContent>
-                        <Heading size="h1">
+                        <Heading size="h1" className="font-sans">
                           <Trans>
                             {operation.quantityComplete} of{" "}
                             {operation.targetQuantity}
@@ -1280,7 +1284,7 @@ export const JobOperation = ({
                         <FaTrash className="h-3 w-3 text-muted-foreground" />
                       </CardHeader>
                       <CardContent>
-                        <Heading size="h1">
+                        <Heading size="h1" className="font-sans">
                           {operation.quantityScrapped}
                         </Heading>
                       </CardContent>
@@ -1300,7 +1304,7 @@ export const JobOperation = ({
                           <Heading
                             size="h3"
                             className={cn(
-                              "w-full truncate",
+                              "w-full truncate font-sans",
                               isOverdue ? "text-red-500" : ""
                             )}
                           >
@@ -1514,7 +1518,10 @@ export const JobOperation = ({
                                                     </Button>
                                                   )}
                                                 {parentIsSerial && (
-                                                  <Heading size="h2">
+                                                  <Heading
+                                                    size="h2"
+                                                    className="font-sans"
+                                                  >
                                                     <Trans>
                                                       {serialIndex + 1} of{" "}
                                                       {
@@ -2731,7 +2738,10 @@ export const JobOperation = ({
                                             </Button>
                                           )}
                                         {parentIsSerial && (
-                                          <Heading size="h2">
+                                          <Heading
+                                            size="h2"
+                                            className="font-sans"
+                                          >
                                             <Trans>
                                               {serialIndex + 1} of{" "}
                                               {operation.operationQuantity}

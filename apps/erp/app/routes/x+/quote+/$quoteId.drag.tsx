@@ -1,13 +1,17 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import { openai } from "@ai-sdk/openai";
 import { assertIsPost, error } from "@carbon/auth";
 import { requirePermissions } from "@carbon/auth/auth.server";
 import { getCarbonServiceRole } from "@carbon/auth/client.server";
 import { flash } from "@carbon/auth/session.server";
-import { storage } from "@carbon/files";
+import { storage, TEMP_STAGING_BUCKET } from "@carbon/files";
 import { supportedModelTypes } from "@carbon/files/cad";
 import { trigger } from "@carbon/jobs";
 import { getLogger } from "@carbon/logger";
-import { generateObject } from "ai";
+import { generateText, Output } from "ai";
 import { nanoid } from "nanoid";
 import type { ActionFunctionArgs } from "react-router";
 import { data, redirect } from "react-router";
@@ -18,6 +22,7 @@ import {
   upsertQuoteLine,
   upsertQuoteLineMethod
 } from "~/modules/sales";
+import { requireCompanyRecord } from "~/modules/shared/shared.server";
 import { path } from "~/utils/path";
 
 const quoteDragValidator = z.object({
@@ -52,7 +57,10 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
   const { name: fileName, path: documentPath, size, lineId } = validation.data;
 
+  // Lines and parts are created with the service role: the URL quote must
+  // belong to this company.
   const serviceRole = getCarbonServiceRole();
+  await requireCompanyRecord(serviceRole, "quote", companyId, { id: quoteId });
 
   const quote = await getQuote(serviceRole, quoteId);
   if (quote.error || !quote.data) {
@@ -73,17 +81,19 @@ export async function action({ request, params }: ActionFunctionArgs) {
     let readableId = partName;
     let revision = "0";
     try {
-      const { object: parsedFilename } = await generateObject({
+      const { output: parsedFilename } = await generateText({
         // @ts-ignore
         model: openai("gpt-4o-mini"),
-        schema: z.object({
-          partId: z
-            .string()
-            .describe("The part identifier extracted from the filename"),
-          revision: z
-            .string()
-            .nullable()
-            .describe("The revision number if present, null if not found")
+        output: Output.object({
+          schema: z.object({
+            partId: z
+              .string()
+              .describe("The part identifier extracted from the filename"),
+            revision: z
+              .string()
+              .nullable()
+              .describe("The revision number if present, null if not found")
+          })
         }),
         prompt: `Extract the part ID and revision from this filename: "${partName}". The part ID should be the main identifier, and revision should be any version/revision indicator if present.`
       });
@@ -195,6 +205,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
       .from("quoteLine")
       .select("itemId")
       .eq("id", targetLineId)
+      .eq("quoteId", quoteId)
       .eq("companyId", companyId)
       .single();
 
@@ -275,7 +286,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
       );
     }
     const staged = await client.storage
-      .from("temp-staging")
+      .from(TEMP_STAGING_BUCKET)
       .upload(newPath, raw.data, { upsert: true });
     if (staged.error) {
       throw redirect(

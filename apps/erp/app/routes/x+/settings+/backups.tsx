@@ -1,6 +1,11 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 // Settings → Backups (company export / in-place restore).
 import { assertIsPost, error, success } from "@carbon/auth";
 import { requirePermissions } from "@carbon/auth/auth.server";
+import { getCarbonServiceRole } from "@carbon/auth/client.server";
 import { flash } from "@carbon/auth/session.server";
 import { convertKbToString } from "@carbon/files";
 import {
@@ -23,13 +28,6 @@ import {
   CardTitle,
   Heading,
   HStack,
-  Modal,
-  ModalBody,
-  ModalContent,
-  ModalFooter,
-  ModalHeader,
-  ModalOverlay,
-  ModalTitle,
   ScrollArea,
   toast,
   useDisclosure,
@@ -79,6 +77,7 @@ import {
   formatBackupName,
   IncludeStorageChoice,
   JobProgressModal,
+  PurgeCorruptedRowsModal,
   RestoreDisclosure,
   RestoreIncludeChoice,
   RestoreReviewRow
@@ -158,7 +157,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
   }
 
   const [backupsList, restoreRuns, exportRun] = await Promise.all([
-    getCompanyBackups(client, companyId),
+    // Backup objects are service-role only; the checks above gate this route.
+    getCompanyBackups(getCarbonServiceRole(), companyId),
     getCompanyRestoreRuns(client, companyId),
     getCompanyExportRun(client, companyId)
   ]);
@@ -416,7 +416,11 @@ export async function action({ request }: ActionFunctionArgs) {
       if (!name || name.includes("/"))
         return data({}, await flash(request, error(null, "Invalid backup")));
 
-      const result = await deleteCompanyBackup(client, companyId, name);
+      const result = await deleteCompanyBackup(
+        getCarbonServiceRole(),
+        companyId,
+        name
+      );
       if (result.error)
         return data(
           {},
@@ -554,9 +558,6 @@ export default function BackupsRoute() {
   const [purgeRun, setPurgeRun] = useState<
     (typeof visibleRestoreRuns)[number] | null
   >(null);
-  // Distinct ROWS, not per-edge violations — a row escaping scope through three
-  // of its FKs is one row, and this number sits on an irreversible-delete button.
-  const purgeRowCount = totalScopeRows(purgeRun?.violationRowsByTable ?? []);
   const exportChoices = useExportChoices();
   // A failed run's label and include setting seed the form, so "Skip corrupted
   // rows and retry" reuses what that run asked for and the person can see it.
@@ -735,70 +736,30 @@ export default function BackupsRoute() {
         )}
 
         {purgeRun && (
-          <Modal
-            open
-            onOpenChange={(open) => {
-              if (!open) setPurgeRun(null);
+          <PurgeCorruptedRowsModal
+            rowsByTable={purgeRun.violationRowsByTable}
+            description={
+              <Trans>
+                These rows link to data outside this company, so a safety copy
+                of your current data can't be made. Deleting them cannot be
+                undone. If they turn out to be shared with other companies in
+                this group, nothing is deleted and the restore doesn't start.
+              </Trans>
+            }
+            confirmLabel={<Trans>Delete and restore</Trans>}
+            onCancel={() => setPurgeRun(null)}
+            onConfirm={() => {
+              fetcher.submit(
+                {
+                  intent: "purgeAndRestore",
+                  restoreRunId: purgeRun.restoreRunId
+                },
+                { method: "post" }
+              );
+              resolveRun(purgeRun.restoreRunId);
+              setPurgeRun(null);
             }}
-          >
-            <ModalOverlay />
-            <ModalContent>
-              <ModalHeader>
-                <ModalTitle>
-                  <Plural
-                    value={purgeRowCount}
-                    one="Permanently delete # row?"
-                    other="Permanently delete # rows?"
-                  />
-                </ModalTitle>
-              </ModalHeader>
-              <ModalBody>
-                <p className="text-sm text-muted-foreground">
-                  <Trans>
-                    These rows link to data outside this company, so a safety
-                    copy of your current data can't be made. Deleting them
-                    cannot be undone. If they turn out to be shared with other
-                    companies in this group, nothing is deleted and the restore
-                    doesn't start.
-                  </Trans>
-                </p>
-                {/* Per TABLE, not per FK edge: the title counts distinct rows,
-                    and a per-edge list beside it would show larger numbers for
-                    the same delete. */}
-                <ul className="mt-3 flex flex-col gap-1 text-xs font-mono">
-                  {purgeRun.violationRowsByTable.map((t) => (
-                    <li key={t.table} className="flex justify-between gap-3">
-                      <span className="break-all">{t.table}</span>
-                      <span className="tabular-nums shrink-0">
-                        {t.rows.toLocaleString()}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </ModalBody>
-              <ModalFooter>
-                <Button variant="secondary" onClick={() => setPurgeRun(null)}>
-                  <Trans>Cancel</Trans>
-                </Button>
-                <Button
-                  variant="destructive"
-                  onClick={() => {
-                    fetcher.submit(
-                      {
-                        intent: "purgeAndRestore",
-                        restoreRunId: purgeRun.restoreRunId
-                      },
-                      { method: "post" }
-                    );
-                    resolveRun(purgeRun.restoreRunId);
-                    setPurgeRun(null);
-                  }}
-                >
-                  <Trans>Delete and restore</Trans>
-                </Button>
-              </ModalFooter>
-            </ModalContent>
-          </Modal>
+          />
         )}
 
         {active && (

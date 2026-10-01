@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import { formatDate } from "@carbon/utils";
 import { Image, Text, View } from "@react-pdf/renderer";
 import type { Company } from "../types";
@@ -85,23 +89,23 @@ export const BatchListPDF = ({
       />
 
       <View style={tw("flex flex-row gap-8 mb-4 text-xs")}>
-        {processName && (
+        {processName ? (
           <View style={tw("flex flex-col")}>
             <Text style={tw("font-bold text-gray-500 uppercase text-[8px]")}>
               Process
             </Text>
             <Text>{processName}</Text>
           </View>
-        )}
-        {workCenterName && (
+        ) : null}
+        {workCenterName ? (
           <View style={tw("flex flex-col")}>
             <Text style={tw("font-bold text-gray-500 uppercase text-[8px]")}>
               Work Center
             </Text>
             <Text>{workCenterName}</Text>
           </View>
-        )}
-        {batch.createdAt && (
+        ) : null}
+        {batch.createdAt ? (
           <View style={tw("flex flex-col")}>
             <Text style={tw("font-bold text-gray-500 uppercase text-[8px]")}>
               Created
@@ -110,7 +114,7 @@ export const BatchListPDF = ({
               {formatDate(batch.createdAt.slice(0, 10), undefined, locale)}
             </Text>
           </View>
-        )}
+        ) : null}
         <View style={tw("flex flex-col")}>
           <Text style={tw("font-bold text-gray-500 uppercase text-[8px]")}>
             Jobs
@@ -132,12 +136,12 @@ export const BatchListPDF = ({
                 {member.jobReadableId ?? ""}
               </Text>
               <View style={tw(COL_THUMBNAIL)}>
-                {member.thumbnail && (
+                {member.thumbnail ? (
                   <Image
                     src={member.thumbnail}
                     style={tw("w-full h-auto border rounded border-gray-300")}
                   />
-                )}
+                ) : null}
               </View>
               <Text style={tw(COL_ITEM)}>{member.itemReadableId ?? ""}</Text>
               <Text style={tw(COL_DESCRIPTION)}>

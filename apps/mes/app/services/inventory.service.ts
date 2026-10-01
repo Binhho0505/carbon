@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import { SUPABASE_URL } from "@carbon/auth";
 import type { Database } from "@carbon/database";
 import { getLocationTimeZone } from "@carbon/database";
@@ -56,6 +60,7 @@ export async function getBatchNumbersForItem(
     .from("item")
     .select("*")
     .eq("id", args.itemId)
+    .eq("companyId", args.companyId)
     .single();
   if (item.data?.type === "Material") {
     const items = await client
@@ -132,6 +137,7 @@ export async function getSerialNumbersForItem(
     .from("item")
     .select("*")
     .eq("id", args.itemId)
+    .eq("companyId", args.companyId)
     .single();
   if (item.data?.type === "Material") {
     const items = await client

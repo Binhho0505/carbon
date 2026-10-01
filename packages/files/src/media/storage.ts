@@ -1,4 +1,9 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import { getDatasetAssetUrl } from "@carbon/database/dataset-assets";
+import { isUnsafeStoragePath } from "../storage";
 
 /**
  * Preview URL for a stored private-bucket file. Demo-template artwork ships
@@ -43,7 +48,7 @@ export function parseJobFilePath(
   const [companyId, kind, operationId, ...rest] = path.split("/");
   if (kind !== "job" || !companyId || !operationId) return null;
   if (rest.length !== 1 && rest.length !== 3) return null;
-  if (rest.some((segment) => !segment || segment === "." || segment === ".."))
+  if (rest.some((segment) => !segment) || isUnsafeStoragePath(path))
     return null;
   return { companyId, operationId };
 }

@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import { assertIsPost, error } from "@carbon/auth";
 import { requirePermissions } from "@carbon/auth/auth.server";
 import { flash } from "@carbon/auth/session.server";
@@ -11,6 +15,7 @@ import {
   salesReturnOrderValidator
 } from "~/modules/sales";
 import { SalesReturnOrderForm } from "~/modules/sales/ui/SalesReturnOrders";
+import { requireCompanyRecord } from "~/modules/shared/shared.server";
 import { setCustomFields } from "~/utils/form";
 import type { Handle } from "~/utils/handle";
 import { path } from "~/utils/path";
@@ -38,6 +43,34 @@ export async function action({ request }: ActionFunctionArgs) {
   }
 
   const { id: _id, status: _status, ...data } = validation.data;
+
+  // bypassRls hands back the service role, and insertSalesReturnOrder reads
+  // the customer by this form id to copy its defaults.
+  await Promise.all([
+    requireCompanyRecord(client, "customer", companyId, {
+      id: data.customerId
+    }),
+    data.customerLocationId
+      ? requireCompanyRecord(client, "customerLocation", companyId, {
+          id: data.customerLocationId
+        })
+      : null,
+    data.customerContactId
+      ? requireCompanyRecord(client, "customerContact", companyId, {
+          id: data.customerContactId
+        })
+      : null,
+    data.locationId
+      ? requireCompanyRecord(client, "location", companyId, {
+          id: data.locationId
+        })
+      : null,
+    data.salesOrderId
+      ? requireCompanyRecord(client, "salesOrder", companyId, {
+          id: data.salesOrderId
+        })
+      : null
+  ]);
 
   const result = await insertSalesReturnOrder(client, {
     ...data,

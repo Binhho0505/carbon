@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import { serve } from "https://deno.land/std@0.175.0/http/server.ts";
 import { nanoid } from "https://deno.land/x/nanoid@v3.0.0/mod.ts";
 import { sql } from "kysely";
@@ -77,8 +81,19 @@ serve(async (req: Request) => {
 
     const [salesInvoice, salesInvoiceLines, salesInvoiceShipment] =
       await Promise.all([
-        client.from("salesInvoice").select("*").eq("id", invoiceId).single(),
-        client.from("salesInvoiceLine").select("*").eq("invoiceId", invoiceId),
+        // The client is service-role: requirePermissions proved the caller may
+        // act in companyId, not that invoiceId belongs to it.
+        client
+          .from("salesInvoice")
+          .select("*")
+          .eq("id", invoiceId)
+          .eq("companyId", companyId)
+          .maybeSingle(),
+        client
+          .from("salesInvoiceLine")
+          .select("*")
+          .eq("invoiceId", invoiceId)
+          .eq("companyId", companyId),
         client
           .from("salesInvoiceShipment")
           .select("shippingCost, shippingMethodId")
@@ -87,6 +102,7 @@ serve(async (req: Request) => {
       ]);
 
     if (salesInvoice.error) throw new Error("Failed to fetch salesInvoice");
+    if (!salesInvoice.data) return errorResponse("Sales invoice not found", 404);
     if (salesInvoiceLines.error)
       throw new Error("Failed to fetch shipment lines");
     if (salesInvoiceShipment.error)
@@ -772,7 +788,9 @@ serve(async (req: Request) => {
           }
 
           let journalLineResults: { id: string }[] = [];
-          if (accountingEnabled) {
+          // A zero-value invoice has no lines to post; an empty header would
+          // still consume a journal entry number.
+          if (accountingEnabled && journalLineInserts.length > 0) {
             const journalEntryId = await getNextSequence(
               trx,
               "journalEntry",
@@ -796,18 +814,16 @@ serve(async (req: Request) => {
               .returning(["id"])
               .executeTakeFirstOrThrow();
 
-            if (journalLineInserts.length > 0) {
-              journalLineResults = await trx
-                .insertInto("journalLine")
-                .values(
-                  journalLineInserts.map((line) => ({
-                    ...line,
-                    journalId: journalResult.id,
-                  }))
-                )
-                .returning(["id"])
-                .execute();
-            }
+            journalLineResults = await trx
+              .insertInto("journalLine")
+              .values(
+                journalLineInserts.map((line) => ({
+                  ...line,
+                  journalId: journalResult.id,
+                }))
+              )
+              .returning(["id"])
+              .execute();
 
             if (dimensionMap.size > 0) {
               const journalLineDimensionInserts: {
@@ -1253,7 +1269,8 @@ serve(async (req: Request) => {
               .execute();
           }
 
-          if (accountingEnabled) {
+          // Nothing to reverse for a zero-value invoice — no empty VOID header.
+          if (accountingEnabled && reversingJournalEntries.length > 0) {
             const voidJournalEntryId = await getNextSequence(
               trx,
               "journalEntry",
@@ -1277,18 +1294,16 @@ serve(async (req: Request) => {
               .returning(["id"])
               .executeTakeFirstOrThrow();
 
-            if (reversingJournalEntries.length > 0) {
-              await trx
-                .insertInto("journalLine")
-                .values(
-                  reversingJournalEntries.map((line) => ({
-                    ...line,
-                    journalId: voidJournalResult.id,
-                  }))
-                )
-                .returning(["id"])
-                .execute();
-            }
+            await trx
+              .insertInto("journalLine")
+              .values(
+                reversingJournalEntries.map((line) => ({
+                  ...line,
+                  journalId: voidJournalResult.id,
+                }))
+              )
+              .returning(["id"])
+              .execute();
           }
 
           // Insert reversing item ledger entries
@@ -1348,12 +1363,17 @@ serve(async (req: Request) => {
     logger.error("post-sales-invoice failed", {
       error: String((err as Error)?.stack ?? err),
     });
-    if ("invoiceId" in payload) {
+    // A failed VOID must not touch status: the invoice is still Posted and its
+    // ledger/journal rows still stand, so forcing it to Draft would contradict
+    // the books and let it be edited and posted a second time. Same guard
+    // post-receipt, post-shipment and post-purchase-invoice carry.
+    if (payload.type !== "void" && "invoiceId" in payload) {
       const client = await requirePermissions(req, payload.companyId, payload.userId, { update: "invoicing" });
       await client
         .from("salesInvoice")
         .update({ status: "Draft" })
-        .eq("id", payload.invoiceId);
+        .eq("id", payload.invoiceId)
+        .eq("companyId", payload.companyId);
     }
     return errorResponse(err, 500);
   }

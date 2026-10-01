@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import { error } from "@carbon/auth";
 import { requirePermissions } from "@carbon/auth/auth.server";
 import { getCarbonServiceRole } from "@carbon/auth/client.server";
@@ -11,6 +15,8 @@ import {
   TabsTrigger
 } from "@carbon/react";
 import { isInternalEmail } from "@carbon/utils";
+import { msg } from "@lingui/core/macro";
+import { useLingui } from "@lingui/react/macro";
 import { useCallback } from "react";
 import type { LoaderFunctionArgs } from "react-router";
 import { Outlet, redirect, useLoaderData, useNavigate } from "react-router";
@@ -24,7 +30,7 @@ import type { Handle } from "~/utils/handle";
 import { path } from "~/utils/path";
 
 export const handle: Handle = {
-  breadcrumb: "Companies",
+  breadcrumb: msg`Companies`,
   to: path.to.companies
 };
 
@@ -56,6 +62,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 }
 
 export default function SubsidiariesRoute() {
+  const { t } = useLingui();
   const { companies } = useLoaderData<typeof loader>();
   const navigate = useNavigate();
 
@@ -83,7 +90,7 @@ export default function SubsidiariesRoute() {
             <TabsTrigger value="list">List View</TabsTrigger>
           </TabsList>
           <New
-            label="Company"
+            label={t`Company`}
             to={path.to.newCompanyInGroup}
             variant="primary"
           />

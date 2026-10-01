@@ -1,5 +1,9 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import { useCarbon } from "@carbon/auth";
-import { convertKbToString } from "@carbon/files";
+import { convertKbToString, TEMP_STAGING_BUCKET } from "@carbon/files";
 import { supportedModelTypes } from "@carbon/files/cad";
 import { ValidatedForm } from "@carbon/form";
 import {
@@ -100,7 +104,7 @@ const ToolForm = ({ initialValues, type = "card", onClose }: ToolFormProps) => {
     // Resumable (TUS) upload — a standard buffered upload times out on multi-GB
     // CAD files. Runs in parallel with the record insert.
     const [{ error: uploadError }, recordInsert] = await Promise.all([
-      runUpload({ bucket: "temp-staging", path: fileName, file }),
+      runUpload({ bucket: TEMP_STAGING_BUCKET, path: fileName, file }),
       carbon.from("modelUpload").insert({
         id: modelId,
         modelPath: fileName,

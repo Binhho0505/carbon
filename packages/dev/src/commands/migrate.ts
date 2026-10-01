@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import { existsSync } from "node:fs";
 import { intro, log, outro, tasks } from "@clack/prompts";
 import { config as loadDotenv } from "dotenv";
@@ -14,6 +18,7 @@ import {
 import {
   applyMigrations,
   ensureConfigRow,
+  syncAuthz,
   waitForPostgres
 } from "../services/migrations.js";
 import { branchToPrefix } from "../services/portless.js";
@@ -109,7 +114,11 @@ async function migrateAgainstRunningDb(
             }
           }
         ]
-      : [])
+      : []),
+    {
+      title: "Sync RLS policies with the authz manifest",
+      task: () => syncAuthz(root, portDb)
+    }
   ]);
   outro("done");
 }
@@ -190,7 +199,11 @@ async function migrateStandalone(
               }
             }
           ]
-        : [])
+        : []),
+      {
+        title: "Sync RLS policies with the authz manifest",
+        task: () => syncAuthz(root, portDb)
+      }
     ]);
 
     if (shouldRegen) {

@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import type { Database } from "@carbon/database";
 import type { JSONContent } from "@carbon/react";
 import { View } from "@react-pdf/renderer";
@@ -112,7 +116,7 @@ export const JobTravelerPageContent = (props: PageContentProps) => {
         if (!render) return null;
         return <Fragment key={block.id}>{render({ block, data })}</Fragment>;
       })}
-      {data.includeMaterials && <MaterialsBlock data={data} />}
+      {data.includeMaterials ? <MaterialsBlock data={data} /> : null}
     </View>
   );
 };

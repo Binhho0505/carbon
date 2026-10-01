@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import type { Database, Json } from "@carbon/database";
 import { fetchAllFromTable } from "@carbon/database";
 import type { Kysely, KyselyDatabase } from "@carbon/database/client";
@@ -502,9 +506,17 @@ export async function getKanbans(
 
 export async function getKanban(
   client: SupabaseClient<Database>,
-  kanbanId: string
+  kanbanId: string,
+  companyId: string
 ) {
-  return client.from("kanbans").select("*").eq("id", kanbanId).single();
+  // Scoped by company, not left to RLS: a user in several companies can read
+  // every one of their companies' kanbans, and a scan acts in the ACTIVE one.
+  return client
+    .from("kanbans")
+    .select("*")
+    .eq("id", kanbanId)
+    .eq("companyId", companyId)
+    .single();
 }
 
 export async function getStockTransfer(
@@ -1393,12 +1405,14 @@ export async function getTrackedEntities(
 
 export async function getTrackedEntitiesByMakeMethodId(
   client: SupabaseClient<Database>,
-  jobMakeMethodId: string
+  jobMakeMethodId: string,
+  companyId: string
 ) {
   return client
     .from("trackedEntity")
     .select("*")
     .eq("attributes->>Job Make Method", jobMakeMethodId)
+    .eq("companyId", companyId)
     .order("createdAt", { ascending: true });
 }
 
@@ -1488,12 +1502,14 @@ export async function updateTrackedEntityExpiry(
 
 export async function getTrackedEntitiesByOperationId(
   client: SupabaseClient<Database>,
-  operationId: string
+  operationId: string,
+  companyId: string
 ) {
   const jobOperation = await client
     .from("jobOperation")
     .select("jobMakeMethodId")
     .eq("id", operationId)
+    .eq("companyId", companyId)
     .single();
 
   if (jobOperation.error || !jobOperation.data.jobMakeMethodId)
@@ -1504,7 +1520,8 @@ export async function getTrackedEntitiesByOperationId(
 
   return getTrackedEntitiesByMakeMethodId(
     client,
-    jobOperation.data.jobMakeMethodId
+    jobOperation.data.jobMakeMethodId,
+    companyId
   );
 }
 
@@ -2803,7 +2820,7 @@ export async function getPickingListLines(
   return client
     .from("pickingListLine")
     .select(
-      "*, item(name, readableId, itemTrackingType), jobMaterial(itemId, quantity, substitutionFactor, item(readableId, itemSupersession!itemSupersession_itemId_fkey(conversionFactor))), job(jobId), jobOperation(order, processId, workCenterId, process:process(name), workCenter:workCenter(name)), storageUnit:storageUnit!pickingListLine_storageUnitId_fkey(name, locationId), toStorageUnit:storageUnit!pickingListLine_toStorageUnitId_fkey(name, locationId), trackedEntities:pickingListLineTrackedEntity(trackedEntityId, quantity, quantityPicked, trackedEntity(readableId))"
+      "*, item(name, readableId, itemTrackingType, unitOfMeasureCode), jobMaterial(itemId, quantity, substitutionFactor, item(readableId, itemSupersession!itemSupersession_itemId_fkey(conversionFactor))), job(jobId), jobOperation(order, processId, workCenterId, process:process(name), workCenter:workCenter(name)), storageUnit:storageUnit!pickingListLine_storageUnitId_fkey(name, locationId), toStorageUnit:storageUnit!pickingListLine_toStorageUnitId_fkey(name, locationId), trackedEntities:pickingListLineTrackedEntity(trackedEntityId, quantity, quantityPicked, trackedEntity(readableId))"
     )
     .eq("pickingListId", pickingListId)
     .order("jobOperationId")
@@ -2952,6 +2969,7 @@ export async function setPickingListLineTrackedEntity(
     quantity?: number;
     unpick?: boolean;
     userId: string;
+    companyId: string;
   }
 ) {
   const lineResult = await client
@@ -2960,6 +2978,9 @@ export async function setPickingListLineTrackedEntity(
       "*, pickingList(locationId, companyId, status), item(itemTrackingType)"
     )
     .eq("id", args.pickingListLineId)
+    // Callers pass the service role: the company scope is the tenant boundary,
+    // and the edge function below acts in args.companyId, never the row's.
+    .eq("companyId", args.companyId)
     .single();
 
   if (lineResult.error || !lineResult.data) {
@@ -3011,28 +3032,28 @@ export async function setPickingListLineTrackedEntity(
     trackedEntityId: args.trackedEntityId,
     locationId: pickingList.locationId,
     userId: args.userId,
-    companyId: pickingList.companyId
+    companyId: args.companyId
   };
   if (!args.unpick) {
     body.fromStorageUnitId = args.fromStorageUnitId ?? null;
-    if (isBatch) body.quantity = Math.max(1, args.quantity ?? 1);
+    // A batch pick may be fractional (0.5 kg): send the requested quantity as
+    // is and fall back to 1 only when none was given. Flooring at 1 turned
+    // every sub-1 remainder into an over-pick the edge function refused.
+    if (isBatch) {
+      body.quantity =
+        args.quantity !== undefined && args.quantity > 0 ? args.quantity : 1;
+    }
   }
 
   const result = await client.functions.invoke("post-picking", { body });
   if (result.error) {
-    const ctx = (result.error as { context?: Response })?.context;
-    let message = "Failed to pick material";
-    if (ctx && typeof ctx.json === "function") {
-      try {
-        const parsed = await ctx.clone().json();
-        if (parsed?.message) message = parsed.message;
-      } catch {
-        /* fall through */
-      }
-    } else if ((result.error as { message?: string }).message) {
-      message = (result.error as { message: string }).message;
-    }
-    return { data: null, error: message };
+    return {
+      data: null,
+      error: await getEdgeFunctionErrorMessage(
+        result.error,
+        "Failed to pick material"
+      )
+    };
   }
 
   return { data: { id: args.pickingListLineId }, error: null };
@@ -3152,6 +3173,7 @@ export async function cancelOpenPickingListsForJob(
           "in",
           lines.map((line) => line.id)
         )
+        .where("companyId", "=", args.companyId)
         .execute();
 
       const pickingListIds = Array.from(
@@ -3945,6 +3967,7 @@ export async function pickPickingListLine(
     quantity: number;
     markShort?: boolean;
     userId: string;
+    companyId: string;
   }
 ) {
   const lineResult = await client
@@ -3953,6 +3976,9 @@ export async function pickPickingListLine(
       "*, pickingList(locationId, companyId, status), item(itemTrackingType)"
     )
     .eq("id", args.pickingListLineId)
+    // Callers pass the service role: the company scope is the tenant boundary,
+    // and the edge function below acts in args.companyId, never the row's.
+    .eq("companyId", args.companyId)
     .single();
 
   if (lineResult.error || !lineResult.data) {
@@ -4012,7 +4038,7 @@ export async function pickPickingListLine(
             quantity: delta,
             locationId: pickingList.locationId,
             userId: args.userId,
-            companyId: pickingList.companyId
+            companyId: args.companyId
           }
         : {
             type: "unpickInventory",
@@ -4021,25 +4047,19 @@ export async function pickPickingListLine(
             quantity: -delta,
             locationId: pickingList.locationId,
             userId: args.userId,
-            companyId: pickingList.companyId
+            companyId: args.companyId
           };
 
     const result = await client.functions.invoke("post-picking", { body });
 
     if (result.error) {
-      const ctx = (result.error as { context?: Response })?.context;
-      let message = "Failed to pick material";
-      if (ctx && typeof ctx.json === "function") {
-        try {
-          const parsed = await ctx.clone().json();
-          if (parsed?.message) message = parsed.message;
-        } catch {
-          /* fall through */
-        }
-      } else if ((result.error as { message?: string }).message) {
-        message = (result.error as { message: string }).message;
-      }
-      return { data: null, error: message };
+      return {
+        data: null,
+        error: await getEdgeFunctionErrorMessage(
+          result.error,
+          "Failed to pick material"
+        )
+      };
     }
   }
 
@@ -4053,7 +4073,8 @@ export async function pickPickingListLine(
         updatedBy: args.userId,
         updatedAt: new Date().toISOString()
       })
-      .eq("id", line.id);
+      .eq("id", line.id)
+      .eq("companyId", args.companyId);
     if (update.error) {
       return { data: null, error: update.error };
     }

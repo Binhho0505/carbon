@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import { assertIsPost, error, success } from "@carbon/auth";
 import { requirePermissions } from "@carbon/auth/auth.server";
 import { getCarbonServiceRole } from "@carbon/auth/client.server";
@@ -22,6 +26,7 @@ import {
 import { recordSalesRuleOutcome } from "~/modules/sales/sales.server";
 import {
   generateAndAttachSalesOrderPdf,
+  requireCompanyRecord,
   sendSalesOrderEmail
 } from "~/modules/shared/shared.server";
 import { loader as pdfLoader } from "~/routes/file+/sales-order+/$id[.]pdf";
@@ -79,7 +84,9 @@ export async function action(args: ActionFunctionArgs) {
   const customerContact = notificationValidation.data?.customerContact;
   const cc = notificationValidation.data?.cc;
 
+  // Everything below runs with the service role and keys on the URL quote.
   const serviceRole = getCarbonServiceRole();
+  await requireCompanyRecord(serviceRole, "quote", companyId, { id: quoteId });
 
   // Terminal gate, in the route rather than inside the `convert` edge function:
   // the edge function writes salesOrderLine rows directly and cannot run the

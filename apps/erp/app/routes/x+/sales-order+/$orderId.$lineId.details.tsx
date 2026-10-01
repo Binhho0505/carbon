@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import { assertIsPost, error, notFound } from "@carbon/auth";
 import { requirePermissions } from "@carbon/auth/auth.server";
 import { getCarbonServiceRole } from "@carbon/auth/client.server";
@@ -9,6 +13,7 @@ import {
   resolveSalesOrderShipTo
 } from "@carbon/ee/rules.server";
 import { validationError, validator } from "@carbon/form";
+import { getLogger } from "@carbon/logger";
 import type { JSONContent } from "@carbon/react";
 import { Card, CardHeader, CardTitle } from "@carbon/react";
 import { Trans, useLingui } from "@lingui/react/macro";
@@ -53,6 +58,8 @@ import { getCustomFields, setCustomFields } from "~/utils/form";
 import { requireUnlocked } from "~/utils/lockedGuard.server";
 import { path } from "~/utils/path";
 
+const logger = getLogger("erp", "sales-order-line-details");
+
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const { companyId } = await requirePermissions(request, {
     view: "sales",
@@ -78,6 +85,17 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     );
   }
 
+  // The service role bypasses RLS and lineId comes from the URL: the line must
+  // belong to this company and to the order in the URL.
+  if (line.data.companyId !== companyId || line.data.salesOrderId !== orderId) {
+    logger.error("Sales order line not found for company", {
+      companyId,
+      orderId,
+      lineId
+    });
+    throw notFound("Sales order line not found");
+  }
+
   const itemId = line.data.itemId;
 
   return {
@@ -87,8 +105,10 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
         ? getItemReplenishment(serviceRole, itemId, companyId)
         : Promise.resolve({ data: null }),
     files: getOpportunityLineDocuments(serviceRole, companyId, lineId, itemId),
-    jobs: jobs?.data ?? [],
-    shipments: shipments?.data ?? []
+    jobs: (jobs?.data ?? []).filter((job) => job.companyId === companyId),
+    shipments: (shipments?.data ?? []).filter(
+      (shipment) => shipment.companyId === companyId
+    )
   };
 }
 
@@ -260,6 +280,8 @@ export default function EditSalesOrderLineRoute() {
     unitPrice: line?.unitPrice ?? 0,
     taxPercent: line?.taxPercent ?? 0,
     shippingCost: line?.shippingCost ?? 0,
+    configuration:
+      (line?.configuration as Record<string, unknown> | null) ?? null,
     assetReadableId: (line as any)?.assetReadableId ?? undefined,
     assetName: (line as any)?.assetName ?? undefined,
     ...getCustomFields(line?.customFields)

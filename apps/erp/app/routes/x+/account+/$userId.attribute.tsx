@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import { assertIsPost, error, success } from "@carbon/auth";
 import { requirePermissions } from "@carbon/auth/auth.server";
 import { flash } from "@carbon/auth/session.server";
@@ -36,7 +40,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
   const clientClaims = await getUserClaims(userId, companyId);
   const canUpdateAnyUser =
     // biome-ignore lint/complexity/useLiteralKeys: suppressed due to migration
-    clientClaims.permissions["users"]?.update?.includes(companyId);
+    clientClaims.permissions["resources"]?.update?.includes(companyId);
 
   if (!canUpdateAnyUser && userId !== targetUserId) {
     return data(

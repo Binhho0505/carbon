@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import { serve } from "https://deno.land/std@0.175.0/http/server.ts";
 import { nanoid } from "https://deno.land/x/nanoid@v3.0.0/mod.ts";
 import z from "npm:zod@^4.5.4";
@@ -64,12 +68,16 @@ serve(async (req: Request) => {
       .then((r) => r.data?.accountingEnabled ?? false);
 
     if (type === "void") {
+      // The client is service-role: requirePermissions proved the caller may
+      // act in companyId, not that invoiceId belongs to it.
       const invoice = await client
         .from("purchaseInvoice")
         .select("*")
         .eq("id", invoiceId)
-        .single();
+        .eq("companyId", companyId)
+        .maybeSingle();
       if (invoice.error) throw new Error("Failed to fetch purchaseInvoice");
+      if (!invoice.data) return errorResponse("Purchase invoice not found", 404);
 
       if (!invoice.data.postingDate) {
         throw new Error("Can only void posted purchase invoices");
@@ -511,11 +519,18 @@ serve(async (req: Request) => {
 
     const [purchaseInvoice, purchaseInvoiceLines, purchaseInvoiceDelivery, dimensions] =
       await Promise.all([
-        client.from("purchaseInvoice").select("*").eq("id", invoiceId).single(),
+        // Scoped for the same reason as the void path's read.
+        client
+          .from("purchaseInvoice")
+          .select("*")
+          .eq("id", invoiceId)
+          .eq("companyId", companyId)
+          .maybeSingle(),
         client
           .from("purchaseInvoiceLine")
           .select("*")
-          .eq("invoiceId", invoiceId),
+          .eq("invoiceId", invoiceId)
+          .eq("companyId", companyId),
         client
           .from("purchaseInvoiceDelivery")
           .select("supplierShippingCost")
@@ -541,6 +556,8 @@ serve(async (req: Request) => {
 
     if (purchaseInvoice.error)
       throw new Error("Failed to fetch purchaseInvoice");
+    if (!purchaseInvoice.data)
+      return errorResponse("Purchase invoice not found", 404);
     if (purchaseInvoiceLines.error)
       throw new Error("Failed to fetch receipt lines");
     if (purchaseInvoiceDelivery.error)
@@ -2226,7 +2243,8 @@ serve(async (req: Request) => {
       await client
         .from("purchaseInvoice")
         .update({ status: "Draft" })
-        .eq("id", payload.invoiceId);
+        .eq("id", payload.invoiceId)
+        .eq("companyId", payload.companyId);
     }
     return errorResponse(err, 500);
   }

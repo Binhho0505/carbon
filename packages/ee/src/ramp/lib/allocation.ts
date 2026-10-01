@@ -1,6 +1,10 @@
+// SPDX-License-Identifier: LicenseRef-Carbon-Commercial
+// Carbon Enterprise file, licensed only under the Carbon Commercial License
+// (packages/ee/LICENSE). Not AGPL. Running, modifying, or copying it beyond those terms requires a commercial license.
+
 import { distributeRoundingResidual, round } from "@carbon/utils";
 
-/** A card-transaction line to be scaled for a partial repayment. */
+/** A charge line to be scaled for a partial repayment. */
 export type RepaymentLineInput = {
   accountId: string;
   amount: number;

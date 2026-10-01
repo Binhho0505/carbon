@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import { useCarbon } from "@carbon/auth";
 import { requirePermissions } from "@carbon/auth/auth.server";
 import { getCarbonServiceRole } from "@carbon/auth/client.server";
@@ -5,11 +9,11 @@ import { getLocationTimeZone } from "@carbon/database";
 import { getLogger } from "@carbon/logger";
 import {
   Button,
+  CarbonPulse,
   ClientOnly,
   Heading,
   HStack,
   IconButton,
-  LoadingBars,
   Popover,
   PopoverContent,
   PopoverTrigger,
@@ -424,7 +428,7 @@ export default function ScheduleRoute() {
     <ClientOnly
       fallback={
         <div className="flex h-screen w-[calc(100dvw-var(--sidebar-width-icon))] items-center justify-center">
-          <LoadingBars />
+          <CarbonPulse />
         </div>
       }
     >
@@ -559,7 +563,7 @@ function KanbanSchedule() {
 
   return (
     <div className="flex flex-col flex-1 min-h-0 w-full">
-      <header className="sticky top-0 z-10 flex h-[var(--header-height)] shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12 border-b bg-card">
+      <header className="sticky top-0 z-10 flex h-[var(--header-height)] shrink-0 items-center gap-2 border-b bg-card">
         <div className="flex items-center gap-2 px-2">
           <SidebarTrigger />
           <Heading size="h4">

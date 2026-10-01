@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import { serve } from "https://deno.land/std@0.175.0/http/server.ts";
 import { nanoid } from "https://deno.land/x/nanoid@v3.0.0/mod.ts";
 import { z } from "npm:zod@^4.5.4";
@@ -2526,6 +2530,7 @@ serve(async (req: Request) => {
           supplierProcesses,
           configurationRules,
           quote,
+          ownedQuoteLine,
         ] = await Promise.all([
           client
             .from("activeMakeMethods")
@@ -2555,7 +2560,25 @@ serve(async (req: Request) => {
             .eq("id", quoteId)
             .eq("companyId", companyId)
             .single(),
+          client
+            .from("quoteLine")
+            .select("id")
+            .eq("id", quoteLineId)
+            .eq("quoteId", quoteId)
+            .eq("companyId", companyId)
+            .maybeSingle(),
         ]);
+
+        // requirePermissions proved the CALLER may act in companyId; it proves
+        // nothing about the quote line in the body. The quoteMakeMethod lookup
+        // is scoped, but a miss INSERTS one and then rewrites the line's
+        // materials and operations by quoteLineId alone.
+        if (ownedQuoteLine.error) {
+          throw new Error("Failed to get quote line");
+        }
+        if (!ownedQuoteLine.data) {
+          return errorResponse("Quote line not found", 404);
+        }
 
         const configurationCodeByField = configurationRules?.data?.reduce<
           Record<string, string>
@@ -6651,6 +6674,11 @@ serve(async (req: Request) => {
             error: targetQuoteMakeMethod.error,
           });
           throw new Error("Failed to get target quote make method");
+        }
+        // targetQuoteId is written onto new rows and priced below; bind it to
+        // the verified target line rather than trusting the body.
+        if (targetQuoteMakeMethod.data.quoteId !== targetQuoteId) {
+          return errorResponse("Quote line not found", 404);
         }
 
         if (

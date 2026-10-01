@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 /** Internal precision: prices, rates, quantities, ledger amounts. */
 export const SCALE = 5;
 
@@ -32,6 +36,20 @@ export function round(
         ? (n: number) => Math.sign(n) * Math.floor(Math.abs(n))
         : (n: number) => Math.sign(n) * Math.round(Math.abs(n));
   return shift(fn(shift(value, scale)), -scale);
+}
+
+/** Value equality at the one float-noise tolerance. Two 5dp quantities that
+ *  differ only by ~1e-12 float residue (0.98 + 0.02 vs 1) are the SAME
+ *  quantity — use this instead of `===`/`!==` when a raw compare would mistake
+ *  that residue for a real difference (e.g. deciding whether a draw is a full
+ *  draw). `tolerance` defaults to EPSILON; pass a business tolerance only where
+ *  the caller decides what a difference MEANS. */
+export function equals(
+  a: number,
+  b: number,
+  tolerance: number = EPSILON
+): boolean {
+  return Math.abs(a - b) <= tolerance;
 }
 
 /** Round every part to `scale` so the results sum EXACTLY to `target`, moving at

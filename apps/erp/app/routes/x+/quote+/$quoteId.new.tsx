@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import { assertIsPost, error } from "@carbon/auth";
 import { requirePermissions } from "@carbon/auth/auth.server";
 import { getCarbonServiceRole } from "@carbon/auth/client.server";
@@ -23,6 +27,7 @@ import {
   upsertQuoteLineMethod
 } from "~/modules/sales";
 import { recordSalesRuleOutcome } from "~/modules/sales/sales.server";
+import { requireCompanyRecord } from "~/modules/shared/shared.server";
 import { setCustomFields } from "~/utils/form";
 import { requireUnlocked } from "~/utils/lockedGuard.server";
 import { path } from "~/utils/path";
@@ -37,6 +42,13 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
   const { quoteId } = params;
   if (!quoteId) throw new Error("Could not find quoteId");
+
+  // The line is inserted with the service role, which bypasses RLS: the quote
+  // must belong to this company.
+  const serviceRole = getCarbonServiceRole();
+  await requireCompanyRecord(serviceRole, "quote", companyId, {
+    id: quoteId
+  });
 
   const { client: viewClient } = await requirePermissions(request, {
     view: "sales"
@@ -66,8 +78,6 @@ export async function action({ request, params }: ActionFunctionArgs) {
       logger.error("Failed to parse quote line configuration", { error });
     }
   }
-
-  const serviceRole = getCarbonServiceRole();
 
   // Sales-rule enforcement: evaluate before the line is written. Blocked
   // submissions return violations for the form's violation modal;
@@ -110,6 +120,8 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
   const createQuotationLine = await upsertQuoteLine(serviceRole, {
     ...d,
+    // The URL quote was verified above; the form's copy was not.
+    quoteId,
     companyId,
     configuration,
     createdBy: userId,
@@ -214,6 +226,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
     }
     const recalcResult = await recalculateQuoteLinePrices(
       serviceRole,
+      companyId,
       quoteId,
       quoteLineId,
       userId

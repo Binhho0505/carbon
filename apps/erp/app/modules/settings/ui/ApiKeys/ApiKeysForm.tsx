@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import { getBrowserEnv } from "@carbon/auth";
 import { DateTimePicker, ValidatedForm } from "@carbon/form";
 import {
@@ -109,7 +113,6 @@ const ApiKeyForm = ({
             }
             defaultValues={initialValues}
             fetcher={fetcher}
-            className="flex flex-col h-full"
           >
             <ModalHeader>
               <ModalTitle>
@@ -120,7 +123,7 @@ const ApiKeyForm = ({
                 )}
               </ModalTitle>
             </ModalHeader>
-            <ModalBody className="max-h-[70dvh] overflow-y-auto">
+            <ModalBody>
               <Hidden name="id" />
               <Hidden name="scopes" value={scopesJsonb} />
               <VStack spacing={4}>

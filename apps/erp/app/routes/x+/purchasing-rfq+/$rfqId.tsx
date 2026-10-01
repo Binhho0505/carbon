@@ -1,7 +1,12 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import { error } from "@carbon/auth";
 import { requirePermissions } from "@carbon/auth/auth.server";
 import { getCarbonServiceRole } from "@carbon/auth/client.server";
 import { flash } from "@carbon/auth/session.server";
+import { getLogger } from "@carbon/logger";
 import { type JSONContent, VStack } from "@carbon/react";
 import { msg } from "@lingui/core/macro";
 import type { LoaderFunctionArgs } from "react-router";
@@ -22,6 +27,8 @@ import {
 } from "~/modules/purchasing/ui/PurchasingRfq";
 import { detailBreadcrumb, type Handle } from "~/utils/handle";
 import { path } from "~/utils/path";
+
+const logger = getLogger("erp", "purchasing-rfq");
 
 export const handle: Handle = {
   breadcrumb: detailBreadcrumb(
@@ -56,6 +63,12 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
         error(rfqSummary.error, "Failed to load purchasing RFQ summary")
       )
     );
+  }
+
+  // The service role bypasses RLS and rfqId comes from the URL.
+  if (rfqSummary.data.companyId !== companyId) {
+    logger.error("Purchasing RFQ not found for company", { companyId, rfqId });
+    throw redirect(path.to.purchasingRfqs);
   }
 
   if (lines.error) {

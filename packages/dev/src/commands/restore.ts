@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import { existsSync } from "node:fs";
 import { cancel, intro, log, outro, tasks } from "@clack/prompts";
 import { config as loadDotenv } from "dotenv";
@@ -7,7 +11,8 @@ import { requireNumberEnv, tryConnect } from "../helpers.js";
 import { confirmRestore } from "../prompts.js";
 import {
   applyMigrations,
-  serviceSchemasReady
+  serviceSchemasReady,
+  syncAuthz
 } from "../services/migrations.js";
 import { getWorktreeRoot } from "../worktree.js";
 
@@ -167,6 +172,16 @@ async function runRestore(
               await execa("pnpm", ["db:types"], { cwd: root });
               return "types refreshed";
             }
+          }
+        ]
+      : []),
+    ...(shouldMigrate
+      ? [
+          {
+            // The snapshot carries the source environment's policies; the
+            // manifest is what this branch expects.
+            title: "Sync RLS policies with the authz manifest",
+            task: () => syncAuthz(root, portDb)
           }
         ]
       : [])

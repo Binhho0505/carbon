@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import {
   patchRampCursor,
   type RampClient,
@@ -11,10 +15,13 @@ import {
   isRampInboundFamilyEnabled
 } from "./ramp-sync-policy";
 import {
+  type FailItem,
   type FamilyResult,
   getRampCurrencyDecimals,
   normalizeVerifiedMinorAmount,
-  type RampSyncContext
+  type RampSyncContext,
+  recordRampSyncFailures,
+  resolveRampSyncOperations
 } from "./ramp-sync-shared";
 
 const REPAYMENT_REPAID_STATUS = "REPAID";
@@ -71,7 +78,7 @@ export async function syncRampRepayments(
   const integrationRow = { data: { updatedAt: integrationUpdatedAt } };
   const result: FamilyResult = { created: 0, reconfirmed: 0, failed: 0 };
   // Repayments ride the same expense-recording gate as reimbursements.
-  if (!isRampInboundFamilyEnabled("repayments", metadata.sync)) {
+  if (!isRampInboundFamilyEnabled("repayments", metadata)) {
     return result;
   }
   if (!cardLiabilityAccountId || !metadata.statementBankAccountId) {
@@ -86,6 +93,8 @@ export async function syncRampRepayments(
 
   const processedRepaidAt: string[] = [];
   const failedRepaidAt: string[] = [];
+  const repaymentFailures: FailItem[] = [];
+  const processedIds: string[] = [];
   let created = 0;
   let reconfirmed = 0;
   let failed = 0;
@@ -98,10 +107,15 @@ export async function syncRampRepayments(
         if (!isRampEntityInScope(entityId, repayment.entity_id)) continue;
         if (repayment.status !== REPAYMENT_REPAID_STATUS) continue;
         const repaidAt = repayment.repaid_at ?? null;
-        if (repayment.funding_method !== REPAYMENT_BANK_FUNDING) {
+        const failRepayment = (message: string) => {
           failed += 1;
           if (repaidAt) failedRepaidAt.push(repaidAt);
-          result.error ??= `Repayment ${repayment.id} has unsupported funding method: ${repayment.funding_method || "missing"}`;
+          repaymentFailures.push({ id: repayment.id, message });
+        };
+        if (repayment.funding_method !== REPAYMENT_BANK_FUNDING) {
+          const message = `Unsupported funding method: ${repayment.funding_method || "missing"}`;
+          failRepayment(message);
+          result.error ??= `Repayment ${repayment.id} has ${message}`;
           continue;
         }
 
@@ -109,19 +123,19 @@ export async function syncRampRepayments(
         const existing = await ctx.mapping.getEntityId(
           "ramp",
           `repayment:${repayment.id}`,
-          "cardTransaction"
+          "charge"
         );
         if (existing) {
           reconfirmed += 1;
+          processedIds.push(repayment.id);
           if (repaidAt) processedRepaidAt.push(repaidAt);
           continue;
         }
 
-        // Resolve the ORIGINAL card transaction via its mapping.
+        // Resolve the ORIGINAL charge via its mapping.
         const originalRampId = repayment.original_transaction_id;
         if (!originalRampId) {
-          failed += 1;
-          if (repaidAt) failedRepaidAt.push(repaidAt);
+          failRepayment("No original_transaction_id on the repayment");
           console.error(
             `[RAMP SYNC] ${companyId}: repayment ${repayment.id} has no original_transaction_id — skipped`
           );
@@ -130,11 +144,12 @@ export async function syncRampRepayments(
         const originalEntityId = await ctx.mapping.getEntityId(
           "ramp",
           originalRampId,
-          "cardTransaction"
+          "charge"
         );
         if (!originalEntityId) {
-          failed += 1;
-          if (repaidAt) failedRepaidAt.push(repaidAt);
+          failRepayment(
+            `Original transaction ${originalRampId} is not synced yet`
+          );
           console.error(
             `[RAMP SYNC] ${companyId}: repayment ${repayment.id} original transaction ${originalRampId} is not synced yet — skipped`
           );
@@ -142,28 +157,28 @@ export async function syncRampRepayments(
         }
 
         const original = await ctx.client
-          .from("cardTransaction")
+          .from("charge")
           .select("amount, currencyCode")
           .eq("id", originalEntityId)
           .eq("companyId", companyId)
           .maybeSingle();
         if (!original.data) {
-          failed += 1;
-          if (repaidAt) failedRepaidAt.push(repaidAt);
+          failRepayment(`Original charge ${originalEntityId} no longer exists`);
           console.error(
-            `[RAMP SYNC] ${companyId}: repayment ${repayment.id} original card transaction ${originalEntityId} no longer exists — skipped`
+            `[RAMP SYNC] ${companyId}: repayment ${repayment.id} original charge ${originalEntityId} no longer exists — skipped`
           );
           continue;
         }
         const originalLines = await ctx.client
-          .from("cardTransactionLine")
+          .from("chargeLine")
           .select("accountId, amount, costCenterId, projectId, description")
-          .eq("cardTransactionId", originalEntityId)
+          .eq("chargeId", originalEntityId)
           .eq("companyId", companyId)
           .order("sequence", { ascending: true });
         if (originalLines.error) {
-          failed += 1;
-          if (repaidAt) failedRepaidAt.push(repaidAt);
+          failRepayment(
+            `Failed to load original lines: ${originalLines.error.message}`
+          );
           console.error(
             `[RAMP SYNC] ${companyId}: repayment ${repayment.id} failed to load original lines`,
             originalLines.error
@@ -179,8 +194,7 @@ export async function syncRampRepayments(
         try {
           decimals = await getRampCurrencyDecimals(ctx, currencyCode);
         } catch (error) {
-          failed += 1;
-          if (repaidAt) failedRepaidAt.push(repaidAt);
+          failRepayment("Invalid currency precision");
           console.error(
             `[RAMP SYNC] ${companyId}: repayment ${repayment.id} has invalid currency precision`,
             error
@@ -194,8 +208,7 @@ export async function syncRampRepayments(
           "Repayment amount"
         );
         if (!normalizedAmount.ok) {
-          failed += 1;
-          if (repaidAt) failedRepaidAt.push(repaidAt);
+          failRepayment(`Amount is invalid: ${normalizedAmount.error}`);
           console.error(
             `[RAMP SYNC] ${companyId}: repayment ${repayment.id} amount is invalid: ${normalizedAmount.error}`
           );
@@ -220,7 +233,7 @@ export async function syncRampRepayments(
 
         const transactionDate = repaidAt?.slice(0, 10);
         if (!transactionDate) {
-          failed += 1;
+          failRepayment("No repaid_at date on the repayment");
           console.error(
             `[RAMP SYNC] ${companyId}: repayment ${repayment.id} has no repaid_at — skipped`
           );
@@ -252,10 +265,10 @@ export async function syncRampRepayments(
         });
         if ("ok" in outcome) {
           created += 1;
+          processedIds.push(repayment.id);
           if (repaidAt) processedRepaidAt.push(repaidAt);
         } else {
-          failed += 1;
-          if (repaidAt) failedRepaidAt.push(repaidAt);
+          failRepayment(outcome.fail.message);
           console.error(
             `[RAMP SYNC] ${companyId}: repayment ${repayment.id} failed — ${outcome.fail.message}`
           );
@@ -280,5 +293,16 @@ export async function syncRampRepayments(
   result.created = created;
   result.reconfirmed = reconfirmed;
   result.failed += failed;
+
+  await recordRampSyncFailures(ctx, {
+    entityType: "repayment",
+    direction: "pull-from-accounting",
+    failures: repaymentFailures
+  });
+  await resolveRampSyncOperations(ctx, {
+    entityType: "repayment",
+    direction: "pull-from-accounting",
+    entityIds: processedIds
+  });
   return result;
 }

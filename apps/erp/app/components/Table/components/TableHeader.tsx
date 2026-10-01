@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import { Hidden, Input, Submit, ValidatedForm } from "@carbon/form";
 import {
   Badge,
@@ -141,7 +145,7 @@ const TableHeader = <T extends object>({
   withCsvExport = true,
   sort
 }: HeaderProps<T>) => {
-  const { t, i18n } = useLingui();
+  const { t } = useLingui();
   const [params, setParams] = useUrlParams();
   const currentFilters = params.getAll("filter").filter(Boolean);
   const currentSorts = params.getAll("sort").filter(Boolean);
@@ -166,11 +170,7 @@ const TableHeader = <T extends object>({
   }, [fetcher.state, fetcher.data?.success]);
 
   const { currentView, hasView } = useSavedViews();
-  const translateText = (value: string | undefined) => {
-    if (!value) return value;
-    return i18n._(value);
-  };
-  const viewTitle = translateText(currentView?.name ?? title);
+  const viewTitle = currentView?.name ?? title;
   // const viewDescription = currentView?.description ?? "";
   const savedViewFormValidator = useMemo(
     () =>

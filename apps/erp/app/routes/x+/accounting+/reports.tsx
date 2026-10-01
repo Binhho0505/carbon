@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import { assertIsPost, error } from "@carbon/auth";
 import { requirePermissions } from "@carbon/auth/auth.server";
 import { flash } from "@carbon/auth/session.server";
@@ -5,6 +9,7 @@ import { validationError, validator } from "@carbon/form";
 import {
   Badge,
   cn,
+  Heading,
   IconButton,
   Input,
   InputGroup,
@@ -322,9 +327,9 @@ export default function ReportsIndexRoute() {
     <div className="h-[calc(100dvh-var(--header-height))] w-full overflow-y-auto bg-card">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 p-8">
         <div className="flex items-center justify-between gap-4">
-          <h1 className="text-2xl font-semibold tracking-tight">
+          <Heading as="h1" size="h1">
             <Trans>Reporting</Trans>
-          </h1>
+          </Heading>
           <InputGroup size="sm" className="w-64">
             <InputLeftElement>
               <LuSearch className="h-4 w-4 text-muted-foreground" />

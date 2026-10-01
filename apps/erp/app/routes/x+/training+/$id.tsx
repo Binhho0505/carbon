@@ -1,6 +1,11 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import { error, useCarbon } from "@carbon/auth";
 import { requirePermissions } from "@carbon/auth/auth.server";
 import { flash } from "@carbon/auth/session.server";
+import { getLogger } from "@carbon/logger";
 import type { JSONContent } from "@carbon/react";
 import { generateHTML, Input, useDebounce } from "@carbon/react";
 import { Editor } from "@carbon/react/Editor";
@@ -27,6 +32,8 @@ import { getTagsList } from "~/modules/shared";
 import type { action } from "~/routes/x+/training+/update";
 import { detailBreadcrumb, type Handle } from "~/utils/handle";
 import { path } from "~/utils/path";
+
+const logger = getLogger("erp", "training-detail");
 
 export const handle: Handle = {
   breadcrumb: detailBreadcrumb(
@@ -55,6 +62,16 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
       path.to.trainings,
       await flash(request, error(training.error, "Failed to load training"))
     );
+  }
+
+  // bypassRls makes `client` the service role, so the URL id is only proven to
+  // exist — not to be this company's.
+  if (training.data.companyId !== companyId) {
+    logger.error("Training is not in the caller's company", {
+      companyId,
+      trainingId: id
+    });
+    throw redirect(path.to.trainings);
   }
 
   return {

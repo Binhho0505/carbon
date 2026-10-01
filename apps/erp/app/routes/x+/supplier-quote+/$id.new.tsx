@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import { assertIsPost, error } from "@carbon/auth";
 import { requirePermissions } from "@carbon/auth/auth.server";
 import { getCarbonServiceRole } from "@carbon/auth/client.server";
@@ -11,6 +15,7 @@ import {
   supplierQuoteLineValidator,
   upsertSupplierQuoteLine
 } from "~/modules/purchasing";
+import { requireCompanyRecord } from "~/modules/shared/shared.server";
 import { setCustomFields } from "~/utils/form";
 import { requireUnlocked } from "~/utils/lockedGuard.server";
 import { path } from "~/utils/path";
@@ -48,8 +53,22 @@ export async function action({ request, params }: ActionFunctionArgs) {
   const { id, ...d } = validation.data;
 
   const serviceRole = getCarbonServiceRole();
+
+  // The line is written through the service role: the quote in the URL and
+  // the item on the form must belong to this company, and the line is always
+  // attached to the URL's quote rather than the form's copy.
+  await Promise.all([
+    requireCompanyRecord(serviceRole, "supplierQuote", companyId, {
+      id: supplierQuoteId
+    }),
+    d.itemId
+      ? requireCompanyRecord(serviceRole, "item", companyId, { id: d.itemId })
+      : null
+  ]);
+
   const createQuotationLine = await upsertSupplierQuoteLine(serviceRole, {
     ...d,
+    supplierQuoteId,
     companyId,
     createdBy: userId,
     customFields: setCustomFields(formData)

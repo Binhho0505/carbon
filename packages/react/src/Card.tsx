@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import type { HTMLAttributes } from "react";
 import { createContext, forwardRef, useContext, useState } from "react";
 import { LuChevronDown, LuChevronUp } from "react-icons/lu";
@@ -168,7 +172,7 @@ const CardTitle = forwardRef<
   <h3
     ref={ref}
     className={cn(
-      "text-base font-medium font-headline leading-none tracking-tight text-foreground/90 text-pretty line-clamp-2",
+      "text-base font-medium leading-none tracking-tight text-foreground/90 text-pretty line-clamp-2",
       className
     )}
     {...props}

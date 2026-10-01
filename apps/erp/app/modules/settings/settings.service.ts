@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import { SUPABASE_URL } from "@carbon/auth";
 import type { Database, Json } from "@carbon/database";
 import { getCompanyTimeZone } from "@carbon/database";
@@ -28,13 +32,13 @@ import { sanitize } from "~/utils/supabase";
 import type {
   accountsPayableBillingAddressValidator,
   accountsReceivableBillingAddressValidator,
-  companyValidator,
   itemSerialSequenceValidator,
   kanbanOutputTypes,
   purchasePriceUpdateTimingTypes,
   sequenceValidator,
   subsidiaryValidator
 } from "./settings.models";
+import { companyValidator } from "./settings.models";
 
 const PUBLIC_STORAGE_URL_PREFIX = `${SUPABASE_URL}/storage/v1/object/public/public/`;
 
@@ -897,10 +901,18 @@ export async function updateCompanyWithBaseCurrencyChange(
     updatedBy: string;
   }
 ) {
+  // An explicit allow-list of the company form's fields, never the caller's
+  // object: Kysely bypasses RLS and the API passes `company` through with
+  // whatever keys were sent, so a spread would reach any column of the row.
+  const allowed = new Set<string>(Object.keys(companyValidator.shape));
+  const fields = Object.fromEntries(
+    Object.entries(sanitize(company)).filter(([key]) => allowed.has(key))
+  ) as Partial<z.infer<typeof companyValidator>>;
+
   return db.transaction().execute(async (trx) => {
     await trx
       .updateTable("company")
-      .set(sanitize(company))
+      .set({ ...fields, updatedBy: company.updatedBy })
       .where("id", "=", companyId)
       .execute();
     await trx
@@ -1116,6 +1128,17 @@ export async function updateAllowLowercaseItemIdsSetting(
     .eq("id", companyId);
 }
 
+export async function updateBomExplorerReadableIdSetting(
+  client: SupabaseClient<Database>,
+  companyId: string,
+  showBomExplorerReadableId: boolean
+) {
+  return client
+    .from("companySettings")
+    .update(sanitize({ showBomExplorerReadableId }))
+    .eq("id", companyId);
+}
+
 export async function updatePlmReleaseControlSetting(
   client: SupabaseClient<Database>,
   companyId: string,
@@ -1191,6 +1214,35 @@ export async function updateAccountsPayableAddressSetting(
   return client
     .from("companySettings")
     .update(sanitize({ accountsPayableAddress }))
+    .eq("id", companyId);
+}
+
+/**
+ * Require a supplier to have a contact with an email before its documents issue.
+ *
+ * See `party-contact.ts` for why the requirement lives on the PARTY and why the
+ * bar is an email rather than merely a contact row.
+ */
+export async function updateRequireSupplierContactSetting(
+  client: SupabaseClient<Database>,
+  companyId: string,
+  requireSupplierContactAndLocation: boolean
+) {
+  return client
+    .from("companySettings")
+    .update(sanitize({ requireSupplierContactAndLocation }))
+    .eq("id", companyId);
+}
+
+/** The customer-side mirror. Ships off; nothing downstream forces it today. */
+export async function updateRequireCustomerContactSetting(
+  client: SupabaseClient<Database>,
+  companyId: string,
+  requireCustomerContactAndLocation: boolean
+) {
+  return client
+    .from("companySettings")
+    .update(sanitize({ requireCustomerContactAndLocation }))
     .eq("id", companyId);
 }
 

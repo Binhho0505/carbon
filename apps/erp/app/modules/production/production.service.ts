@@ -1,5 +1,9 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import type { Database, Json } from "@carbon/database";
-import { fetchAllFromTable } from "@carbon/database";
+import { fetchAllFromTable, fetchAllRecords } from "@carbon/database";
 import type { Kysely, KyselyDatabase } from "@carbon/database/client";
 import { consumableInWholeAssemblies } from "@carbon/database/supersession-pick";
 import { ASSEMBLER_SERVICE_API_KEY, ASSEMBLER_SERVICE_URL } from "@carbon/env";
@@ -26,7 +30,8 @@ import {
   CURRENT_PLAN_VERSION,
   describeStep,
   groupComponentNodeIds,
-  indexAssemblyGraph
+  indexAssemblyGraph,
+  joinTargets
 } from "@carbon/viewer";
 import { parseDate } from "@internationalized/date";
 import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
@@ -46,6 +51,7 @@ import {
 import { sanitize } from "~/utils/supabase";
 import { getDefaultStorageUnitForJob } from "../inventory";
 import { getEmployeeJob } from "../people";
+import { resolveJobConfiguration } from "../sales/sales.utils";
 import type {
   MethodType,
   operationParameterValidator,
@@ -54,18 +60,12 @@ import type {
   operationToolValidator
 } from "../shared";
 import { normalizeOperationSourceIds } from "../shared";
-import {
-  listBalloons,
-  listInspectionFeatures,
-  mapBalloonIdsToFeatureIdsForDocument
-} from "./inspectionDocumentDb";
+import { updateSortOrder } from "../shared/sort-order";
 import type {
   assemblyInstructionStatuses,
   assemblyStepStatuses,
   deadlineTypes,
   failureModeValidator,
-  inspectionDocumentSamplingValidator,
-  inspectionDocumentValidator,
   jobMaterialValidator,
   jobOperationStatus,
   jobOperationValidator,
@@ -90,6 +90,7 @@ import {
   cameraSchema,
   fastenerSchema,
   getAssemblyModelState,
+  isJobLocked,
   isJobOrderStatusHidden,
   JOB_LOCKED_STATUSES,
   JOB_SUPPLY_STATUS_PRIORITY,
@@ -111,8 +112,6 @@ import {
   outsideOperationsNeedingPurchaseOrders,
   resolveOperationSupplier
 } from "./ui/Jobs/job-release-logic";
-
-export { mapBalloonIdsToFeatureIdsForDocument };
 
 const logger = getLogger("erp", "production");
 
@@ -181,6 +180,21 @@ export async function convertSalesOrderLinesToJobs(
   const quoteId = opportunity.data?.quotes[0]?.id;
   const salesOrderId = opportunity.data?.salesOrders[0]?.id;
 
+  // A converted quote line shares its id with the order line, so its
+  // configuration is the fallback for an order line configured nowhere else.
+  const quoteLineConfigurations = new Map<string, unknown>();
+  if (quoteId) {
+    const quoteLines = await client
+      .from("quoteLine")
+      .select("id, configuration")
+      .eq("quoteId", quoteId)
+      .eq("companyId", companyId)
+      .in("id", lines.map((line) => line.id).filter(Boolean) as string[]);
+    for (const quoteLine of quoteLines.data ?? []) {
+      quoteLineConfigurations.set(quoteLine.id, quoteLine.configuration);
+    }
+  }
+
   const errors: string[] = [];
   let jobsCreated = 0;
 
@@ -202,6 +216,11 @@ export async function convertSalesOrderLinesToJobs(
       const totalJobs = lotSize > 0 ? Math.ceil(totalQuantity / lotSize) : 1;
 
       const jobsToCreate = Math.max(1, totalJobs);
+
+      const { configuration, reconfigured } = resolveJobConfiguration(
+        line.configuration,
+        line.id ? quoteLineConfigurations.get(line.id) : null
+      );
 
       const defaultLocation = await client
         .from("location")
@@ -274,7 +293,8 @@ export async function convertSalesOrderLinesToJobs(
           salesOrderLineId: line.id,
           scrapQuantity,
           storageUnitId: storageUnitId ?? undefined,
-          unitOfMeasureCode: line.unitOfMeasureCode ?? "EA"
+          unitOfMeasureCode: line.unitOfMeasureCode ?? "EA",
+          configuration: configuration as Json
         };
 
         // Calculate priority based on due date and deadline type
@@ -323,7 +343,7 @@ export async function convertSalesOrderLinesToJobs(
           source: "salesOrder"
         });
 
-        if (quoteId) {
+        if (quoteId && !reconfigured) {
           const upsertMethod = await client.functions.invoke("get-method", {
             body: {
               type: "quoteLineToJob",
@@ -347,7 +367,8 @@ export async function convertSalesOrderLinesToJobs(
               sourceId: data.itemId,
               targetId: createJob.data.id,
               companyId,
-              userId
+              userId,
+              ...(configuration ? { configuration } : {})
             }
           });
 
@@ -1054,6 +1075,39 @@ export async function getCapacityReservationsByJob(
     )
     .eq("jobId", jobId)
     .is("scenarioId", null);
+}
+
+/**
+ * The Outbound report: open jobs at a location that fill a sales order, with
+ * where each one ships (RPC `get_completion_jobs`), ordered by the plant-calendar
+ * day they complete — the report groups on that order.
+ */
+export async function getCompletionJobs(
+  client: SupabaseClient<Database>,
+  args: {
+    companyId: string;
+    locationId: string;
+    timeZone: string;
+    /** Last completion day to include (YYYY-MM-DD); null reads every open job. */
+    throughDate: string | null;
+    search: string | null;
+  }
+) {
+  return fetchAllRecords(() =>
+    client
+      .rpc("get_completion_jobs", {
+        company_id: args.companyId,
+        location_id: args.locationId,
+        time_zone: args.timeZone,
+        through_date: args.throughDate ?? undefined,
+        search: args.search ?? undefined
+      })
+      // Day, then time within the day; `id` last keeps paging stable.
+      .order("completionDate", { ascending: true, nullsFirst: false })
+      .order("projectedCompletionAt", { ascending: true, nullsFirst: false })
+      .order("jobId", { ascending: true })
+      .order("id", { ascending: true })
+  );
 }
 
 export async function getCapacityReservationsForResources(
@@ -1939,12 +1993,14 @@ export async function getJobOperationsByMethodId(
 export async function getJobOperationStepRecords(
   client: SupabaseClient<Database>,
   jobId: string,
+  companyId: string,
   args: GenericQueryFilters & {
     search: string | null;
   }
 ) {
   let query = client.rpc("get_job_operation_step_records", {
-    p_job_id: jobId
+    p_job_id: jobId,
+    p_company_id: companyId
   });
 
   if (args.search) {
@@ -2729,6 +2785,7 @@ export async function runMRP(
 
 export async function updateJobBatchNumber(
   client: SupabaseClient<Database>,
+  companyId: string,
   trackedEntityId: string,
   value: string | null
 ) {
@@ -2738,6 +2795,7 @@ export async function updateJobBatchNumber(
       readableId: value
     })
     .eq("id", trackedEntityId)
+    .eq("companyId", companyId)
     .select("id, readableId");
 }
 
@@ -3489,6 +3547,7 @@ export async function insertJob(
       modelUploadId: input.modelUploadId,
       notes: input.notes,
       customFields: input.customFields,
+      configuration: (input.configuration as Json | undefined) ?? null,
       companyId: input.companyId,
       createdBy: input.createdBy,
       updatedBy: input.createdBy
@@ -3734,15 +3793,27 @@ export async function upsertJobMaterial(
     | (z.infer<typeof jobMaterialValidator> & {
         jobId: string;
         jobOperationId?: string;
+        companyId: string;
         updatedBy: string;
         customFields?: Json;
       })
 ) {
   if ("updatedBy" in jobMaterial) {
+    // A material never moves between jobs, make methods or tenants — strip the
+    // parent columns so an update cannot re-parent the row, and scope it to
+    // the caller's company (callers may pass a service-role client).
+    const {
+      id,
+      companyId,
+      jobId: _jobId,
+      jobMakeMethodId: _jobMakeMethodId,
+      ...update
+    } = jobMaterial;
     return client
       .from("jobMaterial")
-      .update(sanitize(jobMaterial))
-      .eq("id", jobMaterial.id)
+      .update(sanitize(update))
+      .eq("id", id)
+      .eq("companyId", companyId)
       .select("id, methodType")
       .single();
   }
@@ -3771,10 +3842,20 @@ export async function upsertJobOperation(
 ) {
   const normalized = normalizeOperationSourceIds(jobOperation);
   if ("updatedBy" in normalized) {
+    // An operation never moves between jobs, make methods or tenants — strip
+    // the parent columns so an update cannot re-parent the row.
+    const {
+      id,
+      companyId,
+      jobId: _jobId,
+      jobMakeMethodId: _jobMakeMethodId,
+      ...update
+    } = normalized;
     return client
       .from("jobOperation")
-      .update(sanitize(normalized))
-      .eq("id", normalized.id)
+      .update(sanitize(update))
+      .eq("id", id)
+      .eq("companyId", companyId)
       .select("id")
       .single();
   }
@@ -5191,7 +5272,7 @@ export async function getActiveEmployeeAbilities(
  * `employeeShift`. The same ladder the boards' shift filter displays through,
  * so a row a filtered board shows is always a row its mutations can reach.
  */
-function whereEffectiveShift(shiftId: string) {
+function whereEffectiveShift(shiftId: string, companyId: string) {
   return (eb: ExpressionBuilder<KyselyDatabase, "peopleAssignment">) =>
     eb.or([
       eb("shiftId", "=", shiftId),
@@ -5204,9 +5285,76 @@ function whereEffectiveShift(shiftId: string) {
             .selectFrom("employeeShift")
             .select("employeeId")
             .where("shiftId", "=", shiftId)
+            .where("companyId", "=", companyId)
         )
       ])
     ]);
+}
+
+/**
+ * The people-board mutations write caller-supplied ids through Kysely (no
+ * RLS), and the API dispatcher reaches them without the board route's own
+ * check, so every referenced row must belong to `companyId` — the employee
+ * as an employee of the company. One query per table; absent refs are skipped.
+ * Throws, like the Kysely callers it guards.
+ */
+async function requirePeopleBoardRefs(
+  db: Kysely<KyselyDatabase>,
+  companyId: string,
+  refs: {
+    employeeId?: string;
+    locationId?: string;
+    shiftId?: string | null;
+    workCenterIds?: string[];
+  }
+) {
+  const workCenterIds = [...new Set(refs.workCenterIds ?? [])];
+  const [employee, location, shift, workCenters] = await Promise.all([
+    refs.employeeId
+      ? db
+          .selectFrom("employee")
+          .select("id")
+          .where("id", "=", refs.employeeId)
+          .where("companyId", "=", companyId)
+          .executeTakeFirst()
+      : null,
+    refs.locationId
+      ? db
+          .selectFrom("location")
+          .select("id")
+          .where("id", "=", refs.locationId)
+          .where("companyId", "=", companyId)
+          .executeTakeFirst()
+      : null,
+    refs.shiftId
+      ? db
+          .selectFrom("shift")
+          .select("id")
+          .where("id", "=", refs.shiftId)
+          .where("companyId", "=", companyId)
+          .executeTakeFirst()
+      : null,
+    workCenterIds.length > 0
+      ? db
+          .selectFrom("workCenter")
+          .select("id")
+          .where("id", "in", workCenterIds)
+          .where("companyId", "=", companyId)
+          .execute()
+      : []
+  ]);
+  if (
+    (refs.employeeId && !employee) ||
+    (refs.locationId && !location) ||
+    (refs.shiftId && !shift) ||
+    workCenters.length !== workCenterIds.length
+  ) {
+    logger.error("People board reference is not in the caller's company", {
+      companyId,
+      refs
+    });
+    throw new Error("Not found");
+  }
 }
 
 /**
@@ -5228,6 +5376,12 @@ export async function upsertPeopleAssignment(
     createdBy: string;
   }
 ) {
+  await requirePeopleBoardRefs(db, assignment.companyId, {
+    employeeId: assignment.employeeId,
+    locationId: assignment.locationId,
+    shiftId: assignment.shiftId,
+    workCenterIds: [assignment.workCenterId]
+  });
   if (assignment.hours !== undefined) {
     // remainder assignment: ADD hours at this station without touching the
     // person's other stations; same-station rows merge their hours
@@ -5240,7 +5394,9 @@ export async function upsertPeopleAssignment(
         .where("date", "=", assignment.date)
         .where("workCenterId", "=", assignment.workCenterId);
       existing = assignment.shiftId
-        ? existing.where(whereEffectiveShift(assignment.shiftId))
+        ? existing.where(
+            whereEffectiveShift(assignment.shiftId, assignment.companyId)
+          )
         : existing.where("shiftId", "is", null);
       const row = await existing.executeTakeFirst();
       if (row) {
@@ -5286,7 +5442,9 @@ export async function upsertPeopleAssignment(
       .where("employeeId", "=", assignment.employeeId)
       .where("date", "=", assignment.date);
     existing = assignment.shiftId
-      ? existing.where(whereEffectiveShift(assignment.shiftId))
+      ? existing.where(
+          whereEffectiveShift(assignment.shiftId, assignment.companyId)
+        )
       : existing.where("shiftId", "is", null);
     // moving stations keeps the person's authorized overtime for that day
     const carriedOvertime = (await existing.executeTakeFirst())?.overtimeHours;
@@ -5298,7 +5456,7 @@ export async function upsertPeopleAssignment(
       .where("employeeId", "=", assignment.employeeId)
       .where("date", "=", assignment.date);
     del = assignment.shiftId
-      ? del.where(whereEffectiveShift(assignment.shiftId))
+      ? del.where(whereEffectiveShift(assignment.shiftId, assignment.companyId))
       : del.where("shiftId", "is", null);
     await del.execute();
     return trx
@@ -5374,6 +5532,9 @@ export async function movePeopleAssignment(
   db: Kysely<KyselyDatabase>,
   args: { id: string; companyId: string; workCenterId: string }
 ) {
+  await requirePeopleBoardRefs(db, args.companyId, {
+    workCenterIds: [args.workCenterId]
+  });
   return db.transaction().execute(async (trx) => {
     const source = await trx
       .selectFrom("peopleAssignment")
@@ -5391,6 +5552,7 @@ export async function movePeopleAssignment(
           .selectFrom("employeeShift")
           .select("shiftId")
           .where("employeeId", "=", source.employeeId)
+          .where("companyId", "=", args.companyId)
           .executeTakeFirst()
       )?.shiftId ??
       null;
@@ -5402,7 +5564,7 @@ export async function movePeopleAssignment(
       .where("date", "=", source.date)
       .where("workCenterId", "=", args.workCenterId);
     targetQuery = effectiveShiftId
-      ? targetQuery.where(whereEffectiveShift(effectiveShiftId))
+      ? targetQuery.where(whereEffectiveShift(effectiveShiftId, args.companyId))
       : targetQuery.where("shiftId", "is", null);
     const target = await targetQuery.executeTakeFirst();
 
@@ -5448,6 +5610,8 @@ export async function movePeopleAssignment(
  */
 export async function setPeopleDay(
   db: Kysely<KyselyDatabase>,
+  /** the authenticated user — filled by the caller, never the payload */
+  userId: string,
   args: {
     companyId: string;
     locationId: string;
@@ -5466,9 +5630,14 @@ export async function setPeopleDay(
       workCenterId: string;
       hours: number | null;
     }[];
-    createdBy: string;
   }
 ) {
+  await requirePeopleBoardRefs(db, args.companyId, {
+    employeeId: args.employeeId,
+    locationId: args.locationId,
+    shiftId: args.shiftId,
+    workCenterIds: args.rows.map((row) => row.workCenterId)
+  });
   return db.transaction().execute(async (trx) => {
     // location-scoped: the rows this reconciliation may DELETE must be limited
     // to the board the edit was made on
@@ -5480,7 +5649,9 @@ export async function setPeopleDay(
       .where("employeeId", "=", args.employeeId)
       .where("date", "=", args.date);
     if (args.shiftId) {
-      existingQuery = existingQuery.where(whereEffectiveShift(args.shiftId));
+      existingQuery = existingQuery.where(
+        whereEffectiveShift(args.shiftId, args.companyId)
+      );
     }
     const existing = await existingQuery.execute();
     const existingByStation = new Map(
@@ -5497,7 +5668,7 @@ export async function setPeopleDay(
             hours: row.hours,
             overtimeHours: args.overtimeHours,
             note: args.note,
-            updatedBy: args.createdBy,
+            updatedBy: userId,
             updatedAt: new Date().toISOString()
           })
           .where("id", "=", id)
@@ -5516,7 +5687,7 @@ export async function setPeopleDay(
             hours: row.hours,
             overtimeHours: args.overtimeHours,
             note: args.note,
-            createdBy: args.createdBy
+            createdBy: userId
           })
           .execute();
       }
@@ -5597,7 +5768,7 @@ export async function setPeopleOvertimeBulk(
       ? query.where("date", ">=", args.date).where("date", "<=", args.toDate)
       : query.where("date", "=", args.date);
     if (args.shiftId) {
-      query = query.where(whereEffectiveShift(args.shiftId));
+      query = query.where(whereEffectiveShift(args.shiftId, args.companyId));
     }
     if (args.departmentId) {
       const departmentId = args.departmentId;
@@ -5651,7 +5822,9 @@ async function copyPeopleDayInTransaction(
     .where("locationId", "=", args.locationId)
     .where("date", "=", args.fromDate);
   if (args.shiftId) {
-    sourceQuery = sourceQuery.where(whereEffectiveShift(args.shiftId));
+    sourceQuery = sourceQuery.where(
+      whereEffectiveShift(args.shiftId, args.companyId)
+    );
   }
   const source = await sourceQuery.execute();
 
@@ -5718,6 +5891,8 @@ const toIsoDate = (value: unknown) => {
  */
 export async function assignPeopleWeek(
   db: Kysely<KyselyDatabase>,
+  /** the authenticated user — filled by the caller, never the payload */
+  userId: string,
   args: {
     companyId: string;
     locationId: string;
@@ -5725,9 +5900,14 @@ export async function assignPeopleWeek(
     workCenterId: string;
     weekStart: string;
     shiftId: string | null;
-    createdBy: string;
   }
 ) {
+  await requirePeopleBoardRefs(db, args.companyId, {
+    employeeId: args.employeeId,
+    locationId: args.locationId,
+    shiftId: args.shiftId,
+    workCenterIds: [args.workCenterId]
+  });
   return db.transaction().execute(async (trx) => {
     // working days: the chosen shift's weekdays → the person's own shift's
     // weekdays → Mon–Fri
@@ -5762,6 +5942,7 @@ export async function assignPeopleWeek(
           "shift.sunday"
         ])
         .where("employeeShift.employeeId", "=", args.employeeId)
+        .where("employeeShift.companyId", "=", args.companyId)
         .where("shift.companyId", "=", args.companyId)
         .executeTakeFirst();
     }
@@ -5814,7 +5995,7 @@ export async function assignPeopleWeek(
         employeeId: args.employeeId,
         date,
         shiftId: args.shiftId,
-        createdBy: args.createdBy
+        createdBy: userId
       });
     }
     if (rows.length > 0) {
@@ -5847,7 +6028,7 @@ export async function unassignPeopleWeek(
     .where("date", ">=", args.weekStart)
     .where("date", "<=", addIsoDays(args.weekStart, 6));
   if (args.shiftId) {
-    query = query.where(whereEffectiveShift(args.shiftId));
+    query = query.where(whereEffectiveShift(args.shiftId, args.companyId));
   }
   return query.execute();
 }
@@ -5868,6 +6049,9 @@ export async function movePeopleWeek(
     shiftId: string | null;
   }
 ) {
+  await requirePeopleBoardRefs(db, args.companyId, {
+    workCenterIds: [args.workCenterId]
+  });
   const weekEnd = addIsoDays(args.weekStart, 6);
   return db.transaction().execute(async (trx) => {
     let sourceQuery = trx
@@ -5879,7 +6063,9 @@ export async function movePeopleWeek(
       .where("date", ">=", args.weekStart)
       .where("date", "<=", weekEnd);
     if (args.shiftId) {
-      sourceQuery = sourceQuery.where(whereEffectiveShift(args.shiftId));
+      sourceQuery = sourceQuery.where(
+        whereEffectiveShift(args.shiftId, args.companyId)
+      );
     }
     const source = await sourceQuery.execute();
 
@@ -5961,6 +6147,8 @@ export async function copyPeopleWeek(
  */
 export async function setPeopleAbsenceRange(
   db: Kysely<KyselyDatabase>,
+  /** the authenticated user — filled by the caller, never the payload */
+  userId: string,
   args: {
     companyId: string;
     employeeId: string;
@@ -5968,9 +6156,12 @@ export async function setPeopleAbsenceRange(
     toDate: string;
     shiftId: string | null;
     note?: string;
-    createdBy: string;
   }
 ) {
+  await requirePeopleBoardRefs(db, args.companyId, {
+    employeeId: args.employeeId,
+    shiftId: args.shiftId
+  });
   return db.transaction().execute(async (trx) => {
     const existing = await trx
       .selectFrom("peopleAbsence")
@@ -6003,7 +6194,7 @@ export async function setPeopleAbsenceRange(
         date,
         shiftId: args.shiftId,
         note: args.note ?? null,
-        createdBy: args.createdBy
+        createdBy: userId
       });
     }
     if (rows.length > 0) {
@@ -7283,6 +7474,81 @@ export async function updateAssemblyStepComponents(
     .single();
 }
 
+// Replaces a step's hidden list. The step's own components are stripped (and the
+// list deduped) by the assembly_step_strip_own_hidden_components trigger.
+export async function updateAssemblyStepHiddenComponents(
+  client: SupabaseClient<Database>,
+  data: {
+    id: string;
+    assemblyInstructionId: string;
+    hiddenComponentNodeIds: string[];
+    updatedBy: string;
+  }
+) {
+  return client
+    .from("assemblyInstructionStep")
+    .update({
+      hiddenComponentNodeIds: data.hiddenComponentNodeIds,
+      updatedBy: data.updatedBy,
+      updatedAt: new Date().toISOString()
+    })
+    .eq("id", data.id)
+    .eq("assemblyInstructionId", data.assemblyInstructionId)
+    .select("id")
+    .single();
+}
+
+// Sub-assembly staging: `parentStepId` = the later JOIN step this step is built
+// aside for (NULL = built in place). Which links are allowed is `joinTargets`,
+// the one rule the select and playback share.
+export async function updateAssemblyStepJoin(
+  client: SupabaseClient<Database>,
+  data: {
+    assemblyInstructionId: string;
+    stepId: string;
+    joinStepId: string | null;
+    companyId: string;
+    updatedBy: string;
+  }
+) {
+  const steps = await client
+    .from("assemblyInstructionStep")
+    .select("id, parentStepId")
+    .eq("assemblyInstructionId", data.assemblyInstructionId)
+    .eq("companyId", data.companyId)
+    .order("sortOrder", { ascending: true });
+  if (steps.error) return { data: null, error: steps.error };
+
+  const rows = steps.data.map((row) => ({
+    id: row.id,
+    joinStepId: row.parentStepId
+  }));
+  if (!rows.some((row) => row.id === data.stepId)) {
+    return { data: null, error: { message: "Step not found" } };
+  }
+  if (
+    data.joinStepId &&
+    !joinTargets(rows, data.stepId).targets.includes(data.joinStepId)
+  ) {
+    return {
+      data: null,
+      error: { message: "That step can't be the join step for this one" }
+    };
+  }
+
+  return client
+    .from("assemblyInstructionStep")
+    .update({
+      parentStepId: data.joinStepId,
+      updatedBy: data.updatedBy,
+      updatedAt: new Date().toISOString()
+    })
+    .eq("id", data.stepId)
+    .eq("companyId", data.companyId)
+    .select("id")
+    .single();
+}
+
 // Assign a set of component instances to a target step. `duplicate` unions them
 // onto the target only (a component may live on several steps). `move` unions
 // them onto the target AND strips them from every other step, so the component
@@ -7467,14 +7733,35 @@ export async function updateAssemblyInstructionStepStatus(
 
 export async function updateAssemblyInstructionStepOrder(
   db: Kysely<KyselyDatabase>,
-  updates: { id: string; sortOrder: number; updatedBy: string }[]
+  companyId: string,
+  userId: string,
+  assemblyInstructionId: string,
+  updates: { id: string; sortOrder: number }[]
 ) {
-  return db.transaction().execute(async (trx) => {
-    for (const { id, sortOrder, updatedBy } of updates) {
+  return updateSortOrder(db, {
+    table: "assemblyInstructionStep",
+    column: "sortOrder",
+    companyId,
+    userId,
+    parent: { column: "assemblyInstructionId", id: assemblyInstructionId },
+    updates,
+    // A step built aside must still come before its join step; a reorder that
+    // breaks that turns it back into a built-in-place step.
+    afterUpdate: async (trx) => {
       await trx
-        .updateTable("assemblyInstructionStep")
-        .set({ sortOrder, updatedBy, updatedAt: new Date().toISOString() })
-        .where("id", "=", id)
+        .updateTable("assemblyInstructionStep as s")
+        .set({ parentStepId: null })
+        .where("s.companyId", "=", companyId)
+        .where("s.assemblyInstructionId", "=", assemblyInstructionId)
+        .where("s.parentStepId", "is not", null)
+        .where(({ exists, selectFrom }) =>
+          exists(
+            selectFrom("assemblyInstructionStep as j")
+              .select("j.id")
+              .whereRef("j.id", "=", "s.parentStepId")
+              .whereRef("j.sortOrder", "<=", "s.sortOrder")
+          )
+        )
         .execute();
     }
   });
@@ -7702,16 +7989,27 @@ async function getNextStepMaterialSortOrder(
 
 export async function updateAssemblyInstructionStepMaterialOrder(
   db: Kysely<KyselyDatabase>,
-  updates: { id: string; sortOrder: number; updatedBy: string }[]
+  companyId: string,
+  userId: string,
+  assemblyInstructionId: string,
+  updates: { id: string; sortOrder: number }[]
 ) {
-  return db.transaction().execute(async (trx) => {
-    for (const { id, sortOrder, updatedBy } of updates) {
-      await trx
-        .updateTable("assemblyInstructionStepMaterial")
-        .set({ sortOrder, updatedBy, updatedAt: new Date().toISOString() })
-        .where("id", "=", id)
-        .execute();
-    }
+  return updateSortOrder(db, {
+    table: "assemblyInstructionStepMaterial",
+    column: "sortOrder",
+    companyId,
+    userId,
+    // A material hangs off a step, so it is scoped to the instruction
+    // through that step.
+    parent: {
+      column: "stepId",
+      via: {
+        table: "assemblyInstructionStep",
+        column: "assemblyInstructionId",
+        id: assemblyInstructionId
+      }
+    },
+    updates
   });
 }
 
@@ -8560,6 +8858,25 @@ export async function syncAssemblyInstructionToOperation(
   const slideTable = "jobOperationStepSlide" as const;
 
   return db.transaction().execute(async (trx) => {
+    // The operation id comes from the caller and every write below is keyed on
+    // it, so it must belong to this company — and, since the API reaches this
+    // without the route's check, its job must not be locked.
+    const operation = await trx
+      .selectFrom("jobOperation")
+      .innerJoin("job", (join) =>
+        join
+          .onRef("job.id", "=", "jobOperation.jobId")
+          .onRef("job.companyId", "=", "jobOperation.companyId")
+      )
+      .select(["jobOperation.id", "job.status"])
+      .where("jobOperation.id", "=", operationId)
+      .where("jobOperation.companyId", "=", companyId)
+      .executeTakeFirst();
+    if (!operation) throw new Error("Operation not found");
+    if (isJobLocked(operation.status)) {
+      throw new Error("This job is locked — steps can't be synced to it");
+    }
+
     const instruction = await trx
       .selectFrom("assemblyInstruction")
       .select(["id", "itemId", "modelUploadId"])
@@ -8811,7 +9128,14 @@ export async function syncAssemblyInstructionToOperation(
     // Refresh part links on the synced steps only (hand-authored steps keep theirs).
     await trx
       .deleteFrom("jobMaterialStep")
-      .where("jobOperationStepId", "in", syncedTargetIds)
+      // No companyId column — scope through the step it links to.
+      .where("jobOperationStepId", "in", (eb) =>
+        eb
+          .selectFrom("jobOperationStep")
+          .select("id")
+          .where("id", "in", syncedTargetIds)
+          .where("companyId", "=", companyId)
+      )
       .execute();
     if (linkPairs.length > 0) {
       await trx
@@ -8833,6 +9157,7 @@ export async function syncAssemblyInstructionToOperation(
     await trx
       .deleteFrom(slideTable)
       .where("stepId", "in", syncedTargetIds)
+      .where("companyId", "=", companyId)
       .execute();
     const slideRows: {
       stepId: string;
@@ -8921,13 +9246,21 @@ export async function syncAssemblyInstructionToOperation(
             .updateTable("jobOperationTool")
             .set({ quantity, updatedBy: userId, updatedAt: now })
             .where("id", "=", existingId)
+            .where("companyId", "=", companyId)
             .execute();
         }
       }
     }
     await trx
       .deleteFrom("jobOperationToolStep")
-      .where("jobOperationStepId", "in", syncedTargetIds)
+      // No companyId column — scope through the step it links to.
+      .where("jobOperationStepId", "in", (eb) =>
+        eb
+          .selectFrom("jobOperationStep")
+          .select("id")
+          .where("id", "in", syncedTargetIds)
+          .where("companyId", "=", companyId)
+      )
       .execute();
     const toolLinkRows = buildAssemblyToolStepLinks(
       sourceSteps,
@@ -8990,10 +9323,13 @@ export async function generateAssemblyStepsFromPlan(
     mode?: "generate" | "regenerate";
   }
 ): Promise<GenerateStepsResult> {
+  // The route calls this with the service role (bypassRls) and a URL id, so
+  // every read and write is scoped to the caller's company.
   const instruction = await client
     .from("assemblyInstruction")
     .select("id, modelUploadId, modelUpload(graphPath)")
     .eq("id", args.assemblyInstructionId)
+    .eq("companyId", args.companyId)
     .single();
   if (instruction.error || !instruction.data.modelUploadId) {
     return { ok: false, reason: "no-model" };
@@ -9003,7 +9339,8 @@ export async function generateAssemblyStepsFromPlan(
   const existing = await client
     .from("assemblyInstructionStep")
     .select("id, planConfidence, status")
-    .eq("assemblyInstructionId", args.assemblyInstructionId);
+    .eq("assemblyInstructionId", args.assemblyInstructionId)
+    .eq("companyId", args.companyId);
   if ((existing.data ?? []).length > 0) {
     if (args.mode !== "regenerate") {
       return { ok: false, reason: "steps-exist", modelUploadId };
@@ -9024,7 +9361,8 @@ export async function generateAssemblyStepsFromPlan(
     const removed = await client
       .from("assemblyInstructionStep")
       .delete()
-      .eq("assemblyInstructionId", args.assemblyInstructionId);
+      .eq("assemblyInstructionId", args.assemblyInstructionId)
+      .eq("companyId", args.companyId);
     if (removed.error) {
       return { ok: false, reason: "error", message: removed.error.message };
     }
@@ -9249,6 +9587,8 @@ export function toViewerStep(step: AssemblyInstructionStepRow): AssemblyStep {
     title: step.title,
     instructionText: step.instructionText,
     componentNodeIds: step.componentNodeIds ?? [],
+    hiddenComponentNodeIds: step.hiddenComponentNodeIds ?? [],
+    joinStepId: step.parentStepId ?? null,
     motion: motion.success ? motion.data : { type: "none" },
     camera: camera.success ? camera.data : null,
     fastener: fastener.success ? fastener.data : null,
@@ -9326,605 +9666,6 @@ export async function getJobMaterialSupplyJobLines(
     itemId: job.itemId,
     status: job.status
   }));
-}
-
-// ─── Inspection Documents ─────────────────────────────────────────────────────
-
-function toStoragePath(pdfUrl?: string | null) {
-  if (!pdfUrl) return null;
-  const previewPrefix = "/file/preview/private/";
-  if (pdfUrl.startsWith(previewPrefix)) {
-    return pdfUrl.slice(previewPrefix.length);
-  }
-  return pdfUrl;
-}
-
-function toPreviewUrl(storagePath?: string | null) {
-  if (!storagePath) return null;
-  return storagePath.startsWith("/file/preview/private/")
-    ? storagePath
-    : `/file/preview/private/${storagePath}`;
-}
-
-function fileNameFromPath(storagePath?: string | null) {
-  if (!storagePath) return "drawing.pdf";
-  return storagePath.split("/").at(-1) ?? "drawing.pdf";
-}
-
-function mapInspectionDocument(row: Record<string, unknown>) {
-  const drawingNumber = (row.drawingNumber as string | null) ?? null;
-  return {
-    id: String(row.id),
-    name: String(drawingNumber ?? row.fileName ?? "Untitled Diagram"),
-    companyId: String(row.companyId),
-    partId: (row.partId as string | null) ?? null,
-    createdBy: String(row.createdBy),
-    updatedBy: (row.updatedBy as string | null) ?? null,
-    createdAt: String(row.createdAt),
-    updatedAt: (row.updatedAt as string | null) ?? null,
-    content: {
-      drawingNumber,
-      pdfUrl: toPreviewUrl((row.storagePath as string | null) ?? null),
-      annotations: [],
-      features: []
-    },
-    // The document's default sampling rule (feature rule -> document default
-    // -> All). NUMERIC columns arrive as strings from PostgREST — coerce.
-    sampling: {
-      samplingPlanType: (row.samplingPlanType as string | null) ?? null,
-      samplingSampleSize: (row.samplingSampleSize as number | null) ?? null,
-      samplingPercentage:
-        row.samplingPercentage == null ? null : Number(row.samplingPercentage),
-      samplingAql: row.samplingAql == null ? null : Number(row.samplingAql),
-      samplingInspectionLevel:
-        (row.samplingInspectionLevel as string | null) ?? null,
-      samplingSeverity: (row.samplingSeverity as string | null) ?? null
-    }
-  };
-}
-
-export async function getInspectionDocuments(
-  client: SupabaseClient<Database>,
-  companyId: string,
-  args?: { search: string | null } & GenericQueryFilters
-) {
-  let query = client
-    .from("inspectionDocuments")
-    .select("*", { count: "exact" })
-    .eq("companyId", companyId);
-
-  if (args?.search) {
-    query = query.or(
-      `drawingNumber.ilike.%${args.search}%,fileName.ilike.%${args.search}%,partReadableId.ilike.%${args.search}%`
-    );
-  }
-
-  if (args) {
-    query = setGenericQueryFilters(query, args, [
-      { column: "drawingNumber", ascending: true }
-    ]);
-  }
-
-  const result = await query;
-
-  return {
-    data: (result.data ?? []).map((row: Record<string, unknown>) =>
-      mapInspectionDocument(row)
-    ),
-    count: result.count ?? 0,
-    error: result.error
-  };
-}
-
-export async function getInspectionDocumentsForItem(
-  client: SupabaseClient<Database>,
-  itemId: string,
-  companyId: string
-) {
-  return client
-    .from("inspectionDocument")
-    .select("id, fileName, drawingNumber, version")
-    .eq("companyId", companyId)
-    .eq("partId", itemId)
-    .order("updatedAt", { ascending: false, nullsFirst: false });
-}
-
-export async function getInspectionDocument(
-  client: SupabaseClient<Database>,
-  id: string,
-  companyId: string
-) {
-  const result = await client
-    .from("inspectionDocument")
-    .select("*")
-    .eq("id", id)
-    .eq("companyId", companyId)
-    .single();
-
-  return {
-    data: result.data ? mapInspectionDocument(result.data) : null,
-    error: result.error
-  };
-}
-
-/**
- * When an inspection plan is created without a drawing number, fall back to the
- * part's readableIdWithRevision. If a plan with that drawing number already
- * exists for the company, append " (1)", " (2)", etc. until it is unique.
- */
-async function resolveInspectionDocumentDrawingNumber(
-  client: SupabaseClient<Database>,
-  companyId: string,
-  partId: string
-): Promise<string | null> {
-  const partResult = await client
-    .from("item")
-    .select("readableIdWithRevision")
-    .eq("id", partId)
-    .eq("companyId", companyId)
-    .single();
-
-  const base = partResult.data?.readableIdWithRevision?.trim();
-  if (!base) return null;
-
-  const existingResult = await client
-    .from("inspectionDocument")
-    .select("drawingNumber")
-    .eq("companyId", companyId)
-    .not("drawingNumber", "is", null);
-
-  const taken = new Set(
-    (existingResult.data ?? [])
-      .map((row) => row.drawingNumber)
-      .filter((value): value is string => Boolean(value))
-  );
-
-  if (!taken.has(base)) return base;
-
-  let suffix = 1;
-  while (taken.has(`${base} (${suffix})`)) {
-    suffix += 1;
-  }
-  return `${base} (${suffix})`;
-}
-
-export async function upsertInspectionDocument(
-  client: SupabaseClient<Database>,
-  diagram:
-    | (Omit<z.infer<typeof inspectionDocumentValidator>, "id"> & {
-        id?: undefined;
-        companyId: string;
-        createdBy: string;
-        updatedBy?: string;
-        pageCount?: number;
-        defaultPageWidth?: number;
-        defaultPageHeight?: number;
-      })
-    | (Omit<z.infer<typeof inspectionDocumentValidator>, "id"> & {
-        id: string;
-        companyId: string;
-        createdBy: string;
-        updatedBy?: string;
-        pageCount?: number;
-        defaultPageWidth?: number;
-        defaultPageHeight?: number;
-      })
-) {
-  const {
-    id,
-    partId,
-    drawingNumber,
-    pdfUrl,
-    pageCount,
-    defaultPageWidth,
-    defaultPageHeight,
-    companyId,
-    createdBy,
-    updatedBy
-  } = diagram;
-
-  const documentClient = client as unknown as {
-    from: (table: string) => {
-      select: (columns: string) => {
-        eq: (
-          column: string,
-          value: unknown
-        ) => {
-          single: () => Promise<{
-            data: Record<string, unknown> | null;
-            error: unknown;
-          }>;
-        };
-      };
-      update: (payload: Record<string, unknown>) => {
-        eq: (
-          column: string,
-          value: unknown
-        ) => {
-          eq: (
-            column: string,
-            value: unknown
-          ) => {
-            select: (columns: string) => {
-              single: () => Promise<{
-                data: { id: string } | null;
-                error: unknown;
-              }>;
-            };
-          };
-        };
-      };
-      insert: (payload: Record<string, unknown>) => {
-        select: (columns: string) => {
-          single: () => Promise<{
-            data: { id: string } | null;
-            error: unknown;
-          }>;
-        };
-      };
-    };
-  };
-
-  const storagePath = toStoragePath(pdfUrl);
-
-  if (id) {
-    if (!companyId) {
-      return {
-        data: null,
-        error: {
-          message: "companyId is required to update inspection plan"
-        }
-      };
-    }
-
-    const existingResult = await documentClient
-      .from("inspectionDocument")
-      .select("*")
-      .eq("id", id)
-      .single();
-
-    const existing = existingResult.data;
-    if (!existing) {
-      return {
-        data: null,
-        error: {
-          message: "Inspection plan not found"
-        }
-      };
-    }
-    if (String(existing.companyId ?? "") !== companyId) {
-      return {
-        data: null,
-        error: {
-          message: "Inspection plan does not belong to this company"
-        }
-      };
-    }
-
-    const updatePayload: Record<string, unknown> = {
-      updatedBy: updatedBy ?? createdBy,
-      updatedAt: new Date().toISOString()
-    };
-    if (drawingNumber !== undefined) {
-      updatePayload.drawingNumber = drawingNumber ?? null;
-    }
-    if (partId !== undefined) {
-      updatePayload.partId = partId;
-    }
-
-    if (storagePath) {
-      updatePayload.storagePath = storagePath;
-      updatePayload.fileName = fileNameFromPath(storagePath);
-    }
-    if (pageCount && pageCount > 0) {
-      updatePayload.pageCount = pageCount;
-    }
-    if (defaultPageWidth && defaultPageWidth > 0) {
-      updatePayload.defaultPageWidth = defaultPageWidth;
-    }
-    if (defaultPageHeight && defaultPageHeight > 0) {
-      updatePayload.defaultPageHeight = defaultPageHeight;
-    }
-
-    return documentClient
-      .from("inspectionDocument")
-      .update(updatePayload)
-      .eq("id", id)
-      .eq("companyId", companyId)
-      .select("id")
-      .single();
-  }
-
-  if (!companyId) {
-    return {
-      data: null,
-      error: { message: "companyId is required to create inspection plan" }
-    };
-  }
-
-  const resolvedDrawingNumber = drawingNumber?.trim()
-    ? drawingNumber.trim()
-    : await resolveInspectionDocumentDrawingNumber(client, companyId, partId);
-
-  return documentClient
-    .from("inspectionDocument")
-    .insert({
-      companyId,
-      partId,
-      drawingNumber: resolvedDrawingNumber ?? null,
-      version: 0,
-      ...(storagePath
-        ? {
-            storagePath,
-            fileName: fileNameFromPath(storagePath),
-            uploadedBy: createdBy
-          }
-        : {}),
-      ...(pageCount && pageCount > 0 ? { pageCount } : {}),
-      ...(defaultPageWidth && defaultPageWidth > 0 ? { defaultPageWidth } : {}),
-      ...(defaultPageHeight && defaultPageHeight > 0
-        ? { defaultPageHeight }
-        : {}),
-      createdBy
-    })
-    .select("id")
-    .single();
-}
-
-export async function deleteInspectionDocument(
-  client: SupabaseClient<Database>,
-  id: string,
-  companyId: string
-) {
-  const existingResult = await client
-    .from("inspectionDocument")
-    .select("*")
-    .eq("id", id)
-    .eq("companyId", companyId)
-    .single();
-
-  if (!existingResult.data) {
-    return {
-      data: null,
-      error: { message: "Inspection plan not found" }
-    };
-  }
-
-  const storagePath =
-    (existingResult.data.storagePath as string | null) ?? null;
-
-  const deleteResult = await client
-    .from("inspectionDocument")
-    .delete()
-    .eq("id", id)
-    .eq("companyId", companyId);
-
-  if (deleteResult.error) {
-    return { data: null, error: deleteResult.error };
-  }
-
-  return {
-    data: { storagePath },
-    error: null
-  };
-}
-
-function mapInspectionFeature(row: Record<string, unknown>) {
-  const balloonIdRaw = row.balloonId ?? row.balloon_id;
-  return {
-    id: String(row.id),
-    inspectionDocumentId: String(row.inspectionDocumentId),
-    companyId: String(row.companyId),
-    pageNumber: Number(row.pageNumber),
-    label: String(row.label),
-    description: (row.description as string | null) ?? null,
-    nominalValue: (row.nominalValue as string | null) ?? null,
-    tolerancePlus: (row.tolerancePlus as string | null) ?? null,
-    toleranceMinus: (row.toleranceMinus as string | null) ?? null,
-    unit: (row.unit as string | null) ?? null,
-    type: (row.type as string) ?? "Measurement",
-    // Per-feature sampling rule (NULL = inherit the document default). NUMERIC
-    // columns arrive as strings from PostgREST — coerce, mirroring the document
-    // default rule in mapInspectionDocument.
-    samplingPlanType: (row.samplingPlanType as string | null) ?? null,
-    samplingSampleSize: (row.samplingSampleSize as number | null) ?? null,
-    samplingPercentage:
-      row.samplingPercentage == null ? null : Number(row.samplingPercentage),
-    samplingAql: row.samplingAql == null ? null : Number(row.samplingAql),
-    samplingInspectionLevel:
-      (row.samplingInspectionLevel as string | null) ?? null,
-    samplingSeverity: (row.samplingSeverity as string | null) ?? null,
-    balloonId:
-      typeof balloonIdRaw === "string"
-        ? balloonIdRaw
-        : balloonIdRaw != null
-          ? String(balloonIdRaw)
-          : null,
-    createdBy: String(row.createdBy),
-    updatedBy: (row.updatedBy as string | null) ?? null,
-    createdAt: String(row.createdAt),
-    updatedAt: (row.updatedAt as string | null) ?? null
-  };
-}
-
-function mapBalloon(row: Record<string, unknown>) {
-  return {
-    id: String(row.id),
-    inspectionDocumentId: String(row.inspectionDocumentId),
-    companyId: String(row.companyId),
-    inspectionFeatureId: String(row.inspectionFeatureId),
-    pageNumber: Number(row.pageNumber),
-    regionX: Number(row.regionX),
-    regionY: Number(row.regionY),
-    regionWidth: Number(row.regionWidth),
-    regionHeight: Number(row.regionHeight),
-    xCoordinate: Number(row.xCoordinate),
-    yCoordinate: Number(row.yCoordinate),
-    createdBy: String(row.createdBy),
-    updatedBy: (row.updatedBy as string | null) ?? null,
-    createdAt: String(row.createdAt),
-    updatedAt: (row.updatedAt as string | null) ?? null,
-    balloonAnchorId: String(row.id)
-  };
-}
-
-export async function getInspectionFeatures(
-  client: SupabaseClient<Database>,
-  inspectionDocumentId: string
-) {
-  const [featuresResult, balloonsResult] = await Promise.all([
-    getInspectionFeaturesRaw(client, inspectionDocumentId),
-    getBalloons(client, inspectionDocumentId)
-  ]);
-
-  if (featuresResult.error) {
-    return { data: null, error: featuresResult.error };
-  }
-  if (balloonsResult.error) {
-    return { data: null, error: balloonsResult.error };
-  }
-
-  const balloonByFeatureId = new Map(
-    (balloonsResult.data ?? []).map((b) => [b.inspectionFeatureId, b.id])
-  );
-
-  return {
-    data: (featuresResult.data ?? []).map((row) =>
-      mapInspectionFeature({
-        ...row,
-        balloonId: balloonByFeatureId.get(String(row.id)) ?? null
-      })
-    ),
-    error: null
-  };
-}
-
-async function getInspectionFeaturesRaw(
-  client: SupabaseClient<Database>,
-  inspectionDocumentId: string
-) {
-  return listInspectionFeatures(client, inspectionDocumentId);
-}
-
-export async function getBalloons(
-  client: SupabaseClient<Database>,
-  inspectionDocumentId: string
-) {
-  const result = await listBalloons(client, inspectionDocumentId);
-
-  return {
-    data: (result.data ?? []).map((row) =>
-      mapBalloon(row as unknown as Record<string, unknown>)
-    ),
-    error: result.error
-  };
-}
-
-export async function getInspectionPlan(
-  client: SupabaseClient<Database>,
-  inspectionDocumentId: string
-) {
-  const [featuresResult, balloonsResult] = await Promise.all([
-    getInspectionFeaturesRaw(client, inspectionDocumentId),
-    getBalloons(client, inspectionDocumentId)
-  ]);
-
-  if (featuresResult.error) {
-    return { data: null, error: featuresResult.error };
-  }
-  if (balloonsResult.error) {
-    return { data: null, error: balloonsResult.error };
-  }
-
-  const balloonByFeatureId = new Map(
-    (balloonsResult.data ?? []).map((b) => [b.inspectionFeatureId, b])
-  );
-
-  return {
-    data: (featuresResult.data ?? []).map((row) => {
-      const b = balloonByFeatureId.get(row.id);
-      const featureId = row.id;
-      return {
-        /** Feature id (primary key for plan rows). */
-        id: featureId,
-        featureId,
-        /** Balloon id when placed; null for table-only features. */
-        balloonId: b?.id ?? null,
-        inspectionDocumentId: row.inspectionDocumentId,
-        pageNumber: b?.pageNumber ?? row.pageNumber,
-        label: row.label,
-        description: row.description,
-        nominalValue: row.nominalValue,
-        tolerancePlus: row.tolerancePlus,
-        toleranceMinus: row.toleranceMinus,
-        unit: row.unit,
-        regionX: b ? b.regionX : null,
-        regionY: b ? b.regionY : null,
-        regionWidth: b ? b.regionWidth : null,
-        regionHeight: b ? b.regionHeight : null,
-        xCoordinate: b ? b.xCoordinate : null,
-        yCoordinate: b ? b.yCoordinate : null
-      };
-    }),
-    error: null
-  };
-}
-
-export async function updateInspectionDocumentSampling(
-  client: SupabaseClient<Database>,
-  args: z.infer<typeof inspectionDocumentSamplingValidator> & {
-    inspectionDocumentId: string;
-    companyId: string;
-    userId: string;
-  }
-) {
-  const { inspectionDocumentId, companyId, userId, ...sampling } = args;
-  return client
-    .from("inspectionDocument")
-    .update({
-      ...sampling,
-      updatedBy: userId,
-      updatedAt: new Date().toISOString()
-    })
-    .eq("id", inspectionDocumentId)
-    .eq("companyId", companyId);
-}
-
-export async function saveInspectionDocumentAtomic(
-  client: SupabaseClient<Database>,
-  args: {
-    inspectionDocumentId: string;
-    companyId: string;
-    userId: string;
-    pdfUrl?: string | null;
-    pageCount?: number;
-    defaultPageWidth?: number;
-    defaultPageHeight?: number;
-    features: unknown;
-    balloons: unknown;
-  }
-) {
-  return (
-    client as unknown as {
-      rpc: (
-        fn: string,
-        args: Record<string, unknown>
-      ) => Promise<{
-        data: unknown;
-        error: unknown;
-      }>;
-    }
-  ).rpc("save_inspection_document_atomic", {
-    p_inspection_document_id: args.inspectionDocumentId,
-    p_company_id: args.companyId,
-    p_user_id: args.userId,
-    p_pdf_url: args.pdfUrl ?? null,
-    p_page_count: args.pageCount ?? null,
-    p_default_page_width: args.defaultPageWidth ?? null,
-    p_default_page_height: args.defaultPageHeight ?? null,
-    p_features: args.features,
-    p_balloons: args.balloons
-  });
 }
 
 // ---------------------------------------------------------------------------

@@ -1,5 +1,17 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
+import { round } from "@carbon/utils";
 import { z } from "zod";
 import { zfd } from "zod-form-data";
+
+// Round an optional produced/scrap quantity to internal precision at parse, so a
+// decimal typed on the floor is stored at the same scale everywhere.
+const roundedOptionalQuantity = () =>
+  zfd
+    .numeric(z.number().min(0).optional())
+    .transform((v) => (v === undefined ? v : round(v)));
 
 export const documentTypes = [
   "Archive",
@@ -242,9 +254,10 @@ export const scrapTrackedEntityValidator = z.object({
   notes: zfd.text(z.string().optional())
 });
 
-// Complete a job operation batch: per-member produced quantity (pre-filled with the
-// operation quantity) + optional per-member scrap. quantity is int —
-// productionQuantity.quantity is INTEGER. See
+// Complete a job operation batch: per-member produced quantity (pre-filled with
+// the operation quantity) + optional per-member scrap. Quantities are decimal —
+// productionQuantity.quantity is NUMERIC (widened for weight/length UoMs) — and
+// are rounded to internal precision at parse. See
 // .ai/specs/2026-08-21-job-operation-batching.md.
 export const completeJobOperationBatchValidator = z.object({
   batchId: z.string().min(1, { message: "Batch is required" }),
@@ -260,9 +273,9 @@ export const completeJobOperationBatchValidator = z.object({
         // non-discrete unit of measure), so the pre-filled remainder — and the
         // operator's edit — must accept decimals, matching single-op completion
         // (baseQuantityValidator). An `.int()` here silently failed validation
-        // and the modal never submitted.
-        quantity: zfd.numeric(z.number().min(0).optional()),
-        scrapQuantity: zfd.numeric(z.number().min(0).optional()),
+        // and the modal never submitted. Rounded to internal precision at parse.
+        quantity: roundedOptionalQuantity(),
+        scrapQuantity: roundedOptionalQuantity(),
         // Batch-tracked output: the member's WIP entity finalized as the
         // produced lot. Its lot number was planned at batch creation and is
         // resolved server-side — never an operator input.
@@ -455,4 +468,11 @@ export const inspectionMeasurementValidator = z.object({
   // Attribute (non-numeric) features toggle pass/fail instead of a value.
   passed: zfd.text(z.enum(["true", "false"]).optional()),
   notes: zfd.text(z.string().optional())
+});
+
+// Records the gauge used for one feature of a lot; an empty gaugeId clears it.
+export const inspectionGaugeValidator = z.object({
+  inspectionId: z.string().min(1, { message: "Inspection is required" }),
+  inspectionFeatureId: z.string().min(1, { message: "Feature is required" }),
+  gaugeId: zfd.text(z.string().optional())
 });

@@ -1,7 +1,11 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import { error, notFound, useCarbon } from "@carbon/auth";
 import { requirePermissions } from "@carbon/auth/auth.server";
 import { flash } from "@carbon/auth/session.server";
-import { Button } from "@carbon/react";
+import { Button, Heading } from "@carbon/react";
 import { Trans } from "@lingui/react/macro";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { LuChevronUp } from "react-icons/lu";
@@ -235,9 +239,9 @@ export default function ItemInventoryActivityRoute() {
 
   return (
     <div className="w-full space-y-4 pt-6 px-4">
-      <h2 className="text-2xl font-semibold mb-4">
+      <Heading size="h2" className="mb-4">
         <Trans>Activity</Trans>
-      </h2>
+      </Heading>
 
       {hasNewer && (
         <div className="flex justify-center">

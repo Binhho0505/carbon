@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import { requirePermissions } from "@carbon/auth/auth.server";
 import { getCarbonServiceRole } from "@carbon/auth/client.server";
 import { ensureFont, PackingSlipPDF } from "@carbon/documents/pdf";
@@ -60,6 +64,16 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 
   if (shipment.error) {
     logger.error("Failed to load shipment", { error: shipment.error });
+  }
+
+  // RLS admits a shipment from any company the user belongs to, but the source
+  // document below is read with the service role — pin it to this company.
+  if (shipment.data && shipment.data.companyId !== companyId) {
+    logger.error("Shipment does not belong to this company", {
+      companyId,
+      shipmentId: id
+    });
+    throw new Response("Not found", { status: 404 });
   }
 
   if (shipmentLines.error) {

@@ -1,10 +1,14 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import { assertIsPost, notFound } from "@carbon/auth";
 import { getCarbonServiceRole } from "@carbon/auth/client.server";
 import {
   dedupeViolations,
   evaluateSalesRulesForSalesDocument
 } from "@carbon/ee/rules.server";
-import { storage } from "@carbon/files";
+import { safeStorageFileName, storage } from "@carbon/files";
 import { trigger } from "@carbon/jobs";
 import { getLogger } from "@carbon/logger";
 import { NotificationEvent } from "@carbon/notifications";
@@ -87,6 +91,18 @@ export async function action(args: ActionFunctionArgs) {
       }
 
       const selectedLines = parseResult.data;
+
+      // Unauthenticated endpoint: the name becomes a storage key segment.
+      const uploadFileName =
+        file instanceof File ? safeStorageFileName(file.name) : null;
+      if (file instanceof File && !uploadFileName) {
+        logger.error("Rejected digital quote upload file name", {
+          quoteId: quote.data.id,
+          companyId: quote.data.companyId,
+          fileName: file.name
+        });
+        return { success: false, message: "Invalid file name" };
+      }
 
       // Extract purchase order number from PDF filename if available
       let purchaseOrderNumber = "";
@@ -235,8 +251,8 @@ export async function action(args: ActionFunctionArgs) {
         }
       }
 
-      if (file && file instanceof File) {
-        const purchaseOrderDocumentPath = `${companySettings.data.id}/opportunity/${quote.data.opportunityId}/${file.name}`;
+      if (file && file instanceof File && uploadFileName) {
+        const purchaseOrderDocumentPath = `${quote.data.companyId}/opportunity/${quote.data.opportunityId}/${uploadFileName}`;
 
         const fileUpload = await storage(serviceRole)
           .company(quote.data.companyId)

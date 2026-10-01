@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import { CONTROLLED_ENVIRONMENT, error, success } from "@carbon/auth";
 import { requirePermissions } from "@carbon/auth/auth.server";
 import { getCarbonServiceRole } from "@carbon/auth/client.server";
@@ -7,7 +11,7 @@ import { getSsoAwareInviteLink } from "@carbon/ee/sso.server";
 import { validationError, validator } from "@carbon/form";
 import { batchTrigger } from "@carbon/jobs";
 import { sendEmail } from "@carbon/lib/email.server";
-import { datetime } from "@carbon/utils";
+import { datetime, getClientIp } from "@carbon/utils";
 import { render } from "@react-email/components";
 import { nanoid } from "nanoid";
 import type { ActionFunctionArgs } from "react-router";
@@ -33,7 +37,7 @@ export async function action({ request }: ActionFunctionArgs) {
   if (users.length === 1) {
     const [userId] = users;
     const location = request.headers.get("x-vercel-ip-city") ?? "Unknown";
-    const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
+    const ip = getClientIp(request) ?? "127.0.0.1";
     const [company, user] = await Promise.all([
       serviceRole.from("company").select("name").eq("id", companyId).single(),
       serviceRole
@@ -127,7 +131,7 @@ export async function action({ request }: ActionFunctionArgs) {
     );
   } else {
     const location = request.headers.get("x-vercel-ip-city") ?? "Unknown";
-    const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
+    const ip = getClientIp(request) ?? "127.0.0.1";
     try {
       await batchTrigger(
         "user-admin",

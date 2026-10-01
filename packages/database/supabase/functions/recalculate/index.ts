@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import { serve } from "https://deno.land/std@0.175.0/http/server.ts";
 import { z } from "npm:zod@^4.5.4";
 
@@ -46,13 +50,18 @@ serve(async (req: Request) => {
             .from("jobMakeMethod")
             .select("*")
             .eq("id", jobMakeMethodId)
-            .single(),
+            .eq("companyId", companyId)
+            .maybeSingle(),
         ]);
 
         if (jobMakeMethod.error) {
           throw new Error(
             `Failed to get job makeMethod: ${jobMakeMethod.error.message}`
           );
+        }
+        // Service-role client: a make method outside companyId is a 404.
+        if (!jobMakeMethod.data) {
+          return errorResponse("Job make method not found", 404);
         }
 
         let parentQuantity = 1;
@@ -127,14 +136,23 @@ serve(async (req: Request) => {
       case "jobRequirements": {
         const jobId = id;
         const [job, jobMakeMethod] = await Promise.all([
-          client.from("job").select("*").eq("id", jobId).single(),
+          client
+            .from("job")
+            .select("*")
+            .eq("id", jobId)
+            .eq("companyId", companyId)
+            .maybeSingle(),
           client
             .from("jobMakeMethod")
             .select("*")
             .eq("jobId", jobId)
+            .eq("companyId", companyId)
             .is("parentMaterialId", null)
             .single(),
         ]);
+
+        // Service-role client: a job outside companyId is a 404.
+        if (!job.data) return errorResponse("Job not found", 404);
 
         if (jobMakeMethod.error) {
           throw new Error(

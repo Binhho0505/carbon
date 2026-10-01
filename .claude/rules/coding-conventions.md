@@ -23,6 +23,11 @@ rules — this file does not repeat them:
 - **Framework**: **React Router v7** (NOT Remix). Apps `apps/erp` and `apps/mes`
   build with `react-router build`. Routing uses `remix-flat-routes`.
 - **Language**: TypeScript everywhere. **Never hand-edit generated DB types.**
+- **License header**: every source file opens with an SPDX header — `AGPL-3.0-only`,
+  or `LicenseRef-Carbon-Commercial` under `packages/ee/` and in `.ee.` files
+  (`spdx-license-header` check). Write it with `pnpm --filter @carbon/checks
+  license-headers`; moving a file across that boundary means swapping it
+  (see [commercial-licensing.md](commercial-licensing.md)).
 - **Backend data**: Supabase client (`SupabaseClient<Database>`) for most reads/
   writes; Kysely for multi-row transactions (see services/database rules).
 
@@ -97,6 +102,18 @@ MES is lighter: services live under `apps/mes/app/services/`, components under
   Do NOT use `json(...)` — that is the old Remix helper and is not the convention here.
 - On success an action throws a redirect (`throw redirect(...)`), not `return`.
   Cached entities add a `clientAction`/`clientLoader` for cache control.
+
+## Errors: always log before you throw
+
+- Never throw (or return) an error without logging it first. Declare a module
+  logger, `const logger = getLogger("erp", "<route-or-module>")` from
+  `@carbon/logger`, and call `logger.error("<what failed>", { companyId, ...context, error })`
+  before `throw new Response(...)` / `throw new Error(...)`.
+- Why: a thrown `Response` from a loader/action goes straight to the client;
+  React Router skips `handleError` for it, so an unlogged throw leaves no server trace.
+- Also log failures you deliberately swallow (best-effort cleanup, ignored
+  `{ error }` results, `.catch(() => {})`).
+- Redirects (`throw redirect(...)`) are control flow, not errors; no log needed.
 
 ## Components & UI Library
 

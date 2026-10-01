@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import type { Database, Json } from "@carbon/database";
 import { fetchAllFromTable, getCompanyTimeZone } from "@carbon/database";
 import type { Kysely, KyselyDatabase, KyselyTx } from "@carbon/database/client";
@@ -39,6 +43,7 @@ import {
   resolveBuyUnitCost,
   upsertExternalLink
 } from "../shared/shared.service";
+import { updateSortOrder } from "../shared/sort-order";
 import type {
   customerAccountingValidator,
   customerBankAccountValidator,
@@ -77,12 +82,15 @@ import type {
 import { costCategoryKeys, OPEN_SALES_ORDER_STATUSES } from "./sales.models";
 import type { CategoryMarkups, QuoteLinePriceSource } from "./sales.utils";
 import {
+  applyPriceRules,
+  asConfiguration,
+  configuredQuoteBasePrice,
   decideRecalcPricing,
   getEffectiveDefaultMarkups,
-  resolvePreservedQuoteLinePriceFields
+  resolvePreservedQuoteLinePriceFields,
+  toMatchedRule
 } from "./sales.utils";
 import type {
-  MatchedRule,
   OverrideEntry,
   PriceListResult,
   PriceListRow,
@@ -104,78 +112,6 @@ const SALES_ORDERS_LIST_COLUMNS =
 
 const logger = getLogger("erp", "sales");
 
-export function applyPriceRules(
-  startingPrice: number,
-  matchedRules: MatchedRule[]
-): { finalPrice: number; appendedTrace: PriceTraceStep[] } {
-  const appendedTrace: PriceTraceStep[] = [];
-  let finalPrice = startingPrice;
-
-  const markupRules = matchedRules.filter((r) => r.ruleType === "Markup");
-  const discountRules = matchedRules.filter((r) => r.ruleType === "Discount");
-
-  // Discounts: highest priority wins (non-stacking); ties broken by best
-  // effective amount against the current running price.
-  if (discountRules.length > 0) {
-    const ranked = discountRules
-      .map((rule) => ({
-        rule,
-        effective:
-          rule.amountType === "Percentage"
-            ? finalPrice * rule.amount
-            : rule.amount
-      }))
-      .sort((a, b) => {
-        if (b.rule.priority !== a.rule.priority) {
-          return b.rule.priority - a.rule.priority;
-        }
-        return b.effective - a.effective;
-      });
-
-    const winner = ranked[0];
-    if (winner && winner.effective > 0) {
-      finalPrice = finalPrice - winner.effective;
-      appendedTrace.push({
-        step: "Discount",
-        source: `Rule: ${winner.rule.name}`,
-        amount: finalPrice,
-        adjustment: -winner.effective,
-        ruleId: winner.rule.id
-      });
-    }
-  }
-
-  // Markups: stack in priority order (highest first), compounding on the
-  // running price so ordering + basis are both deterministic.
-  const sortedMarkups = [...markupRules].sort(
-    (a, b) => b.priority - a.priority
-  );
-  for (const rule of sortedMarkups) {
-    const adjustment =
-      rule.amountType === "Percentage" ? finalPrice * rule.amount : rule.amount;
-    finalPrice = finalPrice + adjustment;
-    appendedTrace.push({
-      step: "Markup",
-      source: `Rule: ${rule.name}`,
-      amount: finalPrice,
-      adjustment,
-      ruleId: rule.id
-    });
-  }
-
-  if (finalPrice < 0) {
-    appendedTrace.push({
-      step: "Floor",
-      source: "Clamped to 0 (rules drove price negative)",
-      amount: 0,
-      adjustment: -finalPrice
-    });
-    finalPrice = 0;
-  }
-
-  return { finalPrice, appendedTrace };
-}
-
 export async function closeSalesOrder(
   client: SupabaseClient<Database>,
   salesOrderId: string,
@@ -193,9 +129,10 @@ export async function closeSalesOrder(
   return client
     .from("salesOrder")
     .update({
-      closed: true,
+      status: "Closed",
       closedAt: datetime.today(companyTz).toString(),
-      closedBy: userId
+      closedBy: userId,
+      updatedBy: userId
     })
     .eq("id", salesOrderId)
     .select("id")
@@ -311,30 +248,67 @@ export async function createPricingRule(
   userId: string,
   data: z.infer<typeof pricingRuleValidator>
 ) {
+  const rule = normalizePricingRule(data);
   return client
     .from("pricingRule")
     .insert([
       {
-        name: data.name,
-        ruleType: data.ruleType,
-        amountType: data.amountType,
-        amount: data.amount,
-        minQuantity: data.minQuantity ?? null,
-        maxQuantity: data.maxQuantity ?? null,
-        customerIds: data.customerIds ?? [],
-        customerTypeIds: data.customerTypeIds ?? [],
-        itemIds: data.itemIds ?? [],
-        itemPostingGroupId: data.itemPostingGroupId ?? null,
-        validFrom: data.validFrom || null,
-        validTo: data.validTo || null,
-        priority: data.priority ?? 0,
-        active: data.active ?? true,
+        name: rule.name,
+        ruleType: rule.ruleType,
+        amountType: rule.amountType,
+        amount: rule.amount,
+        minQuantity: rule.minQuantity ?? null,
+        maxQuantity: rule.maxQuantity ?? null,
+        customerIds: rule.customerIds ?? [],
+        customerTypeIds: rule.customerTypeIds ?? [],
+        itemIds: rule.itemIds ?? [],
+        itemPostingGroupId: rule.itemPostingGroupId ?? null,
+        validFrom: rule.validFrom || null,
+        validTo: rule.validTo || null,
+        priority: rule.priority ?? 0,
+        active: rule.active ?? true,
+        configurationPrices: rule.configurationPrices ?? null,
         companyId,
         createdBy: userId
       }
     ])
     .select("id")
     .single();
+}
+
+// A Configuration rule is one configurable item's parameter prices and
+// nothing else: its item comes from `itemId`, and it has no item group and
+// no discount/markup amount. Any other rule type carries no configuration
+// prices. A partial update that leaves `ruleType` alone is passed through.
+function normalizePricingRule<
+  T extends Partial<z.infer<typeof pricingRuleValidator>>
+>(
+  data: T
+): Omit<T, "itemId" | "configurationPrices"> & {
+  configurationPrices?: Json | null;
+} {
+  const { itemId, configurationPrices, ...rule } = data;
+  if (rule.ruleType === undefined) {
+    return configurationPrices === undefined
+      ? rule
+      : { ...rule, configurationPrices: configurationPrices as Json };
+  }
+  if (rule.ruleType !== "Configuration") {
+    return { ...rule, configurationPrices: null };
+  }
+  const itemIds = itemId ? [itemId] : (rule.itemIds ?? []);
+  const prices = (configurationPrices ?? []).filter(
+    (price) => price.amount !== 0
+  );
+  return {
+    ...rule,
+    itemIds,
+    itemPostingGroupId: undefined,
+    amountType: "Fixed" as const,
+    amount: 0,
+    configurationPrices:
+      itemIds.length === 1 && prices.length > 0 ? (prices as Json) : null
+  };
 }
 
 export async function deleteCustomer(
@@ -592,6 +566,7 @@ export async function duplicatePricingRule(
         validFrom: original.validFrom,
         validTo: original.validTo,
         priority: original.priority,
+        configurationPrices: original.configurationPrices,
         active: false,
         companyId,
         createdBy: userId
@@ -2294,8 +2269,10 @@ export async function resolvePrice(
     }
   }
 
+  // An override that skips the rules still takes the line's configuration
+  // prices — they price the chosen options, not the part.
   let finalPrice = startingPrice;
-  if (!skipRules) {
+  if (!skipRules || input.configuration) {
     let rulesQuery = client
       .from("pricingRule")
       .select("*")
@@ -2307,7 +2284,7 @@ export async function resolvePrice(
 
     const { data: allRules } = await rulesQuery;
 
-    const matchedRules: MatchedRule[] = (allRules ?? []).filter((rule) => {
+    const matchedRules = (allRules ?? []).filter((rule) => {
       if (rule.minQuantity !== null && input.quantity < rule.minQuantity)
         return false;
       if (rule.maxQuantity !== null && input.quantity > rule.maxQuantity)
@@ -2338,9 +2315,13 @@ export async function resolvePrice(
           return false;
       }
       return true;
-    }) as MatchedRule[];
+    });
 
-    const ruleResult = applyPriceRules(startingPrice, matchedRules);
+    const ruleResult = applyPriceRules(
+      startingPrice,
+      matchedRules.map(toMatchedRule),
+      { configuration: input.configuration, configurationOnly: skipRules }
+    );
     finalPrice = ruleResult.finalPrice;
     trace.push(...ruleResult.appendedTrace);
   }
@@ -2622,7 +2603,7 @@ export async function resolvePriceList(
     let hasRuleAdjustment = false;
 
     if (!skipRules) {
-      const matchedRules: MatchedRule[] = (allRules ?? []).filter((rule) => {
+      const matchedRules = (allRules ?? []).filter((rule) => {
         if (rule.minQuantity !== null && previewQuantity < rule.minQuantity)
           return false;
         if (rule.maxQuantity !== null && previewQuantity > rule.maxQuantity)
@@ -2660,7 +2641,10 @@ export async function resolvePriceList(
         return true;
       });
 
-      const ruleResult = applyPriceRules(startingPrice, matchedRules);
+      const ruleResult = applyPriceRules(
+        startingPrice,
+        matchedRules.map(toMatchedRule)
+      );
       finalPrice = ruleResult.finalPrice;
       trace.push(...ruleResult.appendedTrace);
       hasRuleAdjustment = ruleResult.appendedTrace.length > 0;
@@ -2825,6 +2809,44 @@ export async function upsertCustomerItemPriceOverride(
     return {
       data: null,
       error: { message: "Cannot set both customerId and customerTypeId" }
+    };
+  }
+
+  // Kysely bypasses RLS and the dispatcher reaches this with caller-supplied
+  // ids, so the item and the customer (or customer type) must belong to this
+  // company before either is written onto the override.
+  const [item, customer, customerType] = await Promise.all([
+    db
+      .selectFrom("item")
+      .select("id")
+      .where("id", "=", data.itemId)
+      .where("companyId", "=", companyId)
+      .executeTakeFirst(),
+    data.customerId
+      ? db
+          .selectFrom("customer")
+          .select("id")
+          .where("id", "=", data.customerId)
+          .where("companyId", "=", companyId)
+          .executeTakeFirst()
+      : null,
+    data.customerTypeId
+      ? db
+          .selectFrom("customerType")
+          .select("id")
+          .where("id", "=", data.customerTypeId)
+          .where("companyId", "=", companyId)
+          .executeTakeFirst()
+      : null
+  ]);
+  if (
+    !item ||
+    (data.customerId && !customer) ||
+    (data.customerTypeId && !customerType)
+  ) {
+    return {
+      data: null,
+      error: { message: "Item, customer or customer type not found" }
     };
   }
 
@@ -3185,7 +3207,7 @@ export async function updateCustomerTax(
 ) {
   return client
     .from("customerTax")
-    .update(sanitize(customerTax))
+    .update(sanitize({ ...customerTax, updatedAt: new Date().toISOString() }))
     .eq("customerId", customerTax.customerId);
 }
 
@@ -3199,7 +3221,7 @@ export async function updatePricingRule(
     .from("pricingRule")
     .update(
       sanitize({
-        ...data,
+        ...normalizePricingRule(data),
         updatedBy: userId,
         updatedAt: new Date().toISOString()
       })
@@ -3993,16 +4015,18 @@ export async function upsertQuoteLine(
 
 export async function updateQuoteLineOrder(
   db: Kysely<KyselyDatabase>,
-  updates: { id: string; sortOrder: number; updatedBy: string }[]
+  companyId: string,
+  userId: string,
+  quoteId: string,
+  updates: { id: string; sortOrder: number }[]
 ) {
-  return db.transaction().execute(async (trx) => {
-    for (const { id, sortOrder, updatedBy } of updates) {
-      await trx
-        .updateTable("quoteLine")
-        .set({ sortOrder, updatedBy })
-        .where("id", "=", id)
-        .execute();
-    }
+  return updateSortOrder(db, {
+    table: "quoteLine",
+    column: "sortOrder",
+    companyId,
+    userId,
+    parent: { column: "quoteId", id: quoteId },
+    updates
   });
 }
 
@@ -4093,6 +4117,7 @@ async function rewriteQuoteLinePrices(
     .selectFrom("quoteLine")
     .select("unitPricePrecision")
     .where("id", "=", lineId)
+    .where("quoteId", "=", quoteId)
     .where("companyId", "=", companyId)
     .executeTakeFirst();
 
@@ -4483,6 +4508,25 @@ type BuildPriceRowsResult = {
   error: unknown | null;
 };
 
+// The part's unit sale price for a configured line (see
+// configuredQuoteBasePrice); null data for an unconfigured line, which never
+// reads it.
+async function getConfiguredSalePrice(
+  client: SupabaseClient<Database>,
+  companyId: string,
+  itemId: string | null | undefined,
+  configuration: Record<string, unknown> | null
+): Promise<{ data: number | null; error: PostgrestError | null }> {
+  if (!itemId || !configuration) return { data: null, error: null };
+  const { data, error } = await client
+    .from("itemUnitSalePrice")
+    .select("unitSalePrice")
+    .eq("itemId", itemId)
+    .eq("companyId", companyId)
+    .maybeSingle();
+  return { data: data?.unitSalePrice ?? null, error };
+}
+
 export async function buildMakeToOrderPriceRows(
   client: SupabaseClient<Database>,
   quoteId: string,
@@ -4502,7 +4546,7 @@ export async function buildMakeToOrderPriceRows(
       .single(),
     client
       .from("quoteLine")
-      .select("itemId, unitPricePrecision")
+      .select("itemId, unitPricePrecision, configuration")
       .eq("id", quoteLineId)
       .single()
   ]);
@@ -4552,6 +4596,15 @@ export async function buildMakeToOrderPriceRows(
 
   const { effects } = result;
 
+  const configuration = asConfiguration(lineResult.data.configuration);
+  const salePrice = await getConfiguredSalePrice(
+    client,
+    companyId,
+    itemId,
+    configuration
+  );
+  if (salePrice.error) return { rows: [], error: salePrice.error };
+
   const priceRows: QuoteLinePriceRow[] = [];
   for (const qty of quantities) {
     const categoryCosts: Record<string, number> = {};
@@ -4566,13 +4619,21 @@ export async function buildMakeToOrderPriceRows(
       return sum + cost * (1 + markup / 100);
     }, 0);
 
+    const basePrice = configuredQuoteBasePrice({
+      configuration,
+      unitSalePrice: salePrice.data,
+      categoryMarkups: null,
+      defaultMarkups: effectiveDefaults
+    });
+
     const finalPrice = itemId
       ? (
           await resolvePrice(client, companyId, {
             itemId,
             quantity: qty,
             customerId,
-            existingBasePrice: rollupPrice
+            existingBasePrice: basePrice ?? rollupPrice,
+            configuration
           })
         ).finalPrice
       : rollupPrice;
@@ -4583,7 +4644,8 @@ export async function buildMakeToOrderPriceRows(
       companyId,
       quantity: qty,
       unitPrice: round(finalPrice, precision),
-      categoryMarkups: effectiveDefaults,
+      // A row priced from the sale price is not cost-plus.
+      categoryMarkups: basePrice === null ? effectiveDefaults : {},
       priceSource: "system",
       exchangeRate,
       createdBy: userId,
@@ -4642,7 +4704,7 @@ export async function buildPullFromInventoryPriceRows(
       .single(),
     client
       .from("quoteLine")
-      .select("itemId, unitPricePrecision")
+      .select("itemId, unitPricePrecision, configuration")
       .eq("id", quoteLineId)
       .single()
   ]);
@@ -4670,7 +4732,8 @@ export async function buildPullFromInventoryPriceRows(
     const resolved = await resolvePrice(client, companyId, {
       itemId,
       quantity: qty,
-      customerId
+      customerId,
+      configuration: asConfiguration(lineResult.data.configuration)
     });
 
     priceRows.push({
@@ -4738,7 +4801,7 @@ export async function buildPurchaseToOrderPriceRows(
       .single(),
     client
       .from("quoteLine")
-      .select("itemId, unitPricePrecision")
+      .select("itemId, unitPricePrecision, configuration")
       .eq("id", quoteLineId)
       .single()
   ]);
@@ -4769,7 +4832,8 @@ export async function buildPurchaseToOrderPriceRows(
       itemId,
       quantity: qty,
       customerId,
-      existingBasePrice: supplierPrice
+      existingBasePrice: supplierPrice,
+      configuration: asConfiguration(lineResult.data.configuration)
     });
 
     priceRows.push({
@@ -4820,37 +4884,56 @@ export async function resolvePurchaseToOrderPrices(
 
 export async function recalculateQuoteLinePrices(
   client: SupabaseClient<Database>,
+  companyId: string,
   quoteId: string,
   quoteLineId: string,
   userId: string
 ) {
+  // Callers pass a service-role client and URL ids: the line must belong to
+  // this quote AND this company before any price row is read or rewritten.
+  const [lineResult, quoteResult] = await Promise.all([
+    client
+      .from("quoteLine")
+      .select("itemId, unitPricePrecision, configuration")
+      .eq("id", quoteLineId)
+      .eq("quoteId", quoteId)
+      .eq("companyId", companyId)
+      .maybeSingle(),
+    client
+      .from("quote")
+      .select("customerId")
+      .eq("id", quoteId)
+      .eq("companyId", companyId)
+      .maybeSingle()
+  ]);
+
+  if (lineResult.error) return { error: lineResult.error };
+  if (quoteResult.error) return { error: quoteResult.error };
+  if (!lineResult.data || !quoteResult.data) {
+    logger.error("Quote line not found for price recalculation", {
+      companyId,
+      quoteId,
+      quoteLineId
+    });
+    return {
+      error: { message: "Quote line not found" } as PostgrestError
+    };
+  }
+
   // 1. Fetch existing price rows
   const existingPrices = await client
     .from("quoteLinePrice")
     .select("*")
-    .eq("quoteLineId", quoteLineId);
+    .eq("quoteLineId", quoteLineId)
+    .eq("companyId", companyId);
 
   if (existingPrices.error) return { error: existingPrices.error };
   if (!existingPrices.data?.length) return { error: null };
 
-  // 2. Fetch line precision and company + customer context for engine pipe-through
-  const [lineResult, quoteResult] = await Promise.all([
-    client
-      .from("quoteLine")
-      .select("itemId, unitPricePrecision")
-      .eq("id", quoteLineId)
-      .single(),
-    client
-      .from("quote")
-      .select("companyId, customerId")
-      .eq("id", quoteId)
-      .single()
-  ]);
-
-  const precision = lineResult.data?.unitPricePrecision ?? 2;
-  const itemId = lineResult.data?.itemId ?? undefined;
-  const companyId = quoteResult.data?.companyId;
-  const customerId = quoteResult.data?.customerId ?? undefined;
+  // 2. Line precision and customer context for engine pipe-through
+  const precision = lineResult.data.unitPricePrecision ?? 2;
+  const itemId = lineResult.data.itemId ?? undefined;
+  const customerId = quoteResult.data.customerId ?? undefined;
 
   // Fetch default markups to use as fallback for legacy rows without categoryMarkups
   let defaultMarkups: Record<string, number> = {};
@@ -4878,6 +4961,15 @@ export async function recalculateQuoteLinePrices(
   const { effects } = result;
 
   const effectiveDefaults = getEffectiveDefaultMarkups(defaultMarkups);
+
+  const configuration = asConfiguration(lineResult.data.configuration);
+  const salePrice = await getConfiguredSalePrice(
+    client,
+    companyId,
+    itemId,
+    configuration
+  );
+  if (salePrice.error) return { error: salePrice.error };
 
   const repricedRows: {
     quantity: number;
@@ -4916,6 +5008,13 @@ export async function recalculateQuoteLinePrices(
       return sum + cost * (1 + markup / 100);
     }, 0);
 
+    const basePrice = configuredQuoteBasePrice({
+      configuration,
+      unitSalePrice: salePrice.data,
+      categoryMarkups: row.categoryMarkups as Record<string, number> | null,
+      defaultMarkups: effectiveDefaults
+    });
+
     const finalPrice =
       itemId && companyId
         ? (
@@ -4923,7 +5022,8 @@ export async function recalculateQuoteLinePrices(
               itemId,
               quantity: qty,
               customerId,
-              existingBasePrice: rollupPrice
+              existingBasePrice: basePrice ?? rollupPrice,
+              configuration
             })
           ).finalPrice
         : rollupPrice;
@@ -4931,7 +5031,8 @@ export async function recalculateQuoteLinePrices(
     repricedRows.push({
       quantity: qty,
       unitPrice: round(finalPrice, precision),
-      categoryMarkups: markups
+      // A row priced from the sale price is not cost-plus.
+      categoryMarkups: basePrice === null ? markups : {}
     });
   }
 
@@ -4947,6 +5048,7 @@ export async function recalculateQuoteLinePrices(
         updatedBy: userId
       })
       .eq("quoteLineId", quoteLineId)
+      .eq("companyId", companyId)
       .eq("quantity", row.quantity);
 
     if (updateResult.error) {
@@ -5033,15 +5135,28 @@ export async function upsertQuoteMaterial(
         quoteId: string;
         quoteLineId: string;
         quoteOperationId?: string;
+        companyId: string;
         updatedBy: string;
         customFields?: Json;
       })
 ) {
   if ("updatedBy" in quoteMaterial) {
+    // A material never moves between quotes, lines, make methods or tenants —
+    // strip the parent columns so an update cannot re-parent the row, and
+    // scope it to the caller's company (callers may pass a service-role client).
+    const {
+      id,
+      companyId,
+      quoteId: _quoteId,
+      quoteLineId: _quoteLineId,
+      quoteMakeMethodId: _quoteMakeMethodId,
+      ...update
+    } = quoteMaterial;
     return client
       .from("quoteMaterial")
-      .update(sanitize(quoteMaterial))
-      .eq("id", quoteMaterial.id)
+      .update(sanitize(update))
+      .eq("id", id)
+      .eq("companyId", companyId)
       .select("id, methodType")
       .single();
   }
@@ -5138,6 +5253,7 @@ export async function upsertQuoteOperation(
         id: string;
         quoteId: string;
         quoteLineId: string;
+        companyId: string;
         updatedBy: string;
         customFields?: Json;
       })
@@ -5149,10 +5265,21 @@ export async function upsertQuoteOperation(
       .select("id")
       .single();
   }
+  // An operation never moves between quotes, lines, make methods or tenants —
+  // strip the parent columns so an update cannot re-parent the row.
+  const {
+    id,
+    companyId,
+    quoteId: _quoteId,
+    quoteLineId: _quoteLineId,
+    quoteMakeMethodId: _quoteMakeMethodId,
+    ...update
+  } = operation;
   return client
     .from("quoteOperation")
-    .update(sanitize(normalizeOperationSourceIds(operation)))
-    .eq("id", operation.id)
+    .update(sanitize(normalizeOperationSourceIds(update)))
+    .eq("id", id)
+    .eq("companyId", companyId)
     .select("id")
     .single();
 }
@@ -5969,16 +6096,18 @@ export async function upsertSalesOrderLine(
 
 export async function updateSalesOrderLineOrder(
   db: Kysely<KyselyDatabase>,
-  updates: { id: string; sortOrder: number; updatedBy: string }[]
+  companyId: string,
+  userId: string,
+  salesOrderId: string,
+  updates: { id: string; sortOrder: number }[]
 ) {
-  return db.transaction().execute(async (trx) => {
-    for (const { id, sortOrder, updatedBy } of updates) {
-      await trx
-        .updateTable("salesOrderLine")
-        .set({ sortOrder, updatedBy })
-        .where("id", "=", id)
-        .execute();
-    }
+  return updateSortOrder(db, {
+    table: "salesOrderLine",
+    column: "sortOrder",
+    companyId,
+    userId,
+    parent: { column: "salesOrderId", id: salesOrderId },
+    updates
   });
 }
 
@@ -6034,6 +6163,76 @@ export async function insertSalesRFQ(
   data: { id: string; rfqId: string } | null;
   error: PostgrestError | null;
 }> {
+  // Kysely bypasses RLS and the dispatcher reaches this with caller-supplied
+  // ids: the customer, its contacts and location, the location and the sales
+  // person must all belong to this company (the contacts and location to this
+  // customer) before any of them is written onto the RFQ.
+  const { companyId, customerId } = input;
+  const contactIds = [
+    ...new Set(
+      [input.customerContactId, input.customerEngineeringContactId].filter(
+        (id): id is string => !!id
+      )
+    )
+  ];
+  const [customer, contacts, customerLocation, location, salesPerson] =
+    await Promise.all([
+      db
+        .selectFrom("customer")
+        .select("id")
+        .where("id", "=", customerId)
+        .where("companyId", "=", companyId)
+        .executeTakeFirst(),
+      contactIds.length > 0
+        ? db
+            .selectFrom("customerContact")
+            .select("id")
+            .where("id", "in", contactIds)
+            .where("customerId", "=", customerId)
+            .where("companyId", "=", companyId)
+            .execute()
+        : [],
+      input.customerLocationId
+        ? db
+            .selectFrom("customerLocation")
+            .select("id")
+            .where("id", "=", input.customerLocationId)
+            .where("customerId", "=", customerId)
+            .where("companyId", "=", companyId)
+            .executeTakeFirst()
+        : null,
+      input.locationId
+        ? db
+            .selectFrom("location")
+            .select("id")
+            .where("id", "=", input.locationId)
+            .where("companyId", "=", companyId)
+            .executeTakeFirst()
+        : null,
+      input.salesPersonId
+        ? db
+            .selectFrom("employee")
+            .select("id")
+            .where("id", "=", input.salesPersonId)
+            .where("companyId", "=", companyId)
+            .executeTakeFirst()
+        : null
+    ]);
+  if (
+    !customer ||
+    contacts.length !== contactIds.length ||
+    (input.customerLocationId && !customerLocation) ||
+    (input.locationId && !location) ||
+    (input.salesPersonId && !salesPerson)
+  ) {
+    return {
+      data: null,
+      error: {
+        message: "Customer, contact, location or sales person not found"
+      } as PostgrestError
+    };
+  }
+
   let rfqId: string;
   if (input.rfqId) {
     rfqId = input.rfqId;
@@ -6276,16 +6475,18 @@ export async function upsertSalesRFQLine(
 
 export async function updateSalesRFQLineOrder(
   db: Kysely<KyselyDatabase>,
-  updates: { id: string; sortOrder: number; updatedBy: string }[]
+  companyId: string,
+  userId: string,
+  salesRfqId: string,
+  updates: { id: string; sortOrder: number }[]
 ) {
-  return db.transaction().execute(async (trx) => {
-    for (const { id, sortOrder, updatedBy } of updates) {
-      await trx
-        .updateTable("salesRfqLine")
-        .set({ order: sortOrder, updatedBy })
-        .where("id", "=", id)
-        .execute();
-    }
+  return updateSortOrder(db, {
+    table: "salesRfqLine",
+    column: "order",
+    companyId,
+    userId,
+    parent: { column: "salesRfqId", id: salesRfqId },
+    updates
   });
 }
 

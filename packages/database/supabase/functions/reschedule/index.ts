@@ -1,7 +1,12 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import type { Transaction } from "kysely";
 import { getConnectionPool, getDatabaseClient } from "../lib/database.ts";
 import { corsPreflight, errorResponse, jsonResponse } from "../lib/response.ts";
+import { requirePermissions } from "../lib/supabase.ts";
 import type { DB } from "../lib/types.ts";
 
 const pool = getConnectionPool(1);
@@ -386,6 +391,20 @@ serve(async (req) => {
 
   try {
     const { jobId, companyId, userId } = await req.json();
+
+    try {
+      await requirePermissions(req, companyId, userId, { update: "production" });
+    } catch (err) {
+      return errorResponse(err, 401);
+    }
+
+    const owned = await db
+      .selectFrom("job")
+      .select("id")
+      .where("id", "=", jobId)
+      .where("companyId", "=", companyId)
+      .executeTakeFirst();
+    if (!owned) return errorResponse("Job not found", 404);
 
     console.info(`🔰 Starting reschedule for job ${jobId}`);
 

@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import { assertIsPost, error, success } from "@carbon/auth";
 import { requirePermissions } from "@carbon/auth/auth.server";
 import { getCarbonServiceRole } from "@carbon/auth/client.server";
@@ -40,7 +44,10 @@ async function autoPrintFirstOperationLabel({
       .from("trackedEntity")
       .select("attributes")
       .eq("id", trackedEntityId)
-      .single();
+      .eq("companyId", companyId)
+      .maybeSingle();
+    // Service-role read: an entity outside the caller's company prints nothing.
+    if (!entity) return;
 
     const attributes = (entity?.attributes ?? {}) as Record<string, unknown>;
     const operationCount = Object.keys(attributes).filter((k) =>
@@ -53,7 +60,8 @@ async function autoPrintFirstOperationLabel({
       .from("workCenter")
       .select("locationId")
       .eq("id", workCenterId)
-      .single();
+      .eq("companyId", companyId)
+      .maybeSingle();
     const locationId = workCenter?.locationId ?? undefined;
     if (!locationId) return;
 
@@ -99,9 +107,15 @@ export async function action({ request }: ActionFunctionArgs) {
     .from("jobOperation")
     .select("*")
     .eq("id", validation.data.jobOperationId)
+    .eq("companyId", companyId)
     .maybeSingle();
 
   if (jobOperation.error || !jobOperation.data) {
+    log.error("Job operation not found in company", {
+      companyId,
+      jobOperationId: validation.data.jobOperationId,
+      error: jobOperation.error
+    });
     return data(
       {},
       await flash(request, {
@@ -109,6 +123,39 @@ export async function action({ request }: ActionFunctionArgs) {
         flash: "error"
       })
     );
+  }
+
+  // The production event ids ride along into the productionQuantity row and
+  // the issue call; RLS does not check a foreign key's tenant, so verify them.
+  const productionEventIds = [
+    validation.data.setupProductionEventId,
+    validation.data.laborProductionEventId,
+    validation.data.machineProductionEventId
+  ].filter((id): id is string => Boolean(id));
+  if (productionEventIds.length > 0) {
+    const uniqueEventIds = [...new Set(productionEventIds)];
+    const ownedEvents = await serviceRole
+      .from("productionEvent")
+      .select("id")
+      .in("id", uniqueEventIds)
+      .eq("companyId", companyId);
+    if (
+      ownedEvents.error ||
+      (ownedEvents.data ?? []).length !== uniqueEventIds.length
+    ) {
+      log.error("Production event not found in company", {
+        companyId,
+        productionEventIds: uniqueEventIds,
+        error: ownedEvents.error
+      });
+      return data(
+        {},
+        await flash(request, {
+          ...error(ownedEvents.error, "Production event not found"),
+          flash: "error"
+        })
+      );
+    }
   }
 
   // Mirror the DB auto-Done predicate (sync_update_job_operation_quantities,

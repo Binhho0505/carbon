@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import { assertIsPost, error } from "@carbon/auth";
 import { requirePermissions } from "@carbon/auth/auth.server";
 import { flash } from "@carbon/auth/session.server";
@@ -10,6 +14,7 @@ import { useUrlParams, useUser } from "~/hooks";
 import type { QuotationStatusType } from "~/modules/sales";
 import { insertQuote, quoteValidator } from "~/modules/sales";
 import { QuoteForm } from "~/modules/sales/ui/Quotes";
+import { requireCompanyRecord } from "~/modules/shared/shared.server";
 import { setCustomFields } from "~/utils/form";
 import type { Handle } from "~/utils/handle";
 import { path } from "~/utils/path";
@@ -36,6 +41,45 @@ export async function action({ request }: ActionFunctionArgs) {
   }
 
   const { id: _id, ...data } = validation.data;
+
+  // `client` is the service role (bypassRls): insertQuote copies the customer's
+  // payment and shipping terms, so the customer must belong to this company —
+  // and every contact/location id must hang off that customer, in this company.
+  const customerId = data.customerId;
+  await Promise.all([
+    requireCompanyRecord(client, "customer", companyId, { id: customerId }),
+    requireCompanyRecord(client, "location", companyId, {
+      id: data.locationId
+    }),
+    data.customerContactId
+      ? requireCompanyRecord(client, "customerContact", companyId, {
+          id: data.customerContactId,
+          customerId
+        })
+      : null,
+    data.customerEngineeringContactId
+      ? requireCompanyRecord(client, "customerContact", companyId, {
+          id: data.customerEngineeringContactId,
+          customerId
+        })
+      : null,
+    data.customerLocationId
+      ? requireCompanyRecord(client, "customerLocation", companyId, {
+          id: data.customerLocationId,
+          customerId
+        })
+      : null,
+    data.salesPersonId
+      ? requireCompanyRecord(client, "employee", companyId, {
+          id: data.salesPersonId
+        })
+      : null,
+    data.estimatorId
+      ? requireCompanyRecord(client, "employee", companyId, {
+          id: data.estimatorId
+        })
+      : null
+  ]);
 
   const result = await insertQuote(client, {
     ...data,

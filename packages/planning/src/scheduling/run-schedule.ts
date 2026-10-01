@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 import type { Database } from "@carbon/database";
 import type { DB } from "@carbon/database/client";
 import { getFunctionLogger } from "@carbon/database/logging";
@@ -70,7 +74,7 @@ const asMs = (value: unknown): number | null =>
  * order leads the queue instead of trailing on NULLS LAST), then due date ASC
  * NULLS LAST, priority ASC, createdAt ASC. Sorted in TS.
  */
-async function loadOrderedBatch(
+export async function loadOrderedBatch(
   db: Kysely<DB>,
   locationId: string,
   companyId: string

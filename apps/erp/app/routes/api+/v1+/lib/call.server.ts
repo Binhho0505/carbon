@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
+// including ports, remain AGPLv3; serving them over a network requires releasing their source.
+
 // The ONE server-side entry point for running a Carbon API operation outside HTTP:
 // MCP call_tool, the in-app agent, and the workflow dispatcher all call this. It
 // runs the operation through the real oRPC procedure (gate middleware included) via
@@ -12,6 +16,7 @@ import { unwrapArgsEnvelope } from "./args-envelope";
 import type { AuthedContext } from "./base.server";
 import {
   classifyDatabaseFailure,
+  isServiceRuleError,
   publicDatabaseError,
   type SupabaseFailure
 } from "./database-errors";
@@ -103,6 +108,15 @@ export async function callOperation(
       err instanceof ORPCError
         ? (err.data as { supabase?: SupabaseFailure } | undefined)?.supabase
         : undefined;
+    // A service's own refusal is written for the caller; only a database
+    // failure is reduced to the fixed public messages below.
+    if (isServiceRuleError(supabase)) {
+      return {
+        success: false,
+        error: supabase.message,
+        errorKind: "execution"
+      };
+    }
     if (supabase) {
       const edgeMessage = await edgeFunctionMessage(supabase);
       logger.error("Operation failed", {
