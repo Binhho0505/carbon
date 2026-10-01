@@ -676,7 +676,10 @@ export default function AssemblyStepList({
             variant="ghost"
             size="sm"
             leftIcon={<LuArrowLeft />}
-            onClick={() => setOpenHeader(null)}
+            onClick={() => {
+              onSelectStep(openHeaderId);
+              setOpenHeader(null);
+            }}
           >
             <Trans>All steps</Trans>
           </Button>

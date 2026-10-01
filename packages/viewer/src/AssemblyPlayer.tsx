@@ -164,9 +164,16 @@ export type AssemblyPlayerProps = {
   /**
    * Plays only these steps (an opened sub-assembly): the timeline, counter and
    * prev/next cover just them. Every step is still passed in `steps`, so parts
-   * built earlier render correctly.
+   * built earlier render correctly. Without it every step plays, each
+   * sub-assembly's steps in turn before the build that receives it.
    */
   scopeStepIds?: string[] | null;
+  /**
+   * Play starts at this step instead of carrying on after the active one. Set
+   * while a sub-assembly row is selected: the player shows its finished unit,
+   * and Play builds it from its first step.
+   */
+  playFromStepIndex?: number | null;
   /**
    * Shown in a pill at the top of the canvas while the active step belongs to
    * a sub-assembly (it is built on its own). The host translates it.
@@ -225,6 +232,7 @@ export const AssemblyPlayer = forwardRef<
     suppressFallbackMotions = false,
     hideCaption = false,
     scopeStepIds,
+    playFromStepIndex,
     isolationLabel,
     carryInLabel,
     mode = "dark",
@@ -649,11 +657,11 @@ export const AssemblyPlayer = forwardRef<
   useEffect(() => {
     if (playStepNonce === playStepNonceRef.current) return;
     playStepNonceRef.current = playStepNonce;
-    if (isEditingMotionRef.current || stepCount === 0) return;
+    if (isEditingMotionRef.current || !playable[clampedIndex]) return;
     onScrub(startTimes[clampedIndex] ?? 0); // seek to the step's start
     setContinuous(false);
     setIsPlaying(true);
-  }, [playStepNonce, clampedIndex, stepCount, startTimes, onScrub]);
+  }, [playStepNonce, clampedIndex, playable, startTimes, onScrub]);
 
   return (
     <div className={cn("flex h-full w-full flex-col", className)}>
@@ -821,7 +829,9 @@ export const AssemblyPlayer = forwardRef<
                 : Number.POSITIVE_INFINITY;
             const currentStepFinished =
               nextIndex >= 0 && playheadRef.current >= nextStart - 0.05;
-            if (!playable[clampedIndex]) {
+            if (playFromStepIndex != null && playable[playFromStepIndex]) {
+              goToStep(playFromStepIndex, { play: true });
+            } else if (!playable[clampedIndex]) {
               // Sitting on a step that doesn't play (a used sub-assembly's
               // header) → start from the next one that does.
               const start = nextIndex >= 0 ? nextIndex : playableIndices[0];

@@ -234,7 +234,10 @@ export default function AssemblySubAssemblyProperties({
             }
           >
             {isDisabled ? (
-              <span className="truncate text-xs text-foreground">
+              <span
+                className="max-w-[11rem] truncate text-xs text-foreground"
+                title={usedInLabel}
+              >
                 {usedInLabel}
               </span>
             ) : (
@@ -310,7 +313,7 @@ export default function AssemblySubAssemblyProperties({
       </VStack>
 
       {!isDisabled && (
-        <HStack spacing={2} className="w-full flex-wrap">
+        <div className="flex w-full flex-wrap gap-2">
           <Button
             variant="secondary"
             leftIcon={<LuUngroup />}
@@ -337,7 +340,7 @@ export default function AssemblySubAssemblyProperties({
           >
             <Trans>Delete Sub-Assembly</Trans>
           </Button>
-        </HStack>
+        </div>
       )}
 
       {isDeleting && (

@@ -254,9 +254,8 @@ export default function AssemblyInstructionRoute() {
   // steps in rather than animating fallback paths the plan is about to replace.
   const isPlanning = isAssemblyPlanRunning(planJob);
 
-  const [selectedStepId, setSelectedStepId] = useState<string | null>(
-    steps[0]?.id ?? null
-  );
+  // null = the default below (the first row of the list).
+  const [selectedStepId, setSelectedStepId] = useState<string | null>(null);
   const [draftComponentNodeIds, setDraftComponentNodeIds] = useState<
     string[] | null
   >(null);
@@ -283,8 +282,11 @@ export default function AssemblyInstructionRoute() {
   const [isAddingComponents, setIsAddingComponents] = useState(false);
 
   const { selectedStep, activeStepIndex } = useMemo(() => {
+    // Default to the first row of the list (a sub-assembly's steps are stored
+    // before its header).
     const step =
       steps.find((candidate) => candidate.id === selectedStepId) ??
+      steps.find((candidate) => !candidate.parentStepId) ??
       steps[0] ??
       null;
     return {
@@ -417,6 +419,15 @@ export default function AssemblyInstructionRoute() {
       : activeStepIndex;
   }, [selectedStep, subPlan, viewerSteps, activeStepIndex]);
 
+  // With a sub-assembly row selected, Play builds it from its first step.
+  const playFromStepIndex = useMemo(() => {
+    if (!selectedStep?.isSubAssembly) return null;
+    const first = viewerSteps.findIndex(
+      (step) => step.parentStepId === selectedStep.id
+    );
+    return first >= 0 ? first : null;
+  }, [selectedStep, viewerSteps]);
+
   const subAssemblyName = useCallback(
     (headerId: string) =>
       viewerSteps.find((step) => step.id === headerId)?.title ||
@@ -463,11 +474,11 @@ export default function AssemblyInstructionRoute() {
       // viewer, marked in the Components panel. Viewer-driven changes (playback,
       // scrub, on-screen nav) pass selectComponents:false so auto-advance doesn't
       // stomp the selection the user is working with.
-      if (options?.selectComponents !== false) {
-        const step = stepsRef.current.find(
-          (candidate) => candidate.id === stepId
-        );
-        if (step) setSelectedNodeIds(step.componentNodeIds ?? []);
+      const step = stepsRef.current.find(
+        (candidate) => candidate.id === stepId
+      );
+      if (options?.selectComponents !== false && step) {
+        setSelectedNodeIds(step.componentNodeIds ?? []);
       }
     },
     []
@@ -766,6 +777,7 @@ export default function AssemblyInstructionRoute() {
                           isolationLabel={isolationLabel}
                           carryInLabel={carryInLabel}
                           activeStepIndex={Math.max(playerStepIndex, 0)}
+                          playFromStepIndex={playFromStepIndex}
                           playStepNonce={playStepNonce}
                           onStepChange={(index) => {
                             const step = steps[index];
