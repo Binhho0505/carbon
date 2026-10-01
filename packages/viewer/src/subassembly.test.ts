@@ -60,6 +60,19 @@ describe("displayOrder", () => {
     ]);
     expect(rows.map((r) => r.stepId)).toEqual(["a", "empty", "b"]);
   });
+
+  it("lists a header once when it is stored before its members", () => {
+    const rows = displayOrder([
+      step("unit", [], { isSubAssembly: true }),
+      step("a", ["a"], { parentStepId: "unit" }),
+      step("b", ["b"], { parentStepId: "unit" })
+    ]);
+    expect(rows).toEqual([
+      { stepId: "unit", depth: 0 },
+      { stepId: "a", depth: 1 },
+      { stepId: "b", depth: 1 }
+    ]);
+  });
 });
 
 describe("buildSubAssemblyPlan", () => {

@@ -129,8 +129,9 @@ export function displayOrder(
   const byId = new Map(steps.map((step) => [step.id, step]));
   for (const step of steps) {
     if (emitted.has(step.id)) continue;
-    const header = step.parentStepId ? byId.get(step.parentStepId) : undefined;
-    if (header && isSubAssemblyHeader(header)) {
+    const parent = step.parentStepId ? byId.get(step.parentStepId) : undefined;
+    const header = isSubAssemblyHeader(step) ? step : parent;
+    if (header && isSubAssemblyHeader(header) && !emitted.has(header.id)) {
       rows.push({ stepId: header.id, depth: 0 });
       emitted.add(header.id);
       for (const member of membersOf(steps, header.id)) {

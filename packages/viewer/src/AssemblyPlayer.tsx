@@ -1692,8 +1692,7 @@ function AssemblyScene({
   // seated pose instead of popping: planner-flagged steps (no collision-free
   // path exists) and any step whose display motion resolved to "none" (no
   // stored motion and no collision-free fallback). Only the step's own parts
-  // fade: a carried-in unit glides in, and its parts are never in the step's
-  // componentNodeIds.
+  // fade: a carried-in unit glides in instead.
   useEffect(() => {
     const step = steps[activeStepIndex];
     // Editing this step: keep its components solid at the seated pose, no fade.
@@ -1707,7 +1706,9 @@ function AssemblyScene({
     const overrides = overridesRef.current;
     const entries: { mesh: Mesh; fade: Material | Material[] }[] = [];
     const materials: Material[] = [];
+    const gliding = new Set(carryIn?.nodeIds);
     for (const nodeId of step.componentNodeIds) {
+      if (gliding.has(nodeId)) continue;
       nodesById.get(nodeId)?.traverse((object) => {
         if (!(object as Mesh).isMesh) return;
         const mesh = object as Mesh;
@@ -1734,7 +1735,7 @@ function AssemblyScene({
       fadeRef.current = null;
       applyVisualsRef.current();
     };
-  }, [steps, activeStepIndex, nodesById, segments, editMotion]);
+  }, [steps, activeStepIndex, nodesById, segments, editMotion, carryIn]);
 
   useFrame(() => {
     const fade = fadeRef.current;
