@@ -722,6 +722,7 @@ export default function AssemblyInstructionRoute() {
                   ownNodeIds={selectedOwnNodeIds}
                   hiddenNodeIds={selectedHiddenNodeIds}
                   onSetHiddenComponents={onSetHiddenComponents}
+                  openSubAssemblyId={openSubAssemblyId}
                 />
               }
               content={

@@ -24,6 +24,7 @@ import {
 } from "@carbon/react";
 import type { AssemblyGraphIndex } from "@carbon/viewer";
 import {
+  arrivalIndexByNode,
   describeStep,
   groupComponentNodeIds,
   synthesizeFallbackMotion
@@ -90,6 +91,8 @@ type AssemblyInstructionExplorerProps = {
   ownNodeIds: string[];
   hiddenNodeIds: string[];
   onSetHiddenComponents: (nodeIds: string[]) => void;
+  /** Header id of the open sub-assembly, which Add Step adds to. */
+  openSubAssemblyId: string | null;
 };
 
 // Memoized: the parent route re-renders on every motion-drag frame
@@ -115,7 +118,8 @@ function AssemblyInstructionExplorer({
   hasSelectedStep,
   ownNodeIds,
   hiddenNodeIds,
-  onSetHiddenComponents
+  onSetHiddenComponents,
+  openSubAssemblyId
 }: AssemblyInstructionExplorerProps) {
   const { id } = useParams();
   if (!id) throw new Error("Could not find id");
@@ -373,9 +377,10 @@ function AssemblyInstructionExplorer({
 
   // Derive the viewer shape once — both stepTitles and searchText need it, and
   // toViewerStep otherwise runs twice per step per render.
+  const viewerSteps = useMemo(() => steps.map(toViewerStep), [steps]);
   const viewerStepMap = useMemo(
-    () => new Map(steps.map((step) => [step.id, toViewerStep(step)])),
-    [steps]
+    () => new Map(viewerSteps.map((step) => [step.id, step])),
+    [viewerSteps]
   );
 
   // A sub-assembly is named by the author (it installs nothing to derive a
@@ -429,16 +434,17 @@ function AssemblyInstructionExplorer({
   const onAddStep = () => {
     const formData = new FormData();
     formData.append("assemblyInstructionId", id);
+    if (openSubAssemblyId) formData.append("parentStepId", openSubAssemblyId);
 
     // When components are selected, seed the new step with the components and a
     // basic synthesized insertion animation. Otherwise create an empty
     // process-only step. The title is left blank on purpose — it derives live
     // from the components (describeStep) everywhere it is displayed.
     if (selectedNodeIds.length > 0) {
-      // The new step appends after every existing step, so its obstacle world
-      // is everything those steps install ("none" fades in when blocked)
+      // The new step comes last in its build, so its obstacle world is
+      // everything that build already holds ("none" fades in when blocked)
       const present = new Set(
-        steps.flatMap((step) => step.componentNodeIds ?? [])
+        arrivalIndexByNode(viewerSteps, openSubAssemblyId).keys()
       );
       const motion = graphIndex
         ? synthesizeFallbackMotion(graphIndex, selectedNodeIds, present)

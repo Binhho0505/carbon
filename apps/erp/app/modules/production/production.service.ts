@@ -7287,24 +7287,51 @@ export async function invalidateAssemblyModelCache(
     .eq("id", modelUploadId);
 }
 
+type AssemblyStepFields = {
+  title?: string | null;
+  type?: Database["public"]["Enums"]["procedureStepType"];
+  description?: Json;
+  required?: boolean;
+  unitOfMeasureCode?: string | null;
+  minValue?: number | null;
+  maxValue?: number | null;
+  listValues?: string[] | null;
+  componentNodeIds?: string[];
+  motion?: z.infer<typeof motionSchema>;
+  camera?: z.infer<typeof cameraSchema> | null;
+  fastener?: z.infer<typeof fastenerSchema> | null;
+  durationSeconds?: number | null;
+};
+
+/** A new step's columns, shared by both insert paths. */
+function newAssemblyStepColumns(data: AssemblyStepFields) {
+  return {
+    title: data.title ?? null,
+    type: data.type ?? "Task",
+    description: data.description ?? {},
+    instructionText:
+      data.description !== undefined
+        ? tiptapToText(data.description as JSONContent) || null
+        : null,
+    required: data.required ?? false,
+    unitOfMeasureCode:
+      data.type === "Measurement" ? (data.unitOfMeasureCode ?? null) : null,
+    minValue: data.type === "Measurement" ? (data.minValue ?? null) : null,
+    maxValue: data.type === "Measurement" ? (data.maxValue ?? null) : null,
+    listValues: data.type === "List" ? (data.listValues ?? null) : null,
+    componentNodeIds: data.componentNodeIds ?? [],
+    motion: (data.motion ?? { type: "none" }) as Json,
+    camera: (data.camera ?? null) as Json | null,
+    fastener: (data.fastener ?? null) as Json | null,
+    durationSeconds: data.durationSeconds ?? null
+  };
+}
+
 export async function upsertAssemblyInstructionStep(
   client: SupabaseClient<Database>,
-  data: {
+  data: AssemblyStepFields & {
     id?: string;
     assemblyInstructionId: string;
-    title?: string | null;
-    type?: Database["public"]["Enums"]["procedureStepType"];
-    description?: Json;
-    required?: boolean;
-    unitOfMeasureCode?: string | null;
-    minValue?: number | null;
-    maxValue?: number | null;
-    listValues?: string[] | null;
-    componentNodeIds?: string[];
-    motion?: z.infer<typeof motionSchema>;
-    camera?: z.infer<typeof cameraSchema> | null;
-    fastener?: z.infer<typeof fastenerSchema> | null;
-    durationSeconds?: number | null;
     sortOrder?: number;
     companyId: string;
     createdBy: string;
@@ -7370,24 +7397,7 @@ export async function upsertAssemblyInstructionStep(
     .from("assemblyInstructionStep")
     .insert({
       assemblyInstructionId: data.assemblyInstructionId,
-      title: data.title ?? null,
-      type: data.type ?? "Task",
-      description: data.description ?? {},
-      instructionText:
-        data.description !== undefined
-          ? tiptapToText(data.description as JSONContent) || null
-          : null,
-      required: data.required ?? false,
-      unitOfMeasureCode:
-        data.type === "Measurement" ? (data.unitOfMeasureCode ?? null) : null,
-      minValue: data.type === "Measurement" ? (data.minValue ?? null) : null,
-      maxValue: data.type === "Measurement" ? (data.maxValue ?? null) : null,
-      listValues: data.type === "List" ? (data.listValues ?? null) : null,
-      componentNodeIds: data.componentNodeIds ?? [],
-      motion: (data.motion ?? { type: "none" }) as Json,
-      camera: (data.camera ?? null) as Json | null,
-      fastener: (data.fastener ?? null) as Json | null,
-      durationSeconds: data.durationSeconds ?? null,
+      ...newAssemblyStepColumns(data),
       sortOrder: data.sortOrder ?? (await getNextStepSortOrder(client, data)),
       companyId: data.companyId,
       createdBy: data.createdBy
@@ -7640,6 +7650,67 @@ export async function makeAssemblySubAssembly(
       next
     });
     return header.id;
+  });
+}
+
+/**
+ * Add a step at the end of the instruction, or at the end of the sub-assembly
+ * `parentStepId` names (directly before its header).
+ */
+export async function insertAssemblyInstructionStep(
+  db: Kysely<KyselyDatabase>,
+  args: AssemblyStepFields & {
+    assemblyInstructionId: string;
+    parentStepId?: string;
+    companyId: string;
+    userId: string;
+  }
+) {
+  const { assemblyInstructionId, parentStepId, companyId, userId } = args;
+  return db.transaction().execute(async (trx) => {
+    const before = await loadStepStructure(
+      trx,
+      companyId,
+      assemblyInstructionId
+    );
+    if (
+      parentStepId &&
+      !before.find((s) => s.id === parentStepId)?.isSubAssembly
+    ) {
+      throw new Error("Sub-assembly not found");
+    }
+
+    const step = await trx
+      .insertInto("assemblyInstructionStep")
+      .values({
+        assemblyInstructionId,
+        companyId,
+        ...newAssemblyStepColumns(args),
+        sortOrder: before.length + 1,
+        parentStepId: parentStepId ?? null,
+        createdBy: userId
+      })
+      .returning(["id", "sortOrder", "componentNodeIds"])
+      .executeTakeFirstOrThrow();
+
+    const stepRow: StepStructureRow = {
+      ...step,
+      parentStepId: parentStepId ?? null,
+      usedInStepId: null,
+      isSubAssembly: false
+    };
+    const next = parentStepId
+      ? before.flatMap((s) => (s.id === parentStepId ? [stepRow, s] : [s]))
+      : [...before, stepRow];
+    assertValidStepStructure(next);
+    await saveStepStructure(trx, {
+      companyId,
+      userId,
+      assemblyInstructionId,
+      before: [...before, stepRow],
+      next
+    });
+    return step.id;
   });
 }
 

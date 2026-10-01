@@ -71,19 +71,32 @@ export const DEFAULT_WAYPOINT_DISTANCE = 50;
 const NONE_STEP_SECONDS = 2;
 
 /**
- * Seconds a step occupies on the continuous timeline: the explicit
- * `durationSeconds` override when set, otherwise the natural animation
- * length (motion duration + seated hold), or a fixed slot for process-only
- * steps.
+ * How a step spends its slot on the continuous timeline (`total`): a
+ * carried-in sub-assembly's glide, the insertion, then the seated hold. The
+ * slot is the explicit `durationSeconds` when set, otherwise the natural length
+ * (a fixed slot for process-only steps). An authored duration shorter than the
+ * animation speeds all three up to fit, so the step never ends mid-travel and
+ * snaps its parts to their seat.
  */
-export function stepTimelineSeconds(
-  step: Pick<AssemblyStep, "motion" | "durationSeconds">
-): number {
-  if (step.durationSeconds && step.durationSeconds > 0) {
-    return step.durationSeconds;
-  }
-  if (step.motion.type === "none") return NONE_STEP_SECONDS;
-  return motionDuration(step.motion) + DEFAULT_HOLD_SECONDS;
+export function stepClipTiming(
+  step: Pick<AssemblyStep, "motion" | "durationSeconds">,
+  glideSeconds = 0
+): { total: number; glide: number; motion: number; hold: number } {
+  const motion = step.motion.type === "none" ? 0 : motionDuration(step.motion);
+  const natural = glideSeconds + motion + DEFAULT_HOLD_SECONDS;
+  const total =
+    step.durationSeconds && step.durationSeconds > 0
+      ? step.durationSeconds
+      : step.motion.type === "none"
+        ? glideSeconds + NONE_STEP_SECONDS
+        : natural;
+  const fit = Math.min(1, total / natural);
+  return {
+    total,
+    glide: glideSeconds * fit,
+    motion: motion * fit,
+    hold: DEFAULT_HOLD_SECONDS * fit
+  };
 }
 
 /** Total travel distance (mm) implied by a motion. */

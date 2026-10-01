@@ -20,6 +20,7 @@ import {
   naturalizeMotion,
   type Pose,
   resampleEased,
+  stepClipTiming,
   waypointsToMotion
 } from "./motion";
 import type { AssemblyStep, Motion, Vec3 } from "./types";
@@ -919,5 +920,47 @@ describe("motionToWaypoints / waypointsToMotion", () => {
   it("drops a zero-length middle segment (3 pts, collinear) to linear", () => {
     const back = waypointsToMotion([[0, 0, 0], [0, 0, 0], seated], seated);
     expect(back.type).toBe("linear");
+  });
+});
+
+describe("stepClipTiming", () => {
+  const linear: Motion = { type: "linear", direction: [0, 0, 1], distance: 60 };
+  const seconds = motionDuration(linear);
+
+  it("plays the natural animation when no duration is authored", () => {
+    expect(stepClipTiming({ motion: linear })).toEqual({
+      total: seconds + 0.6,
+      glide: 0,
+      motion: seconds,
+      hold: 0.6
+    });
+  });
+
+  it("adds a carry-in glide before the insertion", () => {
+    const timing = stepClipTiming({ motion: linear }, 1.2);
+    expect(timing.total).toBeCloseTo(1.2 + seconds + 0.6);
+    expect(timing.glide).toBe(1.2);
+  });
+
+  it("gives a process-only step a fixed slot plus any glide", () => {
+    expect(stepClipTiming({ motion: { type: "none" } }).total).toBe(2);
+    expect(stepClipTiming({ motion: { type: "none" } }, 1.2).total).toBe(3.2);
+  });
+
+  it("speeds glide, insertion and hold up to fit a shorter authored duration", () => {
+    const natural = 1.2 + seconds + 0.6;
+    const timing = stepClipTiming(
+      { motion: linear, durationSeconds: natural / 2 },
+      1.2
+    );
+    expect(timing.total).toBe(natural / 2);
+    expect(timing.glide + timing.motion + timing.hold).toBeCloseTo(natural / 2);
+    expect(timing.glide).toBeCloseTo(0.6);
+  });
+
+  it("keeps the natural animation inside a longer authored duration", () => {
+    const timing = stepClipTiming({ motion: linear, durationSeconds: 30 });
+    expect(timing.total).toBe(30);
+    expect(timing.motion).toBe(seconds);
   });
 });

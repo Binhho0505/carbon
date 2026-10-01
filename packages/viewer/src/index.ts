@@ -32,7 +32,7 @@ export {
   naturalizeMotion,
   type Pose,
   type StepClipOptions,
-  stepTimelineSeconds
+  stepClipTiming
 } from "./motion";
 export {
   type AssemblyPlan,
@@ -46,6 +46,7 @@ export {
   type StepPhase
 } from "./plan";
 export {
+  arrivalIndexByNode,
   buildSubAssemblyPlan,
   displayOrder,
   isSubAssemblyHeader,

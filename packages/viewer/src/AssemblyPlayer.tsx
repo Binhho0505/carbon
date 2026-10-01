@@ -39,7 +39,7 @@ import {
   CARRY_IN_GLIDE_SECONDS,
   displayMotionForStep,
   naturalizeMotion,
-  stepTimelineSeconds
+  stepClipTiming
 } from "./motion";
 import {
   arrivalIndexByNode,
@@ -485,18 +485,19 @@ export const AssemblyPlayer = forwardRef<
   ]);
 
   // --- Continuous timeline ---------------------------------------------
-  // A carry-in step also spends the glide bringing the unit in (unless the
-  // author set an explicit duration). Steps that don't play (a used
-  // sub-assembly's header, or outside an opened sub-assembly) take no time.
+  // A carry-in step also spends the glide bringing the unit in. Steps that
+  // don't play (a used sub-assembly's header, or outside an opened
+  // sub-assembly) take no time.
   const segments = useMemo(
     () =>
       displaySteps.map((step, index) =>
         playable[index]
-          ? stepTimelineSeconds(step) +
-            ((carriedPartIds[index]?.length ?? 0) > 0 &&
-            !(step.durationSeconds && step.durationSeconds > 0)
-              ? CARRY_IN_GLIDE_SECONDS
-              : 0)
+          ? stepClipTiming(
+              step,
+              (carriedPartIds[index]?.length ?? 0) > 0
+                ? CARRY_IN_GLIDE_SECONDS
+                : 0
+            ).total
           : 0
       ),
     [displaySteps, playable, carriedPartIds]
@@ -1296,7 +1297,18 @@ function AssemblyScene({
     };
   }, []);
 
-  useEffect(() => {
+  // Seated fade-in: a step installing parts without an animation fades them in
+  // at the seated pose (see the fade effect below). While `fading`, the
+  // visual-state pass gives those meshes the fade material; the frame loop
+  // only drives its opacity.
+  const fadeRef = useRef<{
+    entries: { mesh: Mesh; fade: Material | Material[] }[];
+    materials: Material[];
+    seconds: number;
+    fading: boolean;
+  } | null>(null);
+
+  const applyVisuals = useCallback(() => {
     const overrides = overridesRef.current;
 
     // Reset: everything visible with its original material
@@ -1389,43 +1401,32 @@ function AssemblyScene({
       });
     }
 
-    // Isolate/focus: when a focus set is active, ONLY the focused components
-    // render — everything else hides so the selection can be inspected alone.
-    // Keep the focused node's ANCESTORS visible too: three.js visibility is
-    // inherited, and every glTF node (including the root wrapper and assembly
-    // groups) carries a nodeId, so blindly hiding non-focused nodes would hide
-    // the focused leaf's parents and blank the whole model. Applied before the
-    // explicit-hide pass so a focused-but-manually-hidden component still hides.
-    if (focusedSet.size > 0) {
+    // Only one set of subtrees renders, everything else hides:
+    // - a Components-panel focus, to inspect the selection alone. It wins, and
+    //   forces its parts visible even where their step would hide them;
+    // - otherwise a sub-assembly's parts while one of its steps is active (it is
+    //   built on its own), unless picking components, which must reach any part.
+    // Ancestors are kept too: three.js visibility is inherited and every glTF
+    // node carries a nodeId, so hiding a kept leaf's parents would blank it.
+    // Only nodeId-stamped nodes are touched — the reset above restores exactly
+    // those. Applied before the explicit-hide pass, which still wins.
+    const keepOnly =
+      focusedSet.size > 0
+        ? focusedSet
+        : isolateSet.size > 0 && !componentPickerActive
+          ? isolateSet
+          : null;
+    if (keepOnly) {
       const keep = new Set<Object3D>();
-      for (const nodeId of focusedSet) {
+      for (const nodeId of keepOnly) {
         const node = nodesById.get(nodeId);
         if (!node) continue;
         for (let a: Object3D | null = node; a; a = a.parent) keep.add(a);
         node.traverse((descendant) => keep.add(descendant));
       }
-      // Only touch nodeId-stamped nodes — the reset above restores exactly these
-      // to visible, so meshes (which inherit) never get stranded hidden. Ancestor
-      // nodes stay in `keep`, so a focused leaf's parents don't blank it out.
+      const forceVisible = keepOnly === focusedSet;
       for (const node of nodesById.values()) {
-        node.visible = keep.has(node);
-      }
-    }
-
-    // A sub-assembly is built on its own: only its parts render while one of
-    // its steps is active, in every view. Same ancestor-safe rule as focus, but
-    // playback doesn't clear it. Picking components shows everything, so the
-    // author can still reach parts no step has claimed yet.
-    if (isolateSet.size > 0 && !componentPickerActive) {
-      const keep = new Set<Object3D>();
-      for (const nodeId of isolateSet) {
-        const node = nodesById.get(nodeId);
-        if (!node) continue;
-        for (let a: Object3D | null = node; a; a = a.parent) keep.add(a);
-        node.traverse((descendant) => keep.add(descendant));
-      }
-      for (const node of nodesById.values()) {
-        if (!keep.has(node)) node.visible = false;
+        node.visible = keep.has(node) && (forceVisible || node.visible);
       }
     }
 
@@ -1450,6 +1451,15 @@ function AssemblyScene({
         const mesh = object as Mesh;
         mesh.material = getOverride(mesh, overrides, "selected");
       });
+    }
+
+    const fade = fadeRef.current;
+    if (fade?.fading) {
+      for (const { mesh, fade: material } of fade.entries) {
+        mesh.material = material;
+        // Draw after opaque components while transparent
+        mesh.renderOrder = 1;
+      }
     }
 
     // Alt-hover x-ray drill: ghost the occluders in front of the pointer so the
@@ -1484,6 +1494,9 @@ function AssemblyScene({
     isolateSet,
     drill
   ]);
+  useEffect(() => applyVisuals(), [applyVisuals]);
+  const applyVisualsRef = useRef(applyVisuals);
+  applyVisualsRef.current = applyVisuals;
 
   // --- Animation -----------------------------------------------------------
 
@@ -1523,6 +1536,7 @@ function AssemblyScene({
         activeStep.id,
         JSON.stringify(activeStep.motion),
         activeStep.componentNodeIds.join(","),
+        activeStep.durationSeconds ?? "",
         isEditingActive,
         componentPickerActive,
         carryInKey
@@ -1551,19 +1565,20 @@ function AssemblyScene({
     // A carried-in sub-assembly glides in from beside the build first. Picking
     // keeps everything seated: a click must select what the BOM tree shows.
     const carry = componentPickerActive ? null : carryInLiveRef.current;
-    const clip = buildStepClip(
-      step,
-      nodesById,
-      carry
+    const timing = stepClipTiming(step, carry ? CARRY_IN_GLIDE_SECONDS : 0);
+    const clip = buildStepClip(step, nodesById, {
+      duration: timing.motion,
+      holdSeconds: timing.hold,
+      ...(carry
         ? {
             glide: {
               offset: carry.offset,
-              seconds: CARRY_IN_GLIDE_SECONDS,
+              seconds: timing.glide,
               nodeIds: carry.nodeIds
             }
           }
-        : {}
-    );
+        : {})
+    });
     if (!clip) {
       // Nothing to animate (motion "none"), but a static selection must still
       // land on "step completed": the seated fade below reads this timer, and
@@ -1661,88 +1676,61 @@ function AssemblyScene({
   // --- Seated fade-in ---------------------------------------------------
   // Steps that install components without an animation fade them in at the
   // seated pose instead of popping: planner-flagged steps (no collision-free
-  // path exists) and any non-first step whose display motion resolved to
-  // "none" (no stored motion and no collision-free fallback). Runs after the
-  // visual-state pass, which assigns the base materials this overrides.
-  const fadeRef = useRef<{
-    meshes: Mesh[];
-    materials: Material[];
-    seconds: number;
-  } | null>(null);
-
+  // path exists) and any step whose display motion resolved to "none" (no
+  // stored motion and no collision-free fallback). Only the step's own parts
+  // fade: a carried-in unit glides in, and its parts are never in the step's
+  // componentNodeIds.
   useEffect(() => {
     const step = steps[activeStepIndex];
     // Editing this step: keep its components solid at the seated pose, no fade.
-    if (editMotion && step && editMotion.stepId === step.id) {
-      fadeRef.current = null;
-      return;
-    }
-    // A carry-in step glides its unit in from the side instead of fading.
     const fadesIn =
       step &&
+      !(editMotion && editMotion.stepId === step.id) &&
       step.motion.type === "none" &&
-      step.componentNodeIds.length > 0 &&
-      (step.flagged || activeStepIndex > 0) &&
-      !carryIn;
-    if (!fadesIn) {
-      fadeRef.current = null;
-      return;
-    }
+      step.componentNodeIds.length > 0;
+    if (!fadesIn) return;
 
     const overrides = overridesRef.current;
-    const meshes: Mesh[] = [];
+    const entries: { mesh: Mesh; fade: Material | Material[] }[] = [];
     const materials: Material[] = [];
     for (const nodeId of step.componentNodeIds) {
-      const node = nodesById.get(nodeId);
-      if (!node) continue;
-      node.traverse((object) => {
+      nodesById.get(nodeId)?.traverse((object) => {
         if (!(object as Mesh).isMesh) return;
         const mesh = object as Mesh;
-        const override = getOverride(mesh, overrides, "fade");
-        for (const material of Array.isArray(override)
-          ? override
-          : [override]) {
+        const fade = getOverride(mesh, overrides, "fade");
+        for (const material of Array.isArray(fade) ? fade : [fade]) {
           material.transparent = true;
-          material.opacity = 0;
           material.depthWrite = false;
           materials.push(material);
         }
-        mesh.material = override;
-        // Draw after opaque components while transparent
-        mesh.renderOrder = 1;
-        meshes.push(mesh);
+        entries.push({ mesh, fade });
       });
     }
-    if (meshes.length === 0) {
-      fadeRef.current = null;
-      return;
-    }
+    if (entries.length === 0) return;
 
     const segment = segments[activeStepIndex] ?? 0;
-    fadeRef.current = {
-      meshes,
-      materials,
-      seconds: segment > 0 ? Math.min(FADE_SECONDS, segment) : FADE_SECONDS
-    };
+    const seconds =
+      segment > 0 ? Math.min(FADE_SECONDS, segment) : FADE_SECONDS;
+    const progress = Math.min(localElapsedRef.current / seconds, 1);
+    for (const material of materials) material.opacity = progress;
+    fadeRef.current = { entries, materials, seconds, fading: progress < 1 };
+    applyVisualsRef.current();
 
     return () => {
       fadeRef.current = null;
-      // Materials are reassigned by the visual-state pass on step change
-      for (const mesh of meshes) mesh.renderOrder = 0;
+      applyVisualsRef.current();
     };
-  }, [steps, activeStepIndex, nodesById, segments, editMotion, carryIn]);
+  }, [steps, activeStepIndex, nodesById, segments, editMotion]);
 
   useFrame(() => {
     const fade = fadeRef.current;
     if (!fade) return;
-    const progress =
-      fade.seconds > 0
-        ? Math.min(localElapsedRef.current / fade.seconds, 1)
-        : 1;
-    for (const material of fade.materials) {
-      material.opacity = progress;
-      material.transparent = progress < 1;
-      material.depthWrite = progress >= 1;
+    const progress = Math.min(localElapsedRef.current / fade.seconds, 1);
+    for (const material of fade.materials) material.opacity = progress;
+    // Finished (or restarted by MES loop): the pass swaps the materials.
+    if (fade.fading !== progress < 1) {
+      fade.fading = progress < 1;
+      applyVisualsRef.current();
     }
   });
 
