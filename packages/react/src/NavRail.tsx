@@ -182,8 +182,14 @@ export function NavRail({
             setHovered(true);
           }, HOVER_OPEN_DELAY_MS);
         }}
-        onPointerLeave={(event) => {
-          if (hoverBlocked || event.pointerType !== "mouse") return;
+        // A mouse event, not `onPointerLeave`: Chrome can lose its pointer
+        // boundary tracking for an element and then never send a pointer
+        // leave for it (it re-sends `pointerenter` on every move instead)
+        // while mouse leave events keep arriving. The rail stayed expanded
+        // until a reload. `hovered` is only ever set by a mouse, so there is
+        // no pointer type to check here.
+        onMouseLeave={() => {
+          if (hoverBlocked) return;
           // The leave a Radix layer causes by disabling body pointer-events
           // can arrive before this render knows about the hold.
           if (document.body.style.pointerEvents === "none") return;
