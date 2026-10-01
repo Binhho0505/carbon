@@ -16,6 +16,7 @@ export const satelliteAssembly: AssemblySpec = {
   componentCount: 266,
   // The Assembly operation of the SAT-1000 method.
   operation: 1,
+  motionsBakedFor: "3f7f48a0eeda4931",
   steps: [
     {
       parent: "sa-wings",
@@ -29,7 +30,8 @@ export const satelliteAssembly: AssemblySpec = {
         "40382813c8872f60",
         "5ae7d178535ced8f",
         "a749ecc02f43dfd5"
-      ]
+      ],
+      view: [0.595, 0.777, 0.206]
     },
     {
       parent: "sa-wings",
@@ -49,7 +51,9 @@ export const satelliteAssembly: AssemblySpec = {
         "455d2a0b6744acf0",
         "0691f9ad59a8de6c",
         "a7b2ea3bdd4cb174"
-      ]
+      ],
+      motion: { type: "linear", direction: [0, 0, -1], distance: 6.6 },
+      view: [0.987, 0, 0.158]
     },
     {
       parent: "sa-wings",
@@ -75,7 +79,15 @@ export const satelliteAssembly: AssemblySpec = {
         "1c1a3ea847b79406",
         "8db0fec40d8d3d23",
         "78946c6d13d4f9b9"
-      ]
+      ],
+      motion: {
+        type: "L",
+        segments: [
+          { direction: [0, 1, 0], distance: 3743 },
+          { direction: [0, 0, 1], distance: 5630.9 }
+        ]
+      },
+      view: [0.9, 0.329, 0.286]
     },
     {
       parent: "sa-wings",
@@ -88,7 +100,9 @@ export const satelliteAssembly: AssemblySpec = {
         "8bedd493e3de491a",
         "130f550d7443a811"
       ],
-      tools: [{ item: "TL-TORQUE-J1", quantity: 1 }]
+      tools: [{ item: "TL-TORQUE-J1", quantity: 1 }],
+      view: [0.987, 0, 0.158],
+      blockedBy: ["49f5f40d21662ed0", "791730c2ba6d5a1c", "ee01ec193ce225d7"]
     },
     {
       key: "sa-wings",
@@ -104,7 +118,8 @@ export const satelliteAssembly: AssemblySpec = {
       title: "Mount the base plate and pyramid bracket",
       instruction:
         "Bolt the pyramid bracket to the ADCS base plate with the alignment pins fitted first. Measure the four face angles with the optical cube and record them — the wheel axes are only as good as these faces.",
-      componentNodeIds: ["1168e3a3989c40f3", "f4e8922cfef5b476"]
+      componentNodeIds: ["1168e3a3989c40f3", "f4e8922cfef5b476"],
+      view: [-0.574, -0.445, 0.687]
     },
     {
       parent: "sa-adcs",
@@ -129,7 +144,9 @@ export const satelliteAssembly: AssemblySpec = {
         "7d3740173cee495d",
         "c6b65b24deb91b66"
       ],
-      tools: [{ item: "TL-TORQUE-J1", quantity: 1 }]
+      tools: [{ item: "TL-TORQUE-J1", quantity: 1 }],
+      view: [0.987, 0, 0.158],
+      blockedBy: ["1168e3a3989c40f3"]
     },
     {
       parent: "sa-adcs",
@@ -161,24 +178,47 @@ export const satelliteAssembly: AssemblySpec = {
         "7db60bc9eaa09414",
         "13e9d8e9f4faf6f5",
         "a38f8f0ddcdfb1e3"
-      ]
+      ],
+      motion: { type: "linear", direction: [0, 0, -1], distance: 127 },
+      view: [0.987, 0, 0.158]
     },
     {
       parent: "sa-adcs",
-      title: "Fit the two star trackers",
+      title: "Fit the first star tracker",
       instruction:
-        "Fit both star trackers on their brackets with the baffles pointing out through the +X panel line. Leave the lens caps on until final close-out and log each tracker's boresight against the alignment cube.",
+        "Fit star tracker 1 on its bracket with the baffle pointing out through the +X panel line. Leave the lens cap on until final close-out and log its boresight against the alignment cube.",
       componentNodeIds: [
         "15159fe79ba60bf7",
-        "9d8ae0582b1ae5da",
         "b7a5d14b95f70669",
         "cd60e7c94e5f1070",
         "68ac498431fe92d8",
-        "598ed2c000ae49dc",
+        "598ed2c000ae49dc"
+      ],
+      motion: {
+        type: "linear",
+        direction: [-0.8525, -0.0181, -0.5223],
+        distance: 229.4
+      },
+      view: [0.9, 0.329, 0.286]
+    },
+    {
+      parent: "sa-adcs",
+      title: "Fit the second star tracker",
+      instruction:
+        "Fit star tracker 2 the same way, baffle out through the +X panel line, lens cap on. Log its boresight against the alignment cube.",
+      componentNodeIds: [
+        "9d8ae0582b1ae5da",
         "fc43945a99fd9a90",
         "071029ac9cca8cfe",
         "3e6b7247d7a3f953",
         "2168dc5ab93e530f"
+      ],
+      view: [0.987, 0, 0.158],
+      blockedBy: [
+        "1168e3a3989c40f3",
+        "15159fe79ba60bf7",
+        "4b822f523330c01e",
+        "ab653f1d58be3a99"
       ]
     },
     {
@@ -212,7 +252,8 @@ export const satelliteAssembly: AssemblySpec = {
         "c635ad612e12d7da",
         "785248afc59ed9f2",
         "3a874f85804eb56f"
-      ]
+      ],
+      view: [-0.531, 0.756, 0.383]
     },
     {
       parent: "sa-prop",
@@ -230,24 +271,36 @@ export const satelliteAssembly: AssemblySpec = {
         "a04092491765763b",
         "4fd6d452e0eb827b",
         "94fc99c8be47c0f6"
-      ]
+      ],
+      motion: { type: "linear", direction: [0, 0, -1], distance: 63 },
+      view: [0.417, 0.729, 0.543]
     },
     {
       parent: "sa-prop",
-      title: "Plumb the feed lines",
+      title: "Plumb the feed lines to thruster A",
       instruction:
-        "Fit the eight titanium feed lines from the tank outlet through the filter and valves to both thrusters. Start every B-nut by hand before tightening any, and torque-stripe each fitting as it is closed.",
+        "Fit the feed lines from the tank outlet through the filter and the A valves to thruster A, plus the branch line to the B side. Start every B-nut by hand before tightening any, and torque-stripe each fitting as it is closed.",
       componentNodeIds: [
         "bbfb8c806d1d4dce",
         "8b2bbb51f9b5894e",
         "24b4eb8b8a0e6c39",
         "2444b159dc78075c",
         "3d328a2294acc3c2",
-        "bc3574bf2c6fd6c1",
-        "62130979531caeda",
-        "408777e8ea354f73"
+        "bc3574bf2c6fd6c1"
       ],
-      tools: [{ item: "TL-TORQUE-J1", quantity: 1 }]
+      tools: [{ item: "TL-TORQUE-J1", quantity: 1 }],
+      view: [0.086, -0.978, 0.19],
+      blockedBy: ["b83463843b398739", "cb6723c5eb3ccdaf"]
+    },
+    {
+      parent: "sa-prop",
+      title: "Plumb the feed lines to thruster B",
+      instruction:
+        "Fit the B valves line and the thruster B line onto the branch. Start every B-nut by hand, then torque and torque-stripe each fitting.",
+      componentNodeIds: ["62130979531caeda", "408777e8ea354f73"],
+      tools: [{ item: "TL-TORQUE-J1", quantity: 1 }],
+      motion: { type: "linear", direction: [0, 0, -1], distance: 21 },
+      view: [0.987, 0, 0.158]
     },
     {
       parent: "sa-prop",
@@ -265,6 +318,13 @@ export const satelliteAssembly: AssemblySpec = {
         "6413be572dd40b2c",
         "f0946162c65bd3fd",
         "914b799e5548732d"
+      ],
+      view: [0.987, 0, 0.158],
+      blockedBy: [
+        "62130979531caeda",
+        "b83463843b398739",
+        "bbfb8c806d1d4dce",
+        "cb6723c5eb3ccdaf"
       ]
     },
     {
@@ -277,7 +337,9 @@ export const satelliteAssembly: AssemblySpec = {
         "9868878aa2e79e8e",
         "e597761bc41994b9",
         "ad5fc1c36c9c7472"
-      ]
+      ],
+      motion: { type: "linear", direction: [0, 0, -1], distance: 41 },
+      view: [-0.726, 0.665, 0.174]
     },
     {
       key: "sa-prop",
@@ -301,7 +363,8 @@ export const satelliteAssembly: AssemblySpec = {
         "3cd1bcf4f1de85d6",
         "914703f72c905f86",
         "9e8a45a018ece034"
-      ]
+      ],
+      view: [-0.472, 0.242, 0.848]
     },
     {
       parent: "sa-eps",
@@ -337,7 +400,13 @@ export const satelliteAssembly: AssemblySpec = {
         "e9988eee9a8903fe",
         "841ccd9042ba2edb",
         "ef4c7f4c0ab50504"
-      ]
+      ],
+      motion: {
+        type: "linear",
+        direction: [0.0355, -0.122, -0.9919],
+        distance: 103.1
+      },
+      view: [0.003, -0.677, 0.736]
     },
     {
       key: "eps-wings",
@@ -355,7 +424,9 @@ export const satelliteAssembly: AssemblySpec = {
         "d036e99005222c16",
         "dbc41bfe5f309699"
       ],
-      tools: [{ item: "TL-TORQUE-J1", quantity: 1 }]
+      tools: [{ item: "TL-TORQUE-J1", quantity: 1 }],
+      view: [0.126, 0.73, 0.671],
+      blockedBy: ["13bd964ec5bcb9a5"]
     },
     {
       parent: "sa-eps",
@@ -367,7 +438,9 @@ export const satelliteAssembly: AssemblySpec = {
         "0c905f71f978959d",
         "9988d5d910bd70a4",
         "a1f5c8d95d3eaf70"
-      ]
+      ],
+      view: [0.692, 0.364, 0.623],
+      blockedBy: ["13bd964ec5bcb9a5", "35f10fc15ac68b3d", "d06c325b8af5b68a"]
     },
     {
       key: "sa-eps",
@@ -406,7 +479,8 @@ export const satelliteAssembly: AssemblySpec = {
         "b2707b26bfa6b9b9",
         "8bad5f7a560d60ed",
         "0af2379e51661eed"
-      ]
+      ],
+      view: [-0.472, 0.51, 0.719]
     },
     {
       key: "av-adcs",
@@ -416,7 +490,9 @@ export const satelliteAssembly: AssemblySpec = {
         "Lower the reaction wheel pack onto the deck over its dowels and bolt it down. Re-measure the alignment cube; if the pack shifted from its bench reading, shim before going on.",
       componentNodeIds: [],
       materials: [{ item: "ADCS-001", quantity: 1 }],
-      tools: [{ item: "TL-TORQUE-J1", quantity: 1 }]
+      tools: [{ item: "TL-TORQUE-J1", quantity: 1 }],
+      motion: { type: "linear", direction: [0, 0, -1], distance: 148.7 },
+      view: [0.175, -0.472, 0.864]
     },
     {
       parent: "sa-avionics",
@@ -429,7 +505,13 @@ export const satelliteAssembly: AssemblySpec = {
         "ee2dbd5169aac799",
         "92d603f426f0f4de"
       ],
-      materials: [{ item: "COMMS-001", quantity: 1 }]
+      materials: [{ item: "COMMS-001", quantity: 1 }],
+      motion: {
+        type: "linear",
+        direction: [0.9911, 0.0004, -0.1331],
+        distance: 151.9
+      },
+      view: [0.282, 0.899, 0.334]
     },
     {
       parent: "sa-avionics",
@@ -450,7 +532,9 @@ export const satelliteAssembly: AssemblySpec = {
         "f7549c4bdce5ca7d",
         "aa4af332a469908b"
       ],
-      materials: [{ item: "HARNESS-001", quantity: 1 }]
+      materials: [{ item: "HARNESS-001", quantity: 1 }],
+      view: [-0.638, -0.059, 0.768],
+      blockedBy: ["1168e3a3989c40f3", "33dc34f3d2f441a4", "7b28fb28fd21c28c"]
     },
     {
       key: "av-continuity",
@@ -475,7 +559,8 @@ export const satelliteAssembly: AssemblySpec = {
         "Mount the launch adapter ring in the integration stand and bolt the bottom deck to it. Check the ring's interface flatness at eight points before the deck goes on; the whole spacecraft builds up from this face.",
       componentNodeIds: ["164d11fea159085a", "7125d0306320e9b6"],
       materials: [{ item: "BUS-STR-001", quantity: 1 }],
-      tools: [{ item: "TL-TORQUE-J1", quantity: 1 }]
+      tools: [{ item: "TL-TORQUE-J1", quantity: 1 }],
+      view: [-0.79, -0.252, 0.559]
     },
     {
       key: "main-prop",
@@ -484,7 +569,9 @@ export const satelliteAssembly: AssemblySpec = {
         "Lower the propulsion module onto the bottom deck, guiding both thruster nozzles through their cut-outs. Bolt the module down and re-check the nozzle alignment from below.",
       componentNodeIds: [],
       materials: [{ item: "PROP-001", quantity: 1 }],
-      tools: [{ item: "TL-TORQUE-J1", quantity: 1 }]
+      tools: [{ item: "TL-TORQUE-J1", quantity: 1 }],
+      motion: { type: "linear", direction: [0, 0, -1], distance: 341 },
+      view: [-0.881, 0.364, 0.302]
     },
     {
       title: "Erect the lower longerons and mid deck",
@@ -501,7 +588,9 @@ export const satelliteAssembly: AssemblySpec = {
         "1e53c0347e3e8939",
         "17dfae82317baa0f"
       ],
-      tools: [{ item: "TL-TORQUE-J1", quantity: 1 }]
+      tools: [{ item: "TL-TORQUE-J1", quantity: 1 }],
+      motion: { type: "linear", direction: [0, 0, -1], distance: 385 },
+      view: [-0.472, 0.242, 0.848]
     },
     {
       key: "main-eps",
@@ -510,7 +599,9 @@ export const satelliteAssembly: AssemblySpec = {
         "Bring the power subsystem in with both wings supported on the zero-g rig and set the tray on the -X half of the mid deck. Keep the wings on the rig until the side panels are on.",
       componentNodeIds: [],
       materials: [{ item: "EPS-001", quantity: 1 }],
-      tools: [{ item: "TL-TORQUE-J1", quantity: 1 }]
+      tools: [{ item: "TL-TORQUE-J1", quantity: 1 }],
+      motion: { type: "linear", direction: [0, 0, -1], distance: 243 },
+      view: [0.443, 0.489, 0.752]
     },
     {
       key: "main-avionics",
@@ -518,12 +609,29 @@ export const satelliteAssembly: AssemblySpec = {
       instruction:
         "Set the avionics stack on the +X half of the mid deck and mate the power trunk connector to the distribution unit. Run the first powered-on functional test from the ground support equipment before closing the bus.",
       componentNodeIds: [],
-      tools: [{ item: "TL-TORQUE-J1", quantity: 1 }]
+      tools: [{ item: "TL-TORQUE-J1", quantity: 1 }],
+      motion: {
+        type: "L",
+        segments: [
+          { direction: [-1, 0, 0], distance: 364.6 },
+          { direction: [-0.1712, -0.9831, -0.0646], distance: 205.9 }
+        ]
+      },
+      view: [-0.472, 0.242, 0.848]
+    },
+    {
+      title: "Fit the radiator panels",
+      instruction:
+        "Fit the +X and -X radiator panels and torque their fasteners in sequence.",
+      componentNodeIds: ["ab29696d0216bad7", "bbb339f2235a9709"],
+      tools: [{ item: "TL-TORQUE-J1", quantity: 1 }],
+      motion: { type: "linear", direction: [0, 0, 1], distance: 335 },
+      view: [0.987, 0, 0.158]
     },
     {
       title: "Close out the structure",
       instruction:
-        "Fit the upper longerons, then the four side panels — the +X panel over the star tracker baffles and the ±Y panels over the drive shafts — then the radiators and the top deck with its lifting points. Torque every panel fastener in sequence.",
+        "Fit the upper longerons, then the four side panels — the +X panel over the star tracker baffles and the ±Y panels over the drive shafts — then the top deck with its lifting points. Torque every panel fastener in sequence.",
       componentNodeIds: [
         "19590abf8e429ed2",
         "b0ff644dd7f8b02b",
@@ -538,14 +646,21 @@ export const satelliteAssembly: AssemblySpec = {
         "1fca19defe1f035c",
         "bc21d67d2d92f7ae",
         "c2491962ba32fcbe",
-        "ab29696d0216bad7",
-        "bbb339f2235a9709",
         "a0fb8606a5496575",
         "a01d3c0e02567ff5",
         "879f47745bd7020a",
         "763d1964dc30924a"
       ],
-      tools: [{ item: "TL-TORQUE-J1", quantity: 1 }]
+      tools: [{ item: "TL-TORQUE-J1", quantity: 1 }],
+      view: [0.987, 0, 0.158],
+      blockedBy: [
+        "13bd964ec5bcb9a5",
+        "164d11fea159085a",
+        "33dc34f3d2f441a4",
+        "67a5f82269d8581d",
+        "ab29696d0216bad7",
+        "b83463843b398739"
+      ]
     },
     {
       title: "Fit the antennas",
@@ -559,7 +674,9 @@ export const satelliteAssembly: AssemblySpec = {
         "be89f7cc98dbab6f",
         "6e4135874c74c939"
       ],
-      tools: [{ item: "TL-PROBE-VNA", quantity: 1 }]
+      tools: [{ item: "TL-PROBE-VNA", quantity: 1 }],
+      motion: { type: "linear", direction: [0, 0, -1], distance: 47 },
+      view: [0.987, 0, 0.158]
     },
     {
       title: "Fit the MLI blankets",
@@ -572,7 +689,18 @@ export const satelliteAssembly: AssemblySpec = {
         "43ad45874e5d05c8",
         "61762158da474aec"
       ],
-      materials: [{ item: "CN-MLI-001", quantity: 1 }]
+      materials: [{ item: "CN-MLI-001", quantity: 1 }],
+      view: [-0.726, 0.665, 0.174],
+      blockedBy: [
+        "13bd964ec5bcb9a5",
+        "164d11fea159085a",
+        "19590abf8e429ed2",
+        "33dc34f3d2f441a4",
+        "5f87215ab0f7a2fc",
+        "67a5f82269d8581d",
+        "ab29696d0216bad7",
+        "b83463843b398739"
+      ]
     },
     {
       title: "Fit the sun sensors and inspect the finished satellite",
@@ -587,6 +715,17 @@ export const satelliteAssembly: AssemblySpec = {
         "514e149b323864e4",
         "9b0de975af4447d8",
         "ec8c3d8336112dfc"
+      ],
+      view: [0.987, 0, 0.158],
+      blockedBy: [
+        "13bd964ec5bcb9a5",
+        "164d11fea159085a",
+        "19590abf8e429ed2",
+        "33dc34f3d2f441a4",
+        "5f87215ab0f7a2fc",
+        "67a5f82269d8581d",
+        "ab29696d0216bad7",
+        "c0904b3cb71c8b9d"
       ]
     }
   ],

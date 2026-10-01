@@ -14,6 +14,7 @@ export const roboticsAssembly: AssemblySpec = {
   componentCount: 161,
   // The Assembly operation of the ROB-2000 method.
   operation: 1,
+  motionsBakedFor: "838629b8075c8b90",
   steps: [
     {
       parent: "sa-j2",
@@ -21,18 +22,26 @@ export const roboticsAssembly: AssemblySpec = {
       instruction:
         "Grease the wave generator with EP gear grease, then slide the 750 W motor onto the gear input and pull the flange screws down in a star pattern. Turn the output by hand through one full revolution — it must run smooth with no tight spot.",
       componentNodeIds: ["7ea134ddf5dbf439", "b4d26c5a89d7dbcb"],
-      tools: [{ item: "TL-TORQUE-M1", quantity: 1 }]
+      tools: [{ item: "TL-TORQUE-M1", quantity: 1 }],
+      view: [0.708, -0.059, 0.703]
     },
     {
       parent: "sa-j2",
-      title: "Fit the J2 encoder and connectors",
+      title: "Fit the J2 encoder",
       instruction:
-        "Fit the 19-bit absolute encoder on the motor tail and seat both the power and signal connectors until they click. Record the encoder serial against this drive on the traveler.",
-      componentNodeIds: [
-        "8cdf90f92ee67d72",
-        "3c7e0ff12641e764",
-        "8940621372fa1079"
-      ]
+        "Fit the 19-bit absolute encoder on the motor tail. Record the encoder serial against this drive on the traveler.",
+      componentNodeIds: ["8cdf90f92ee67d72"],
+      motion: { type: "linear", direction: [0, 1, 0], distance: 35 },
+      view: [0.819, -0.521, 0.238]
+    },
+    {
+      parent: "sa-j2",
+      title: "Fit the J2 connectors",
+      instruction:
+        "Seat both the power and signal connectors until they click.",
+      componentNodeIds: ["3c7e0ff12641e764", "8940621372fa1079"],
+      view: [0.987, 0, 0.158],
+      blockedBy: ["7ea134ddf5dbf439", "8cdf90f92ee67d72"]
     },
     {
       key: "j2-run-in",
@@ -56,18 +65,26 @@ export const roboticsAssembly: AssemblySpec = {
       instruction:
         "Grease the wave generator, slide the motor onto the gear input and torque the flange screws in a star pattern. Turn the output by hand and confirm it runs smooth.",
       componentNodeIds: ["fd91967ada9c3291", "8ae4e80d6b896a33"],
-      tools: [{ item: "TL-TORQUE-M1", quantity: 1 }]
+      tools: [{ item: "TL-TORQUE-M1", quantity: 1 }],
+      view: [0.987, 0, 0.158]
     },
     {
       parent: "sa-j3",
-      title: "Fit the J3 encoder and connectors",
+      title: "Fit the J3 encoder",
       instruction:
-        "Fit the absolute encoder and seat both connectors. Record the encoder serial against this drive on the traveler.",
-      componentNodeIds: [
-        "90d5e3983666448d",
-        "e113ff98bf7a5754",
-        "c76264e21b872e06"
-      ]
+        "Fit the absolute encoder. Record the encoder serial against this drive on the traveler.",
+      componentNodeIds: ["90d5e3983666448d"],
+      motion: { type: "linear", direction: [0, -1, 0], distance: 35 },
+      view: [0.696, 0.586, 0.415]
+    },
+    {
+      parent: "sa-j3",
+      title: "Fit the J3 connectors",
+      instruction:
+        "Seat both the power and signal connectors until they click.",
+      componentNodeIds: ["e113ff98bf7a5754", "c76264e21b872e06"],
+      view: [0.987, 0, 0.158],
+      blockedBy: ["90d5e3983666448d", "fd91967ada9c3291"]
     },
     {
       key: "j3-run-in",
@@ -96,7 +113,8 @@ export const roboticsAssembly: AssemblySpec = {
         "e78acdb3dc307128",
         "e0f5b390189c8633"
       ],
-      tools: [{ item: "TL-TORQUE-M1", quantity: 1 }]
+      tools: [{ item: "TL-TORQUE-M1", quantity: 1 }],
+      view: [-0.638, -0.059, 0.768]
     },
     {
       key: "link-j2",
@@ -106,14 +124,22 @@ export const roboticsAssembly: AssemblySpec = {
         "Bring the J2 drive in and bolt it to the lower arm hub through the bearing. Torque the output flange screws to the traveler figure and witness-mark each one.",
       componentNodeIds: [],
       materials: [{ item: "DRV-J2-MOD", quantity: 1 }],
-      tools: [{ item: "TL-TORQUE-M1", quantity: 1 }]
+      tools: [{ item: "TL-TORQUE-M1", quantity: 1 }],
+      motion: {
+        type: "linear",
+        direction: [-0.0757, 0.9968, -0.0267],
+        distance: 263.7
+      },
+      view: [0.987, 0, 0.158]
     },
     {
       parent: "sa-link",
       title: "Fit the upper arm and J3 bearing",
       instruction:
         "Press the J3 crossed-roller bearing into the elbow and hang the upper arm on it. Support the upper arm on the stand — it must never hang on the bearing alone.",
-      componentNodeIds: ["7878bb3b46561e9f", "977bc291ee7ee4ab"]
+      componentNodeIds: ["7878bb3b46561e9f", "977bc291ee7ee4ab"],
+      motion: { type: "linear", direction: [0, 1, 0], distance: 112.5 },
+      view: [-0.638, -0.059, 0.768]
     },
     {
       key: "link-j3",
@@ -123,7 +149,13 @@ export const roboticsAssembly: AssemblySpec = {
         "Bring the J3 drive in and bolt it through the elbow bearing. Torque and witness-mark the output flange screws.",
       componentNodeIds: [],
       materials: [{ item: "DRV-J2-MOD", quantity: 1 }],
-      tools: [{ item: "TL-TORQUE-M1", quantity: 1 }]
+      tools: [{ item: "TL-TORQUE-M1", quantity: 1 }],
+      motion: {
+        type: "linear",
+        direction: [-0.0757, -0.9968, 0.0267],
+        distance: 263.7
+      },
+      view: [0.987, 0, 0.158]
     },
     {
       key: "link-backlash",
@@ -156,7 +188,8 @@ export const roboticsAssembly: AssemblySpec = {
         "c23bce8c6acd4aa6",
         "9961408deb0ab0df"
       ],
-      tools: [{ item: "TL-TORQUE-M1", quantity: 1 }]
+      tools: [{ item: "TL-TORQUE-M1", quantity: 1 }],
+      view: [0.086, -0.978, 0.19]
     },
     {
       parent: "sa-wrist",
@@ -171,22 +204,34 @@ export const roboticsAssembly: AssemblySpec = {
         "bb298a1395fedff4",
         "ca004123979ed06e"
       ],
-      tools: [{ item: "TL-TORQUE-M1", quantity: 1 }]
+      tools: [{ item: "TL-TORQUE-M1", quantity: 1 }],
+      view: [0.987, 0, 0.158],
+      blockedBy: ["583544d0404951dd"]
     },
     {
       parent: "sa-wrist",
       title: "Build the J6 flange axis",
       instruction:
-        "Fit the J6 gear, bearings and flange housing, then the J6 motor and encoder. Clock the tool flange so its dowel hole points to J5's zero mark.",
+        "Fit the J6 gear, bearings and flange housing. Clock the tool flange so its dowel hole points to J5's zero mark.",
       componentNodeIds: [
         "43a5d0f94af5488c",
         "d6f884d4093c1e4e",
         "650b0bcf91c0a49b",
-        "953772f35bb3ef20",
-        "c56ee02b05a01729",
-        "7110536fdfde9aa3"
+        "953772f35bb3ef20"
       ],
-      tools: [{ item: "TL-TORQUE-M1", quantity: 1 }]
+      tools: [{ item: "TL-TORQUE-M1", quantity: 1 }],
+      view: [0.9, 0.329, 0.286],
+      blockedBy: ["583544d0404951dd", "d8335237bb4e0ba5"]
+    },
+    {
+      parent: "sa-wrist",
+      title: "Fit the J6 motor and encoder",
+      instruction:
+        "Fit the J6 servo motor and its absolute encoder onto the flange axis.",
+      componentNodeIds: ["c56ee02b05a01729", "7110536fdfde9aa3"],
+      tools: [{ item: "TL-TORQUE-M1", quantity: 1 }],
+      motion: { type: "linear", direction: [0, -1, 0], distance: 113 },
+      view: [0.987, 0, 0.158]
     },
     {
       key: "wrist-zero",
@@ -213,14 +258,17 @@ export const roboticsAssembly: AssemblySpec = {
         "37d2d1f3fb557cf6",
         "ee17ae174c1051c2",
         "3d4e2b36015aaccd"
-      ]
+      ],
+      view: [0.987, 0, 0.158]
     },
     {
       parent: "sa-gripper",
       title: "Fit the gripper body and motor",
       instruction:
         "Mount the gripper body on the sensor and fit its 200 W motor. Cycle the jaw drive by hand through full stroke.",
-      componentNodeIds: ["072400f0732cccb3", "c011ef475a0485c8"]
+      componentNodeIds: ["072400f0732cccb3", "c011ef475a0485c8"],
+      motion: { type: "linear", direction: [0, 0, 1], distance: 75 },
+      view: [0.086, -0.978, 0.19]
     },
     {
       parent: "sa-gripper",
@@ -233,7 +281,9 @@ export const roboticsAssembly: AssemblySpec = {
         "b187ff355d306ad2",
         "ad63d4c29c04eeff"
       ],
-      materials: [{ item: "GRP-JAW-80", quantity: 2 }]
+      materials: [{ item: "GRP-JAW-80", quantity: 2 }],
+      view: [0.987, 0, 0.158],
+      blockedBy: ["072400f0732cccb3", "37d2d1f3fb557cf6"]
     },
     {
       key: "sa-gripper",
@@ -260,7 +310,8 @@ export const roboticsAssembly: AssemblySpec = {
         "3ea8d823fcbfce91",
         "324a18a620a02fb2"
       ],
-      tools: [{ item: "TL-TORQUE-M1", quantity: 1 }]
+      tools: [{ item: "TL-TORQUE-M1", quantity: 1 }],
+      view: [0.086, -0.978, 0.19]
     },
     {
       title: "Mount the J1 base and turret",
@@ -276,7 +327,13 @@ export const roboticsAssembly: AssemblySpec = {
         "126f40e9ced2ab26"
       ],
       materials: [{ item: "ARM-BASE-001", quantity: 1 }],
-      tools: [{ item: "TL-TORQUE-M1", quantity: 1 }]
+      tools: [{ item: "TL-TORQUE-M1", quantity: 1 }],
+      motion: {
+        type: "linear",
+        direction: [-0.967, 0.0003, -0.2547],
+        distance: 612.4
+      },
+      view: [0.086, -0.978, 0.19]
     },
     {
       key: "main-link",
@@ -285,7 +342,9 @@ export const roboticsAssembly: AssemblySpec = {
         "Lift the link assembly onto the turret and bolt the J2 drive output to it. Keep the upper arm on its stand until the brake is released under power.",
       componentNodeIds: [],
       materials: [{ item: "ARM-LINK-001", quantity: 1 }],
-      tools: [{ item: "TL-TORQUE-M1", quantity: 1 }]
+      tools: [{ item: "TL-TORQUE-M1", quantity: 1 }],
+      view: [-0.041, 0.886, 0.463],
+      blockedBy: ["50512e9b7dcca4e8", "928724e211cae869"]
     },
     {
       key: "main-wrist",
@@ -294,7 +353,9 @@ export const roboticsAssembly: AssemblySpec = {
         "Fit the wrist to the end of the upper arm and mate its three motor connectors. Check J4 turns freely before the harness goes on.",
       componentNodeIds: [],
       materials: [{ item: "ARM-WRIST-001", quantity: 1 }],
-      tools: [{ item: "TL-TORQUE-M1", quantity: 1 }]
+      tools: [{ item: "TL-TORQUE-M1", quantity: 1 }],
+      view: [0.086, -0.978, 0.19],
+      blockedBy: ["50512e9b7dcca4e8", "928724e211cae869", "add3fa1eeb21b6b5"]
     },
     {
       title: "Route the arm harness",
@@ -308,7 +369,14 @@ export const roboticsAssembly: AssemblySpec = {
         "6b5e432c8ebdd66c",
         "e43d2278128c3e1c"
       ],
-      materials: [{ item: "HRN-ARM-001", quantity: 1 }]
+      materials: [{ item: "HRN-ARM-001", quantity: 1 }],
+      view: [0.086, -0.978, 0.19],
+      blockedBy: [
+        "50512e9b7dcca4e8",
+        "583544d0404951dd",
+        "928724e211cae869",
+        "add3fa1eeb21b6b5"
+      ]
     },
     {
       key: "main-gripper",
@@ -317,7 +385,13 @@ export const roboticsAssembly: AssemblySpec = {
         "Fit the gripper to the J6 flange on its dowel and plug the sensor and motor leads into the wrist.",
       componentNodeIds: [],
       materials: [{ item: "GRP-2F-80", quantity: 1 }],
-      tools: [{ item: "TL-TORQUE-M1", quantity: 1 }]
+      tools: [{ item: "TL-TORQUE-M1", quantity: 1 }],
+      motion: {
+        type: "linear",
+        direction: [-0.0446, -0.0902, 0.9949],
+        distance: 243.9
+      },
+      view: [0.987, 0, 0.158]
     },
     {
       title: "Fit the protective covers",
@@ -329,7 +403,14 @@ export const roboticsAssembly: AssemblySpec = {
         "d3dd339bd02bdda4",
         "9963cdf40772edfc"
       ],
-      materials: [{ item: "CN-COVER-KIT", quantity: 1 }]
+      materials: [{ item: "CN-COVER-KIT", quantity: 1 }],
+      view: [-0.96, -0.17, 0.222],
+      blockedBy: [
+        "50512e9b7dcca4e8",
+        "7926870493a08ada",
+        "928724e211cae869",
+        "add3fa1eeb21b6b5"
+      ]
     },
     {
       parent: "sa-controller",
@@ -343,7 +424,8 @@ export const roboticsAssembly: AssemblySpec = {
         "b96ec9d853511411",
         "30bdd49fd48b7067"
       ],
-      materials: [{ item: "CTRL-100", quantity: 1 }]
+      materials: [{ item: "CTRL-100", quantity: 1 }],
+      view: [-0.726, 0.665, 0.174]
     },
     {
       parent: "sa-controller",
@@ -376,7 +458,9 @@ export const roboticsAssembly: AssemblySpec = {
         "b2d3e935b4c8a01b",
         "4b10d2f860ad1e40"
       ],
-      materials: [{ item: "DRV-SRV-400", quantity: 6 }]
+      materials: [{ item: "DRV-SRV-400", quantity: 6 }],
+      motion: { type: "linear", direction: [-1, 0, 0], distance: 107 },
+      view: [0.086, -0.978, 0.19]
     },
     {
       parent: "sa-controller",
@@ -421,13 +505,15 @@ export const roboticsAssembly: AssemblySpec = {
       materials: [
         { item: "PCB-CTRL-R1", quantity: 1 },
         { item: "PCB-IO-R1", quantity: 2 }
-      ]
+      ],
+      motion: { type: "linear", direction: [-1, 0, 0], distance: 40 },
+      view: [0.535, 0.147, 0.832]
     },
     {
       parent: "sa-controller",
-      title: "Fit the terminals, fans and glands",
+      title: "Fit the terminals and glands",
       instruction:
-        "Snap the terminal blocks onto the lower rail, fit both roof fans and the three cable glands. Ring out every terminal against the wiring diagram.",
+        "Snap the terminal blocks onto the lower rail and fit the three cable glands. Ring out every terminal against the wiring diagram.",
       componentNodeIds: [
         "73a2f9533f2f9f6f",
         "2357e9d5a0f943fa",
@@ -445,26 +531,49 @@ export const roboticsAssembly: AssemblySpec = {
         "e65bbdf143660169",
         "32fe754e0b2f7b94",
         "e87d237caaf328d7",
-        "d8783d3405961e3c",
-        "beb750c41bd66388",
         "aa14ad7ef14b6f8f",
         "ba6677dfabb31c4a",
         "a3d50fd410028115"
-      ]
+      ],
+      view: [0.987, 0, 0.158],
+      blockedBy: ["65ae055bd5a1e2e8", "7bbf962f870c057b", "994a30c3206cec49"]
+    },
+    {
+      parent: "sa-controller",
+      title: "Fit the roof fans",
+      instruction: "Fit both roof fans and check they blow out of the cabinet.",
+      componentNodeIds: ["d8783d3405961e3c", "beb750c41bd66388"],
+      motion: { type: "linear", direction: [0, 0, -1], distance: 55 },
+      view: [0.987, 0, 0.158]
     },
     {
       parent: "sa-controller",
       title: "Hang the door and fit the controls",
       instruction:
-        "Hang the door, then fit the main switch, the emergency stop and the status lamp. Check the E-stop drops both safety channels before the door is closed.",
+        "Hang the door, then fit the main switch and the emergency stop. Check the E-stop drops both safety channels before the door is closed.",
       componentNodeIds: [
         "d8cefe8dd024b56b",
         "229f36961ed0730f",
         "803503fda47737a7",
         "95031d594b8485b9",
-        "8b39dda548bbdd03",
-        "7ca9f42baa23c434"
+        "8b39dda548bbdd03"
+      ],
+      view: [0.987, 0, 0.158],
+      blockedBy: [
+        "65ae055bd5a1e2e8",
+        "73a2f9533f2f9f6f",
+        "7bbf962f870c057b",
+        "994a30c3206cec49"
       ]
+    },
+    {
+      parent: "sa-controller",
+      title: "Fit the status lamp",
+      instruction:
+        "Fit the status lamp on the cabinet roof and check every colour lights.",
+      componentNodeIds: ["7ca9f42baa23c434"],
+      motion: { type: "linear", direction: [0, 0, -1], distance: 55 },
+      view: [0.987, 0, 0.158]
     },
     {
       key: "sa-controller",
@@ -472,13 +581,28 @@ export const roboticsAssembly: AssemblySpec = {
       title: "Controller Cabinet",
       instruction:
         "Set the controller cabinet on its mark beside the arm, 600 mm clear of the arm's reach envelope.",
-      componentNodeIds: []
+      componentNodeIds: [],
+      motion: {
+        type: "linear",
+        direction: [-0.2743, -0.1248, -0.9535],
+        distance: 1312.2
+      },
+      view: [-0.726, 0.665, 0.174]
     },
     {
       title: "Connect the umbilical cable",
       instruction:
         "Lay the umbilical cable from the base connectors to the cabinet glands in its floor duct and lock both ends. Never run it where the arm can reach it.",
-      componentNodeIds: ["56627698a7095c49"]
+      componentNodeIds: ["56627698a7095c49"],
+      view: [0.086, -0.978, 0.19],
+      blockedBy: [
+        "06eae009c0732514",
+        "50512e9b7dcca4e8",
+        "7926870493a08ada",
+        "7bbf962f870c057b",
+        "928724e211cae869",
+        "add3fa1eeb21b6b5"
+      ]
     },
     {
       key: "burn-in",

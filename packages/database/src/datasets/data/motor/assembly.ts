@@ -14,6 +14,7 @@ export const motorAssembly: AssemblySpec = {
   componentCount: 150,
   // The Assembly operation of the MTR-9000 method.
   operation: 1,
+  motionsBakedFor: "2a9c952d13053ed4",
   steps: [
     {
       parent: "sa-stator",
@@ -63,7 +64,8 @@ export const motorAssembly: AssemblySpec = {
         "7d3de07cc7dd8913",
         "83c79d7b54e46f77"
       ],
-      materials: [{ item: "LAM-STK-STA", quantity: 1 }]
+      materials: [{ item: "LAM-STK-STA", quantity: 1 }],
+      view: [-0.96, -0.17, 0.222]
     },
     {
       parent: "sa-stator",
@@ -84,7 +86,9 @@ export const motorAssembly: AssemblySpec = {
         "3215466564b2d019",
         "52ce8cb33fe4267e"
       ],
-      materials: [{ item: "COIL-9000", quantity: 1 }]
+      materials: [{ item: "COIL-9000", quantity: 1 }],
+      view: [-0.251, 0.934, 0.254],
+      blockedBy: ["8a876595c26d2457"]
     },
     {
       parent: "sa-stator",
@@ -96,7 +100,9 @@ export const motorAssembly: AssemblySpec = {
         "3a85a9d9f37ec190",
         "c1da3567af4506df"
       ],
-      materials: [{ item: "MAT-VARNISH", quantity: 0.25 }]
+      materials: [{ item: "MAT-VARNISH", quantity: 0.25 }],
+      view: [-0.251, 0.934, 0.254],
+      blockedBy: ["395f78ef89fe5c12", "8a876595c26d2457"]
     },
     {
       key: "sa-stator",
@@ -117,7 +123,8 @@ export const motorAssembly: AssemblySpec = {
         "e5047e36ed7e2c04",
         "2e4b040edf11e26c"
       ],
-      materials: [{ item: "LAM-STK-ROT", quantity: 1 }]
+      materials: [{ item: "LAM-STK-ROT", quantity: 1 }],
+      view: [-0.251, 0.934, 0.254]
     },
     {
       parent: "sa-core",
@@ -150,7 +157,9 @@ export const motorAssembly: AssemblySpec = {
         "cb92d32d07304df9",
         "797c1593da70a77c"
       ],
-      materials: [{ item: "MAG-NDFB-45", quantity: 24 }]
+      materials: [{ item: "MAG-NDFB-45", quantity: 24 }],
+      motion: { type: "linear", direction: [-1, 0, 0], distance: 301 },
+      view: [-0.251, 0.934, 0.254]
     },
     {
       parent: "sa-core",
@@ -162,7 +171,9 @@ export const motorAssembly: AssemblySpec = {
         "e19741d98d31e91c",
         "f2159eb6bce443ca",
         "9cc7ebc3b7c2d082"
-      ]
+      ],
+      view: [-0.444, -0.854, 0.27],
+      blockedBy: ["b97fd66f4a9e86a6", "eca2bdbce853b6eb"]
     },
     {
       key: "sa-core",
@@ -178,7 +189,8 @@ export const motorAssembly: AssemblySpec = {
       instruction:
         "Check the shaft's bearing seats and runout on the V-blocks, then fit the drive-end key.",
       componentNodeIds: ["cfb605a70ba29973", "9f688a49e72e239c"],
-      materials: [{ item: "SHF-9000", quantity: 1 }]
+      materials: [{ item: "SHF-9000", quantity: 1 }],
+      view: [0.409, -0.635, 0.655]
     },
     {
       key: "rotor-core",
@@ -187,32 +199,61 @@ export const motorAssembly: AssemblySpec = {
       instruction:
         "Heat the magnet rotor core and press it onto the shaft against its shoulder. Keep steel tools away from the magnets — they will jump.",
       componentNodeIds: [],
-      tools: [{ item: "TL-ARBOR-PRESS", quantity: 1 }]
+      tools: [{ item: "TL-ARBOR-PRESS", quantity: 1 }],
+      motion: { type: "linear", direction: [-1, 0, 0], distance: 535 },
+      view: [-0.118, -0.91, 0.399]
     },
     {
       parent: "sa-rotor",
-      title: "Fit and balance the balance rings",
-      instruction:
-        "Fit both balance rings, spin the rotor on the balancing mandrel and drill the rings to G2.5. Record the residual unbalance on the traveler.",
-      componentNodeIds: ["0d1d03c7a76ee130", "f43b1ae3dbb8cc3e"],
-      tools: [{ item: "TL-BAL-MANDREL", quantity: 1 }]
+      title: "Fit the first balance ring",
+      instruction: "Fit the first balance ring against its shoulder.",
+      componentNodeIds: ["0d1d03c7a76ee130"],
+      motion: { type: "linear", direction: [1, 0, 0], distance: 17 },
+      view: [-0.251, 0.934, 0.254]
     },
     {
       parent: "sa-rotor",
-      title: "Press on the bearings",
+      title: "Fit and balance the second balance ring",
       instruction:
-        "Press both 6308 C3 bearings onto their seats through the inner race only and pack them with high-temperature grease.",
-      componentNodeIds: [
-        "b6ddca33f5988b87",
-        "3aa7b59161f100dd",
-        "9c3f91c00a5666e2",
-        "23ecc83537c0220b"
-      ],
+        "Fit the second balance ring, spin the rotor on the balancing mandrel and drill both rings to G2.5. Record the residual unbalance on the traveler.",
+      componentNodeIds: ["f43b1ae3dbb8cc3e"],
+      tools: [{ item: "TL-BAL-MANDREL", quantity: 1 }],
+      motion: { type: "linear", direction: [-1, 0, 0], distance: 17 },
+      view: [0.282, 0.899, 0.334]
+    },
+    {
+      parent: "sa-rotor",
+      title: "Press on the non-drive-end bearing",
+      instruction:
+        "Press the non-drive-end 6308 C3 bearing onto its seat through the inner race only and pack it with high-temperature grease.",
+      componentNodeIds: ["9c3f91c00a5666e2", "23ecc83537c0220b"],
       materials: [
-        { item: "BRG-6308-C3", quantity: 2 },
-        { item: "CN-BRG-GREASE", quantity: 0.25 }
+        { item: "BRG-6308-C3", quantity: 1 },
+        { item: "CN-BRG-GREASE", quantity: 0.125 }
       ],
-      tools: [{ item: "TL-ARBOR-PRESS", quantity: 1 }]
+      tools: [{ item: "TL-ARBOR-PRESS", quantity: 1 }],
+      motion: { type: "linear", direction: [1, 0, 0], distance: 82 },
+      view: [0.086, -0.978, 0.19]
+    },
+    {
+      parent: "sa-rotor",
+      title: "Press on the drive-end bearing",
+      instruction:
+        "Press the drive-end bearing on the same way and pack it with grease.",
+      componentNodeIds: ["b6ddca33f5988b87", "3aa7b59161f100dd"],
+      materials: [
+        { item: "BRG-6308-C3", quantity: 1 },
+        { item: "CN-BRG-GREASE", quantity: 0.125 }
+      ],
+      tools: [{ item: "TL-ARBOR-PRESS", quantity: 1 }],
+      view: [0.086, -0.978, 0.19],
+      blockedBy: [
+        "0d1d03c7a76ee130",
+        "9c3f91c00a5666e2",
+        "b97fd66f4a9e86a6",
+        "cfb605a70ba29973",
+        "f43b1ae3dbb8cc3e"
+      ]
     },
     {
       key: "sa-rotor",
@@ -227,7 +268,8 @@ export const motorAssembly: AssemblySpec = {
       title: "Prepare the terminal box base",
       instruction:
         "Deburr the terminal box base and check its gland thread and gasket face.",
-      componentNodeIds: ["0e1599a45ea18d27"]
+      componentNodeIds: ["0e1599a45ea18d27"],
+      view: [0.282, 0.899, 0.334]
     },
     {
       parent: "sa-terminal",
@@ -249,7 +291,9 @@ export const motorAssembly: AssemblySpec = {
         "798a1b7a29fd6682",
         "4c3d819b7f002b12"
       ],
-      materials: [{ item: "TRM-BLK-6P", quantity: 1 }]
+      materials: [{ item: "TRM-BLK-6P", quantity: 1 }],
+      motion: { type: "linear", direction: [0, 0, -1], distance: 41 },
+      view: [-0.638, -0.059, 0.768]
     },
     {
       parent: "sa-terminal",
@@ -266,7 +310,13 @@ export const motorAssembly: AssemblySpec = {
         "56db0acc57f25a6d",
         "69068744e2786405"
       ],
-      materials: [{ item: "FST-M6-SS", quantity: 6 }]
+      materials: [{ item: "FST-M6-SS", quantity: 6 }],
+      motion: {
+        type: "linear",
+        direction: [-0.0537, 0.1383, -0.9889],
+        distance: 119
+      },
+      view: [0.086, -0.978, 0.19]
     },
     {
       key: "sa-terminal",
@@ -281,7 +331,8 @@ export const motorAssembly: AssemblySpec = {
       instruction:
         "Set the finned frame on its feet and check the stator bore and both spigot fits with the bore gauge. Log the bore diameter at three depths.",
       componentNodeIds: ["3ecf69d64adbe44e"],
-      materials: [{ item: "HSG-9000", quantity: 1 }]
+      materials: [{ item: "HSG-9000", quantity: 1 }],
+      view: [0.987, 0, 0.158]
     },
     {
       key: "main-stator",
@@ -290,7 +341,9 @@ export const motorAssembly: AssemblySpec = {
         "Heat the frame to 150 °C and press the wound stator in with the leads toward the terminal box pad. Let it cool on its own — never quench.",
       componentNodeIds: [],
       materials: [{ item: "STA-9000", quantity: 1 }],
-      tools: [{ item: "TL-ARBOR-PRESS", quantity: 1 }]
+      tools: [{ item: "TL-ARBOR-PRESS", quantity: 1 }],
+      view: [-0.881, 0.364, 0.302],
+      blockedBy: ["3ecf69d64adbe44e"]
     },
     {
       title: "Fit the drive-end bell and seal",
@@ -304,7 +357,13 @@ export const motorAssembly: AssemblySpec = {
         "dc56ff278626b510",
         "ce68f0a9a22a9da4",
         "27ea34557d5914a4"
-      ]
+      ],
+      motion: {
+        type: "linear",
+        direction: [-0.9977, -0.0257, -0.0621],
+        distance: 124.2
+      },
+      view: [0.282, 0.899, 0.334]
     },
     {
       key: "main-rotor",
@@ -313,7 +372,9 @@ export const motorAssembly: AssemblySpec = {
         "Guide the rotor into the stator bore on the insertion fixture from the non-drive end until the drive-end bearing seats in its bell. The magnets pull hard — keep the fixture guiding until the bearing is home.",
       componentNodeIds: [],
       materials: [{ item: "ROT-9000", quantity: 1 }],
-      tools: [{ item: "TL-ARBOR-PRESS", quantity: 1 }]
+      tools: [{ item: "TL-ARBOR-PRESS", quantity: 1 }],
+      view: [0.409, -0.635, 0.655],
+      blockedBy: ["3ecf69d64adbe44e", "560c21c516b9cd97", "8a876595c26d2457"]
     },
     {
       title: "Fit the non-drive-end bell and seal",
@@ -327,14 +388,29 @@ export const motorAssembly: AssemblySpec = {
         "9a8c56cde57aa605",
         "85f72ddd02385caf"
       ],
-      materials: [{ item: "SEAL-VR-45", quantity: 2 }]
+      materials: [{ item: "SEAL-VR-45", quantity: 2 }],
+      view: [-0.444, -0.854, 0.27],
+      blockedBy: [
+        "3ecf69d64adbe44e",
+        "560c21c516b9cd97",
+        "8a876595c26d2457",
+        "cfb605a70ba29973"
+      ]
     },
     {
       title: "Fit the encoder",
       instruction:
         "Mount the 2048-line encoder on the shaft stub and route its cable to the terminal box pad. Align the encoder index to the rotor pole mark.",
       componentNodeIds: ["86dcf0840a65d653", "eaf27d7841a6225d"],
-      materials: [{ item: "ENC-INC-2048", quantity: 1 }]
+      materials: [{ item: "ENC-INC-2048", quantity: 1 }],
+      view: [-0.96, -0.17, 0.222],
+      blockedBy: [
+        "2b09d49ab6e49414",
+        "3ecf69d64adbe44e",
+        "560c21c516b9cd97",
+        "8a876595c26d2457",
+        "cfb605a70ba29973"
+      ]
     },
     {
       title: "Fit the cooling fan and cowl",
@@ -352,7 +428,16 @@ export const motorAssembly: AssemblySpec = {
         "555cd4170b48037f",
         "e4227e707a3d2910"
       ],
-      materials: [{ item: "FAN-AX-160", quantity: 1 }]
+      materials: [{ item: "FAN-AX-160", quantity: 1 }],
+      view: [-0.444, -0.854, 0.27],
+      blockedBy: [
+        "2b09d49ab6e49414",
+        "3ecf69d64adbe44e",
+        "560c21c516b9cd97",
+        "86dcf0840a65d653",
+        "8a876595c26d2457",
+        "cfb605a70ba29973"
+      ]
     },
     {
       key: "main-terminal",
@@ -360,7 +445,15 @@ export const motorAssembly: AssemblySpec = {
       instruction:
         "Bolt the terminal box to its pad and land the phase leads on the terminal block in star.",
       componentNodeIds: [],
-      materials: [{ item: "TRM-BOX-9000", quantity: 1 }]
+      materials: [{ item: "TRM-BOX-9000", quantity: 1 }],
+      view: [0.282, 0.899, 0.334],
+      blockedBy: [
+        "3ecf69d64adbe44e",
+        "560c21c516b9cd97",
+        "86dcf0840a65d653",
+        "8a876595c26d2457",
+        "cfb605a70ba29973"
+      ]
     },
     {
       title: "Fit the nameplate and lifting eye",
@@ -375,7 +468,9 @@ export const motorAssembly: AssemblySpec = {
         "84b601003af3f050",
         "9e5f677e02d9df27"
       ],
-      materials: [{ item: "NPL-SS-STD", quantity: 1 }]
+      materials: [{ item: "NPL-SS-STD", quantity: 1 }],
+      motion: { type: "linear", direction: [0, 0, -1], distance: 269 },
+      view: [-0.726, 0.665, 0.174]
     },
     {
       key: "dyno",

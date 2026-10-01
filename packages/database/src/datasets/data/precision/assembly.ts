@@ -14,6 +14,7 @@ export const precisionAssembly: AssemblySpec = {
   componentCount: 150,
   // The Assembly operation of the HMA-4000 method.
   operation: 1,
+  motionsBakedFor: "ca6c2efcac5780bd",
   steps: [
     {
       parent: "sa-valve",
@@ -26,19 +27,34 @@ export const precisionAssembly: AssemblySpec = {
         "e8bf8f09529ee566"
       ],
       materials: [{ item: "SEAL-ORING-224", quantity: 6 }],
-      tools: [{ item: "TL-VISE-6IN", quantity: 1 }]
+      tools: [{ item: "TL-VISE-6IN", quantity: 1 }],
+      view: [0.086, -0.978, 0.19]
     },
     {
       parent: "sa-valve",
-      title: "Fit the springs and end caps",
+      title: "Fit the springs and end cap on side A",
       instruction:
-        "Drop two die springs and a guide rod into each spring chamber and close them with the stainless end caps. Pull the caps down evenly so the springs load square.",
+        "Drop two die springs and their guide rods into the side A spring chamber and close it with its stainless end cap. Pull the cap down evenly so the springs load square.",
       componentNodeIds: [
         "66626e2e97a8d1a1",
         "520cf35511954890",
         "06d7132777dd8d1c",
         "33ad2b144aedd898",
-        "5c086d032c5eee4c",
+        "5c086d032c5eee4c"
+      ],
+      materials: [
+        { item: "SPR-DIE-25", quantity: 2 },
+        { item: "MCH-END-CAP", quantity: 1 }
+      ],
+      motion: { type: "linear", direction: [1, 0, 0], distance: 72.8 },
+      view: [0.086, -0.978, 0.19]
+    },
+    {
+      parent: "sa-valve",
+      title: "Fit the springs and end cap on side B",
+      instruction:
+        "Repeat on side B: two die springs and their guide rods, then the end cap, pulled down evenly.",
+      componentNodeIds: [
         "84f998fe7c97aa9d",
         "b6bd5e9f4271efc4",
         "806f19dbc026fb78",
@@ -46,9 +62,11 @@ export const precisionAssembly: AssemblySpec = {
         "f36fe73b66970cc4"
       ],
       materials: [
-        { item: "SPR-DIE-25", quantity: 4 },
-        { item: "MCH-END-CAP", quantity: 2 }
-      ]
+        { item: "SPR-DIE-25", quantity: 2 },
+        { item: "MCH-END-CAP", quantity: 1 }
+      ],
+      motion: { type: "linear", direction: [-1, 0, 0], distance: 72.8 },
+      view: [0.595, 0.777, 0.206]
     },
     {
       parent: "sa-valve",
@@ -60,7 +78,13 @@ export const precisionAssembly: AssemblySpec = {
         "f0f02e8fe0ce3766",
         "d1a7119000c1de2f"
       ],
-      materials: [{ item: "PIN-CLEVIS-12", quantity: 2 }]
+      materials: [{ item: "PIN-CLEVIS-12", quantity: 2 }],
+      motion: {
+        type: "linear",
+        direction: [-0.9706, 0, -0.2408],
+        distance: 336
+      },
+      view: [0.086, -0.978, 0.19]
     },
     {
       key: "sa-valve",
@@ -78,7 +102,8 @@ export const precisionAssembly: AssemblySpec = {
         "Set the pump housing in the housing fixture with the flange face down. Check both bearing bores with the bore gauge and log the readings.",
       componentNodeIds: ["9b32dfbe7e293f04"],
       materials: [{ item: "MCH-HSG-PUMP", quantity: 1 }],
-      tools: [{ item: "TL-FIXT-HSG", quantity: 1 }]
+      tools: [{ item: "TL-FIXT-HSG", quantity: 1 }],
+      view: [-0.726, 0.665, 0.174]
     },
     {
       parent: "sa-pump",
@@ -95,7 +120,9 @@ export const precisionAssembly: AssemblySpec = {
         { item: "BRG-DBL-6205", quantity: 2 },
         { item: "BRG-NDL-HK1512", quantity: 2 }
       ],
-      tools: [{ item: "TL-FIXT-HSG", quantity: 1 }]
+      tools: [{ item: "TL-FIXT-HSG", quantity: 1 }],
+      view: [0.9, 0.329, 0.286],
+      blockedBy: ["9b32dfbe7e293f04"]
     },
     {
       parent: "sa-pump",
@@ -115,7 +142,9 @@ export const precisionAssembly: AssemblySpec = {
         "ec15cf4f8505b2d6",
         "08c0bf095f4a7d01"
       ],
-      materials: [{ item: "MCH-SHAFT-DR", quantity: 1 }]
+      materials: [{ item: "MCH-SHAFT-DR", quantity: 1 }],
+      view: [0.402, -0.859, 0.318],
+      blockedBy: ["9b32dfbe7e293f04", "cb03e7101d7ccf91"]
     },
     {
       key: "sa-pump",
@@ -144,13 +173,31 @@ export const precisionAssembly: AssemblySpec = {
         { item: "MCH-MANI-BLK", quantity: 1 },
         { item: "MCH-SPACER-KIT", quantity: 1 }
       ],
-      tools: [{ item: "TL-VISE-6IN", quantity: 1 }]
+      tools: [{ item: "TL-VISE-6IN", quantity: 1 }],
+      view: [0.086, -0.978, 0.19]
     },
     {
       parent: "sa-manifold",
-      title: "Fit the flanges, plugs, gauge and relief valve",
+      title: "Fit the gauge and relief valve",
       instruction:
-        "Bolt both mounting flanges to the +X ports, plug the unused ports, then fit the pressure gauge and the relief valve cartridge. Set the relief valve fully open for now.",
+        "Fit the pressure gauge and the relief valve cartridge. Set the relief valve fully open for now.",
+      componentNodeIds: [
+        "2e81fe70b14fd4cb",
+        "9a473295139efc59",
+        "a7dd7bddd81f57a9"
+      ],
+      motion: {
+        type: "linear",
+        direction: [0.8532, 0.1068, 0.5105],
+        distance: 217.4
+      },
+      view: [0.086, -0.978, 0.19]
+    },
+    {
+      parent: "sa-manifold",
+      title: "Fit the flanges and plugs",
+      instruction:
+        "Bolt both mounting flanges to the +X ports and plug the unused ports.",
       componentNodeIds: [
         "960d93fff94936a1",
         "939e9d833fd55e8d",
@@ -163,12 +210,11 @@ export const precisionAssembly: AssemblySpec = {
         "3da223e1dbceef1d",
         "1ea1fbb95d73fd23",
         "b26f0871e2c43bb8",
-        "19a67ac20589d526",
-        "2e81fe70b14fd4cb",
-        "9a473295139efc59",
-        "a7dd7bddd81f57a9"
+        "19a67ac20589d526"
       ],
-      materials: [{ item: "MCH-FLANGE-SS", quantity: 2 }]
+      materials: [{ item: "MCH-FLANGE-SS", quantity: 2 }],
+      view: [-0.726, 0.665, 0.174],
+      blockedBy: ["2e81fe70b14fd4cb", "c8f5fd761fd651b7"]
     },
     {
       key: "mani-valve",
@@ -177,7 +223,9 @@ export const precisionAssembly: AssemblySpec = {
       instruction:
         "Mount the valve stack on the manifold top face over its four O-rings and torque the mounting bolts in a cross pattern.",
       componentNodeIds: [],
-      materials: [{ item: "ASM-VALVE-SUB", quantity: 1 }]
+      materials: [{ item: "ASM-VALVE-SUB", quantity: 1 }],
+      motion: { type: "linear", direction: [0, 0, -1], distance: 180 },
+      view: [0.086, -0.978, 0.19]
     },
     {
       key: "sa-manifold",
@@ -202,7 +250,8 @@ export const precisionAssembly: AssemblySpec = {
         "12da37fe70f19805",
         "dccf63513ec08b98",
         "9d1c4786f1c97b15"
-      ]
+      ],
+      view: [-0.118, -0.91, 0.399]
     },
     {
       key: "module-join",
@@ -210,7 +259,13 @@ export const precisionAssembly: AssemblySpec = {
       title: "Mount the manifold and pump together",
       instruction:
         "Set the manifold assembly on the adapter plate, then offer the pump cartridge up to the manifold's -X face on its dowels and bolt it home. Both come in on this one step — the pump flange locates on the manifold, not the plate.",
-      componentNodeIds: []
+      componentNodeIds: [],
+      motion: {
+        type: "linear",
+        direction: [-0.9922, 0.0008, -0.1247],
+        distance: 590
+      },
+      view: [-0.531, 0.756, 0.383]
     },
     {
       key: "module-leak",
@@ -242,7 +297,8 @@ export const precisionAssembly: AssemblySpec = {
       materials: [
         { item: "MCH-PISTON-ROD", quantity: 1 },
         { item: "BSH-BRZ-2012", quantity: 2 }
-      ]
+      ],
+      view: [0.086, -0.978, 0.19]
     },
     {
       parent: "sa-actuator",
@@ -267,14 +323,26 @@ export const precisionAssembly: AssemblySpec = {
         "18be4f5c514950ba",
         "afdcdc00dba6f662"
       ],
-      tools: [{ item: "TL-VISE-6IN", quantity: 1 }]
+      tools: [{ item: "TL-VISE-6IN", quantity: 1 }],
+      view: [0.282, 0.899, 0.334],
+      blockedBy: ["c347cff89b24ab60"]
     },
     {
       parent: "sa-actuator",
-      title: "Fit the rod eye and rear clevis",
+      title: "Fit the rear clevis",
+      instruction: "Fit the rear clevis mount to the cap end.",
+      componentNodeIds: ["5dac4429fcdddca7"],
+      view: [-0.251, 0.934, 0.254],
+      blockedBy: ["7718b910805ad12c", "c347cff89b24ab60"]
+    },
+    {
+      parent: "sa-actuator",
+      title: "Fit the rod eye",
       instruction:
-        "Thread the rod eye onto the piston rod and lock it, then fit the rear clevis mount. Stroke the cylinder by hand end to end.",
-      componentNodeIds: ["e05e8f557bed18e4", "5dac4429fcdddca7"]
+        "Thread the rod eye onto the piston rod and lock it. Stroke the cylinder by hand end to end.",
+      componentNodeIds: ["e05e8f557bed18e4"],
+      motion: { type: "linear", direction: [-1, 0, 0], distance: 89 },
+      view: [0.086, -0.978, 0.19]
     },
     {
       key: "sa-actuator",
@@ -308,14 +376,21 @@ export const precisionAssembly: AssemblySpec = {
         "f19047ac269ff869",
         "18ad2340ca69243f"
       ],
-      materials: [{ item: "FAB-BASE-WLD", quantity: 1 }]
+      materials: [{ item: "FAB-BASE-WLD", quantity: 1 }],
+      view: [0.819, -0.521, 0.238]
     },
     {
       key: "main-module",
       title: "Fit the pump & manifold module",
       instruction:
         "Lift the module by its two eyes onto the drip tray and bolt it down. Keep the shaft end pointing to the -X end of the frame, where the guard goes.",
-      componentNodeIds: []
+      componentNodeIds: [],
+      motion: {
+        type: "linear",
+        direction: [-0.9883, 0.0136, -0.1517],
+        distance: 664.9
+      },
+      view: [-0.118, -0.91, 0.399]
     },
     {
       key: "main-actuator",
@@ -334,7 +409,9 @@ export const precisionAssembly: AssemblySpec = {
         "f27c436dd9e07340",
         "21bee4a93f2b8e38"
       ],
-      materials: [{ item: "CYL-HYD-40", quantity: 1 }]
+      materials: [{ item: "CYL-HYD-40", quantity: 1 }],
+      view: [-0.311, 0.744, 0.591],
+      blockedBy: ["783593e9237c44b4", "798ad50ef9b4afce"]
     },
     {
       title: "Run the hoses and return line",
@@ -350,7 +427,9 @@ export const precisionAssembly: AssemblySpec = {
         "2f04771e9864acc3",
         "9142d018a863aaa0",
         "c36a0bbf552fdfae"
-      ]
+      ],
+      view: [0.086, -0.978, 0.19],
+      blockedBy: ["71bd4ec608ade549", "783593e9237c44b4", "798ad50ef9b4afce"]
     },
     {
       title: "Fit the enclosure panels and shaft guard",
@@ -380,7 +459,14 @@ export const precisionAssembly: AssemblySpec = {
         "9d9ad5dcbd4a372a",
         "146218cabfbdec87"
       ],
-      materials: [{ item: "FAB-ENCL-PNL", quantity: 1 }]
+      materials: [{ item: "FAB-ENCL-PNL", quantity: 1 }],
+      view: [0.086, -0.978, 0.19],
+      blockedBy: [
+        "71bd4ec608ade549",
+        "783593e9237c44b4",
+        "798ad50ef9b4afce",
+        "ba4e4f246b739ead"
+      ]
     },
     {
       title: "Proof-test at 1.5× rated pressure",
@@ -392,6 +478,14 @@ export const precisionAssembly: AssemblySpec = {
         "397c3ace8a2ab116",
         "69abd5e67cd7fefa",
         "d262a42f629517df"
+      ],
+      view: [0.987, 0, 0.158],
+      blockedBy: [
+        "4115dc01285dc868",
+        "71bd4ec608ade549",
+        "783593e9237c44b4",
+        "798ad50ef9b4afce",
+        "ba4e4f246b739ead"
       ]
     }
   ],

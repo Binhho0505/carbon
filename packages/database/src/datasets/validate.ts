@@ -2,6 +2,7 @@
 // assembly graph.json sidecars from disk); `pnpm db:check:datasets` covers the live
 // schema. RULES order is the order violations are listed in.
 
+import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -3832,6 +3833,27 @@ export function floor(ctx: ValidationCtx): void {
  * are in play order: a header's members sit directly before it, and the step that
  * uses a finished sub-assembly comes after it.
  */
+/**
+ * Fingerprint of what baked step motions depend on: each step's parts, header
+ * flag and sub-assembly links (by position, so renaming a key is not a change),
+ * in play order. Stored as `AssemblySpec.motionsBakedFor` by the bake.
+ */
+export function assemblyStructureFingerprint(steps: AssemblyStepSpec[]) {
+  const indexByKey = new Map(
+    steps.flatMap((step, index) => (step.key ? [[step.key, index]] : []))
+  );
+  const structure = steps.map((step) => [
+    step.componentNodeIds,
+    step.isSubAssembly ?? false,
+    step.parent ? (indexByKey.get(step.parent) ?? step.parent) : null,
+    step.usedIn ? (indexByKey.get(step.usedIn) ?? step.usedIn) : null
+  ]);
+  return createHash("sha1")
+    .update(JSON.stringify(structure))
+    .digest("hex")
+    .slice(0, 16);
+}
+
 function assemblySubAssemblies(
   steps: AssemblyStepSpec[],
   fail: (message: string) => void
@@ -3926,13 +3948,33 @@ export function assembly(ctx: ValidationCtx): void {
       if (assembly.item !== undefined)
         need("item", "items.assembly", assembly.item);
       for (const step of assembly.steps) {
-        for (const nodeId of step.componentNodeIds) {
+        for (const nodeId of [
+          ...step.componentNodeIds,
+          ...(step.blockedBy ?? [])
+        ]) {
           if (!graph.nodeIds.has(nodeId)) {
             fail(
               `items.assembly step "${step.title}": node id "${nodeId}" is not in the bundled graph`
             );
           }
         }
+        if (step.motion && step.blockedBy?.length) {
+          fail(
+            `items.assembly step "${step.title}": a blocked step has no path, so it carries no motion`
+          );
+        }
+      }
+      const baked = assembly.steps.some(
+        (step) => step.motion || step.view || step.blockedBy
+      );
+      if (
+        baked &&
+        assembly.motionsBakedFor !==
+          assemblyStructureFingerprint(assembly.steps)
+      ) {
+        fail(
+          `items.assembly "${assembly.model}": steps changed since their motions were baked — re-bake them, or drop motion/view/blockedBy`
+        );
       }
       assemblySubAssemblies(assembly.steps, fail);
       const bom =

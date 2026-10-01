@@ -55,7 +55,9 @@ export type NoneMotion = {
 
 /**
  * Describes the insertion motion of a step's components into the assembly. The
- * viewer derives removal (the reverse) and start poses from it.
+ * viewer derives removal (the reverse) and start poses from it. The demo
+ * datasets restate the shapes they seed as `AssemblyStepMotionSpec`
+ * (@carbon/database cannot import this package).
  */
 export type Motion =
   | LinearMotion

@@ -82,7 +82,19 @@ async function seedAssembly(ctx: Ctx, spec: AssemblySpec): Promise<void> {
       instructionText: step.instruction ?? step.title,
       componentNodeIds: step.componentNodeIds,
       isSubAssembly: step.isSubAssembly ?? false,
-      sortOrder: sortOrder++
+      sortOrder: sortOrder++,
+      ...(step.motion ? { motion: JSON.stringify(step.motion) } : {}),
+      ...(step.view
+        ? { camera: JSON.stringify({ source: "plan", direction: step.view }) }
+        : {}),
+      ...(step.blockedBy?.length
+        ? {
+            warnings: JSON.stringify({
+              flagged: true,
+              blockedBy: step.blockedBy
+            })
+          }
+        : {})
     });
     stepIds.push(stepId);
     if (step.key) stepIdByKey.set(step.key, stepId);

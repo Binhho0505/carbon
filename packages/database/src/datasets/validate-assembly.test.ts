@@ -77,4 +77,23 @@ describe("satellite assembly sub-assemblies", () => {
       'parent "no-such-header" is not a sub-assembly'
     );
   });
+  it("rejects baked motions once a step's parts change", () => {
+    const dataset = withSteps((steps) => {
+      const step = steps.find((candidate) => candidate.motion)!;
+      step.componentNodeIds = step.componentNodeIds.slice(1);
+      return steps;
+    });
+    expect(assemblyViolations(dataset).join("\n")).toContain(
+      "steps changed since their motions were baked"
+    );
+  });
+
+  it("keeps baked motions when only wording changes", () => {
+    const dataset = withSteps((steps) => {
+      steps[0]!.title = "Renamed";
+      steps[0]!.instruction = "Reworded.";
+      return steps;
+    });
+    expect(assemblyViolations(dataset)).toEqual([]);
+  });
 });

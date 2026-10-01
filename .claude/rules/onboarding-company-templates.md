@@ -445,6 +445,15 @@ controller joins the main build unused; precision: three levels deep, one step f
 sub-assemblies; motor: a chain).
 `AssemblyStepSpec` takes `key`, `isSubAssembly` (a header row), `parent` (the header a member
 belongs to) and `usedIn` (headers only: the later step that fits the finished unit).
+Steps also carry planner-baked motion — `motion`, `view` (the camera's plan hint) and
+`blockedBy` (written as `warnings.flagged`, so the player fades the step in) — produced by the
+geometry service in fixed-sequence mode, the app's re-motion request, run once per build (the
+main build and each sub-assembly on its own, meshed at the bake's 0.5/0.3 so node ids match)
+and mapped back to steps with `buildAssemblyStepGroups`. One motion moves all of a step's parts,
+so a step fitting parts from opposite sides cannot move; those were split per side. A step with
+no `motion` and no `blockedBy` is a build's first step: the player synthesizes its path. Like
+the STEP sources, the scripts that bake these are not committed — re-derive them whenever a
+step's parts or order change.
 `seedAssembly` inserts the rows in play order and sets `parentStepId` / `usedInStepId` in a
 second pass; the validator restates the viewer's `validateSubAssemblies` rules (members directly
 before their header, no nesting, `usedIn` points forward at a non-header step that is not one of
