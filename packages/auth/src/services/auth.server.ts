@@ -271,12 +271,6 @@ export async function requirePermissions(
         });
       }
 
-      // Update lastUsedAt (fire-and-forget)
-      void serviceRole
-        .from("apiKey")
-        .update({ lastUsedAt: new Date().toISOString() } as any)
-        .eq("id" as any, apiKeyData.id);
-
       // Check scopes against required permissions
       const scopes = apiKeyData.scopes ?? {};
       const scopeCheckPassed = Object.entries(requiredPermissions).every(

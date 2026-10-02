@@ -39,7 +39,7 @@ There is no login step and no token to refresh. Carbon hashes the incoming key, 
 
 A key does **not** inherit its creator's permissions: it acts with exactly the `module_action` scopes stored on it (`sales_view`, `inventory_create`, …), and only within its company. A key with no scopes can authenticate but read and write nothing. Scopes are checked on every request against the key's own record, so tightening them, or deleting the key, takes effect immediately. On Carbon Cloud, API access is a **Business-tier feature**: a company on the Starter plan gets `403` on every call regardless of the key's scopes; see [licensing](/docs/platform/licensing).
 
-Every key allows **60 requests per minute**, counted per key, so one integration burning its allowance doesn't throttle another. The limit is platform-controlled: the form has no rate-limit field, and the list's **Rate Limit** column is a report, not an input. A rejected request comes back `429` with `Retry-After` and `X-RateLimit-*` headers; wait it out rather than hammering through.
+A new key allows **20 requests per minute**, counted per key; a key created before the limit was lowered keeps the limit shown in its **Rate Limit** column. All of a company's keys together allow **60 requests per minute**, and requests refused on one key do not count against the others. Both limits are platform-controlled: the form has no rate-limit field, and the list's **Rate Limit** column is a report, not an input. A rejected request comes back `429` with `Retry-After` and `X-RateLimit-*` headers; wait it out rather than hammering through.
 
 ## What the key unlocks
 
@@ -76,7 +76,7 @@ The call needs a `module_action` scope the key doesn't carry — checked per req
 On Carbon Cloud, API access is Business-tier: the key path blocks Starter-plan companies outright (`packages/auth/src/services/auth.server.ts:312-330`). Upgrade the plan; the key itself is fine. A 403 on a single operation is the scope problem above instead. Connectors (OAuth) hit the same plan gate through the identity they inherit.
 
 ### "Rate limit exceeded"
-Over the key's 60/minute window (`supabase.ts:304`). Platform-controlled, no field to raise it. Honor `Retry-After`; if the ceiling is genuinely too tight, batch reads (PostgREST `in.(...)` filters, embedded relations) or talk to us.
+Over the key's per-minute limit, or over the company's 60/minute total across its keys; `X-RateLimit-Limit` carries the limit that refused it (`supabase.ts:304`). Platform-controlled, no field to raise it. Honor `Retry-After`; if the ceiling is genuinely too tight, batch reads (PostgREST `in.(...)` filters, embedded relations) or talk to us.
 
 ### "API key has expired"
 `expiresAt` is in the past (`supabase.ts:293`). Expiry can't be extended on a used key — create a new one and swap it in.
