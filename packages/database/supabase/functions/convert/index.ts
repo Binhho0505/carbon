@@ -10,6 +10,7 @@ import { datetime, getCompanyTimeZone } from "../lib/datetime.ts";
 
 import { getFunctionLogger } from "../lib/logging.ts";
 import { toJson } from "../lib/json.ts";
+import { quoteToOrderPriceTrace } from "../lib/price-trace.ts";
 import { RecordNotFoundError } from "../lib/company-records.ts";
 import { corsPreflight, errorResponse, jsonResponse } from "../lib/response.ts";
 import { requirePermissions } from "../lib/supabase.ts";
@@ -610,6 +611,12 @@ serve(async (req: Request) => {
               selectedLines[line.id].quantity > 0
           );
 
+          // Never create an empty order: the share page gates Accept, but this
+          // payload comes from an unauthenticated endpoint.
+          if (selectedQuoteLines.length === 0) {
+            throw new Error("No quote lines selected to convert");
+          }
+
           // Services are never shipped — a service-only order goes straight to
           // "To Invoice" so it isn't stuck waiting on a shipment that can't happen.
           const hasShippableLine = selectedQuoteLines.some(
@@ -721,6 +728,15 @@ serve(async (req: Request) => {
                 status: "Ordered",
                 unitOfMeasureCode: line.unitOfMeasureCode,
                 unitPrice: price.netUnitPrice ?? 0,
+                // How the quoted price was reached, carried onto the order.
+                priceTrace: toJson(
+                  quoteToOrderPriceTrace(
+                    price.priceTrace,
+                    price.unitPrice ?? 0,
+                    price.netUnitPrice ?? 0,
+                    price.discountPercent ?? 0
+                  )
+                ),
                 promisedDate: todayDate
                   .add({ days: price.leadTime ?? 0 })
                   .toString(),

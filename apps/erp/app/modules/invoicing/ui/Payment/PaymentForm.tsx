@@ -247,6 +247,7 @@ const PaymentForm = ({ initialValues, seedInvoiceIds }: PaymentFormProps) => {
                   />
                 )}
                 <SelectControlled
+                  autoFocus={!isEditing}
                   name="paymentKind"
                   label={t`Type`}
                   options={typeOptions}
