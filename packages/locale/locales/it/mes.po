@@ -519,6 +519,9 @@ msgstr "Scadente oggi?"
 msgid "Duplicate batch number"
 msgstr "Numero di lotto duplicato"
 
+msgid "Duplicate or copy"
+msgstr ""
+
 msgid "Duplicate serial number"
 msgstr "Numero di serie duplicato"
 
@@ -714,6 +717,9 @@ msgstr "Imperiale"
 #. placeholder {0}: precise?.text
 msgid "in {0}"
 msgstr "tra {0}"
+
+msgid "In an open menu"
+msgstr ""
 
 msgid "In Progress"
 msgstr "In Corso"
@@ -1234,6 +1240,9 @@ msgstr "Prelievo in luogo di {substitutedFrom}, l'articolo dell'ordine di produz
 msgid "picking in place of {substitutedFrom}, the item on the job, for {substitutedAssemblies} assemblies"
 msgstr "Prelievo in luogo di {substitutedFrom}, l'articolo dell'ordine di produzione, per {substitutedAssemblies} assiemi"
 
+msgid "Pin or unpin"
+msgstr ""
+
 msgid "Pin Out"
 msgstr "Disconnetti"
 
@@ -1360,6 +1369,9 @@ msgstr "Rimuovi Inventario"
 
 msgid "Remove part"
 msgstr "Rimuovi componente"
+
+msgid "Rename"
+msgstr ""
 
 msgid "Reopen the subassembly and create a replacement unit"
 msgstr "Riaprire il sottoassieme e creare un'unità di ricambio"
@@ -1865,6 +1877,9 @@ msgstr "Verifica"
 
 msgid "View maintenance dispatch"
 msgstr "Visualizza intervento di manutenzione"
+
+msgid "View or open"
+msgstr ""
 
 msgid "We've sent you a magic link to sign in to your account."
 msgstr "Ti abbiamo inviato un link di accesso al tuo account."

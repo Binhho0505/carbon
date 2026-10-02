@@ -17,6 +17,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
   IconButton,
+  MENU_ITEM_SHORTCUTS,
   Tooltip,
   TooltipContent,
   TooltipTrigger,
@@ -945,6 +946,7 @@ function SubAssemblyRow({
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem
+            shortcut={MENU_ITEM_SHORTCUTS.delete}
             destructive
             disabled={isDisabled || !permissions.can("delete", "production")}
             onClick={onDelete}
@@ -1130,6 +1132,7 @@ function StepRow({
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
+              shortcut={MENU_ITEM_SHORTCUTS.delete}
               destructive
               disabled={!permissions.can("delete", "production")}
               onClick={onDelete}

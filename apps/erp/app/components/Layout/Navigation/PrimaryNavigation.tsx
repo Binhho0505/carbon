@@ -3,6 +3,7 @@
 // including ports, remain AGPLv3; serving them over a network requires releasing their source.
 
 import {
+  cn,
   NavRail,
   NavRailItem,
   NavRailLink,
@@ -33,7 +34,10 @@ import {
   usePermissions,
   useSettingsModule
 } from "~/hooks";
-import { useImplementationNavItem } from "~/hooks/useImplementationNavItem";
+import {
+  getImplementationNavItem,
+  ImplementationData
+} from "~/hooks/useImplementationNavItem";
 import {
   MODULE_GO_TO,
   MODULE_GO_TO_PREFIX,
@@ -52,15 +56,32 @@ import { useNavigationEditMode } from "./useNavigationEditMode";
 // accent hover instead of the active-tinted one module links use.
 const ACTION_HOVER = "hover:bg-accent hover:text-accent-foreground";
 
+// Only modules have a g-then-letter key; pass it for those.
+const renderLink = (
+  link: Authenticated<NavItem>,
+  isActive: boolean,
+  goToKey?: string
+) => (
+  <NavRailLink
+    key={link.name}
+    to={link.to}
+    icon={<link.icon />}
+    label={link.name}
+    tag={link.tag}
+    external={link.external}
+    isActive={isActive}
+    trailing={goToKey ? <GoToHint goToKey={goToKey} /> : undefined}
+  />
+);
+
 const PrimaryNavigation = () => {
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
   const { isMobile } = useSidebar();
   const permissions = usePermissions();
   const location = useOptimisticLocation();
   const currentModule = getModule(location.pathname);
   const links = useModules();
   const settingsModule = useSettingsModule();
-  const implementationNav = useImplementationNavItem();
   const matchedModules = useMatches().reduce((acc, match) => {
     const handle = match.handle as { module?: string } | undefined;
 
@@ -113,22 +134,14 @@ const PrimaryNavigation = () => {
     useSensor(KeyboardSensor)
   );
 
-  const renderLink = (link: Authenticated<NavItem>, isActive: boolean) => (
-    <NavRailLink
-      key={link.name}
-      to={link.to}
-      icon={<link.icon />}
-      label={link.name}
-      tag={link.tag}
-      external={link.external}
-      isActive={isActive}
-    />
-  );
-
   const footer = (
     <>
       {settingsModule && !editMode.isEditing
-        ? renderLink(settingsModule, isModuleActive(settingsModule.to))
+        ? renderLink(
+            settingsModule,
+            isModuleActive(settingsModule.to),
+            MODULE_GO_TO[settingsModule.key]
+          )
         : null}
 
       {editMode.isEditing ? (
@@ -159,9 +172,16 @@ const PrimaryNavigation = () => {
         footer={footer}
       >
         {canSearch && <NavigationSearchButton />}
-        {!editMode.isEditing && implementationNav
-          ? renderLink(implementationNav, currentModule === "get-started")
-          : null}
+        {editMode.isEditing ? null : (
+          <ImplementationData>
+            {(data) => {
+              const item = getImplementationNavItem(data, i18n);
+              return item
+                ? renderLink(item, currentModule === "get-started")
+                : null;
+            }}
+          </ImplementationData>
+        )}
         {editMode.isEditing ? (
           <DndContext
             sensors={sensors}
@@ -182,7 +202,9 @@ const PrimaryNavigation = () => {
             </SortableContext>
           </DndContext>
         ) : (
-          links.map((link) => renderLink(link, isModuleActive(link.to)))
+          links.map((link) =>
+            renderLink(link, isModuleActive(link.to), MODULE_GO_TO[link.key])
+          )
         )}
 
         {editMode.isEditing && (
@@ -198,6 +220,25 @@ const PrimaryNavigation = () => {
     </>
   );
 };
+
+// Hovering is what expands the rail, so the g-then-letter hint shows on the
+// hovered/focused row only.
+const GoToHint = ({ goToKey }: { goToKey: string }) => (
+  <span
+    aria-hidden
+    className={cn(
+      "flex items-center gap-0.5 opacity-0 transition-opacity duration-100",
+      "group-hover/item:opacity-100 group-focus-visible/item:opacity-100"
+    )}
+  >
+    <ShortcutKey
+      shortcut={MODULE_GO_TO_PREFIX}
+      variant="small"
+      className="mx-0"
+    />
+    <ShortcutKey shortcut={goToKey} variant="small" className="mx-0" />
+  </span>
+);
 
 const NavigationSearchButton = () => {
   const { t } = useLingui();

@@ -6609,6 +6609,9 @@ msgstr "Nomes de arquivo duplicados após conversão de imagem"
 msgid "Duplicate Item"
 msgstr "Duplicar Item"
 
+msgid "Duplicate or copy"
+msgstr ""
+
 msgid "Duplicate Price List"
 msgstr "Duplicar Lista de Preços"
 
@@ -8392,7 +8395,7 @@ msgid "From"
 msgstr "De"
 
 #. placeholder {0}: formatDate(startDate)
-#. placeholder {0}: routeDataFromRoute.supersession.successorEffectivityDate
+#. placeholder {0}: supersession.successorEffectivityDate
 msgid "From {0}"
 msgstr "De {0}"
 
@@ -8808,6 +8811,9 @@ msgstr "Ocultar número da conta"
 msgid "Hide Again"
 msgstr "Ocultar Novamente"
 
+msgid "Hide calculation"
+msgstr ""
+
 msgid "Hide raw"
 msgstr "Ocultar bruto"
 
@@ -8982,6 +8988,9 @@ msgstr "Como o preço resolvido foi calculado."
 msgid "How the sample size is decided — Inspect All, Inspect First N, Percentage of Lot, or AQL (Z1.4 / ISO 2859-1). Each mode reveals its own parameter fields below."
 msgstr "Como o tamanho da amostra é decidido — Inspecionar Tudo, Inspecionar Primeiro N, Percentual do Lote ou AQL (Z1.4 / ISO 2859-1). Cada modo revela seus próprios campos de parâmetros abaixo."
 
+msgid "How the unit price of each quantity was calculated."
+msgstr ""
+
 msgid "How this gauge is used — Standard (regular checks) or Master (calibrates other gauges)."
 msgstr "Como este instrumento de medição é usado — Normal (verificações regulares) ou Padrão (calibra outros instrumentos de medição)."
 
@@ -9147,6 +9156,9 @@ msgstr "Importe seu BOM"
 #. placeholder {0}: precise?.text
 msgid "in {0}"
 msgstr "em {0}"
+
+msgid "In an open menu"
+msgstr ""
 
 msgid "In Onshape, edit this OAuth application's permissions to include \"Application can write to your documents\", then connect again."
 msgstr "No Onshape, edite as permissões desta aplicação OAuth para incluir «Application can write to your documents» e conecte novamente."
@@ -12016,6 +12028,9 @@ msgstr "Nenhuma precificação para a quantidade selecionada"
 msgid "No pricing options found"
 msgstr "Nenhuma opção de precificação encontrada"
 
+msgid "No pricing rules apply to this quantity."
+msgstr ""
+
 msgid "No printer configured"
 msgstr "Nenhuma impressora configurada"
 
@@ -13431,6 +13446,9 @@ msgstr "Fixar"
 msgid "Pin {0}"
 msgstr "Fixar {0}"
 
+msgid "Pin or unpin"
+msgstr ""
+
 msgid "Pinned"
 msgstr "Fixado"
 
@@ -13701,6 +13719,9 @@ msgstr "Listas de Preços"
 
 msgid "Price override"
 msgstr "Sobrescrita de preço"
+
+msgid "Priced before pricing traces were recorded — this is today's calculation."
+msgstr ""
 
 msgid "Prices"
 msgstr "Preços"
@@ -14228,6 +14249,10 @@ msgstr "Quantidades"
 
 msgid "Quantity"
 msgstr "Quantidade"
+
+#. placeholder {0}: price.quantity
+msgid "Quantity {0}"
+msgstr ""
 
 msgid "Quantity arriving — on open purchase orders plus on production (make) orders."
 msgstr "Quantidade a chegar — em pedidos de compra abertos mais em ordens de produção (fabricação)."
@@ -14925,6 +14950,9 @@ msgstr "Removido"
 msgid "Removing this path will also disconnect {count} connection{0}. Continue?"
 msgstr "Remover este caminho também desconectará {count} conexão{0}. Continuar?"
 
+msgid "Rename"
+msgstr ""
+
 msgid "Rename Workflow"
 msgstr "Renomear Fluxo de Trabalho"
 
@@ -15014,6 +15042,13 @@ msgstr "Dimensão de relatório"
 
 msgid "Reports"
 msgstr "Relatórios"
+
+msgid "Reprice with current rules"
+msgstr ""
+
+#. placeholder {0}: format(repricedPrice)
+msgid "Repricing with today's rules and costs gives <0>{0}</0>."
+msgstr ""
 
 msgid "Reprint"
 msgstr "Reimprimir"
@@ -16770,6 +16805,9 @@ msgstr "Mostrar números de lote de produção disponíveis"
 
 msgid "Show available tracking numbers"
 msgstr "Mostrar números de rastreamento disponíveis"
+
+msgid "Show calculation"
+msgstr ""
 
 msgid "Show Customer IDs"
 msgstr "Mostrar IDs de Cliente"
@@ -19036,6 +19074,9 @@ msgstr "Este PIN não será exibido novamente. Se você o perdeu, redefina-o na 
 msgid "This PIN will not be shown again. You will need it to exit console mode on MES terminals."
 msgstr "Este PIN não será exibido novamente. Você precisará dele para sair do modo de console em terminais MES."
 
+msgid "This price was entered manually, so no pricing rules were applied."
+msgstr ""
+
 msgid "this purchase order"
 msgstr "este pedido de compra"
 
@@ -20400,6 +20441,9 @@ msgstr "Ver Cotações Abertas"
 
 msgid "View Open RFQs"
 msgstr "Ver RFQs Abertos"
+
+msgid "View or open"
+msgstr ""
 
 msgid "View Payables"
 msgstr "Ver Contas a Pagar"

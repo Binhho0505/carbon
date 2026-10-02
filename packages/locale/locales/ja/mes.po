@@ -519,6 +519,9 @@ msgstr "本日が納期か?"
 msgid "Duplicate batch number"
 msgstr "バッチ番号の複製"
 
+msgid "Duplicate or copy"
+msgstr ""
+
 msgid "Duplicate serial number"
 msgstr "シリアル番号の複製"
 
@@ -714,6 +717,9 @@ msgstr "インペリアル"
 #. placeholder {0}: precise?.text
 msgid "in {0}"
 msgstr "{0}で"
+
+msgid "In an open menu"
+msgstr ""
 
 msgid "In Progress"
 msgstr "進行中"
@@ -1234,6 +1240,9 @@ msgstr "{substitutedFrom}の代わりにピッキング、当ジョブ上の品�
 msgid "picking in place of {substitutedFrom}, the item on the job, for {substitutedAssemblies} assemblies"
 msgstr "{substitutedAssemblies}個のアセンブリ分、{substitutedFrom}の代わりにピッキング、当ジョブ上の品目"
 
+msgid "Pin or unpin"
+msgstr ""
+
 msgid "Pin Out"
 msgstr "ピンアウト"
 
@@ -1360,6 +1369,9 @@ msgstr "在庫を除去"
 
 msgid "Remove part"
 msgstr "部品を除去"
+
+msgid "Rename"
+msgstr ""
 
 msgid "Reopen the subassembly and create a replacement unit"
 msgstr "サブアセンブリを再オープンし、代替品を作成"
@@ -1865,6 +1877,9 @@ msgstr "確認"
 
 msgid "View maintenance dispatch"
 msgstr "保全指示を表示"
+
+msgid "View or open"
+msgstr ""
 
 msgid "We've sent you a magic link to sign in to your account."
 msgstr "アカウントにサインインするためのマジックリンクをお送りしました。"
