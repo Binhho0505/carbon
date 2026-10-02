@@ -105,8 +105,10 @@ async function listObjectKeys(
 // error, so creating unconditionally logged one `buckets_pkey` error per
 // company on every run.
 async function bucketExists(companyId: string): Promise<boolean> {
-  const { data } = await client.storage.getBucket(companyId);
-  return Boolean(data);
+  const { error } = await client.storage.getBucket(companyId);
+  if (!error) return true;
+  if (String(error.statusCode) === "404") return false;
+  throw new Error(`Failed to read bucket ${companyId}: ${error.message}`);
 }
 
 async function createBucket(companyId: string) {
