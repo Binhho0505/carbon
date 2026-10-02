@@ -169,6 +169,7 @@ const PrimaryNavigation = () => {
           label={t`Customize`}
           onClick={editMode.enterEditMode}
           className={ACTION_HOVER}
+          data-hover-tone="accent"
         />
       )}
     </>
@@ -266,6 +267,7 @@ const NavigationSearchButton = () => {
         openSearchModal();
       }}
       className={ACTION_HOVER}
+      data-hover-tone="accent"
       trailing={
         <ShortcutKey
           shortcut={searchShortcut}
