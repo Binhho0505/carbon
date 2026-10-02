@@ -4,12 +4,14 @@
 
 import { Button, VStack } from "@carbon/react";
 import { Link } from "react-router";
-import { useOptimisticLocation, useUrlParams } from "~/hooks";
+import { useUrlParams } from "~/hooks";
 import type { Route } from "~/types";
-import { CollapsibleSidebar } from "./CollapsibleSidebar";
+import { CollapsibleSidebar, useSidebarLocation } from "./CollapsibleSidebar";
 
 const ContentSidebar = ({ links }: { links: Route[] }) => {
-  const location = useOptimisticLocation();
+  const location = useSidebarLocation((pathname) =>
+    links.some((route) => pathname.includes(route.to))
+  );
   const [params] = useUrlParams();
   const filter = params.get("q") ?? undefined;
 

@@ -28,10 +28,22 @@ import {
 } from "react-icons/lu";
 import { Link, useSubmit } from "react-router";
 import { ConfirmDelete } from "~/components/Modals";
-import { useOptimisticLocation } from "~/hooks";
 import type { RouteGroup } from "~/types";
 import { path } from "~/utils/path";
-import { CollapsibleSidebar } from "./CollapsibleSidebar";
+import { CollapsibleSidebar, useSidebarLocation } from "./CollapsibleSidebar";
+
+type GroupedRoute = RouteGroup["routes"][number];
+
+const matchesRoute = (
+  route: GroupedRoute,
+  pathname: string,
+  exactMatch: boolean
+) =>
+  route.isActive
+    ? route.isActive(pathname)
+    : exactMatch
+      ? pathname === route.to
+      : pathname.includes(route.to);
 
 const GroupedContentSidebar = ({
   groups,
@@ -43,7 +55,11 @@ const GroupedContentSidebar = ({
   exactMatch?: boolean;
 }) => {
   const { t } = useLingui();
-  const location = useOptimisticLocation();
+  const location = useSidebarLocation((pathname) =>
+    groups.some((group) =>
+      group.routes.some((route) => matchesRoute(route, pathname, exactMatch))
+    )
+  );
   const submit = useSubmit();
 
   const [expandedViews, setExpandedViews] = useState<Record<string, boolean>>(
@@ -88,14 +104,13 @@ const GroupedContentSidebar = ({
                 {group.name}
               </Subheading>
               {group.routes.map((route) => {
-                const isActive = route.isActive
-                  ? route.isActive(location.pathname)
-                  : exactMatch
-                    ? location.pathname === route.to
-                    : location.pathname.includes(route.to) &&
-                      !`${location.pathname}${location.search}`.includes(
-                        "view="
-                      );
+                const isActive =
+                  matchesRoute(route, location.pathname, exactMatch) &&
+                  (Boolean(route.isActive) ||
+                    exactMatch ||
+                    !`${location.pathname}${location.search}`.includes(
+                      "view="
+                    ));
 
                 const hasViews = route.views && route.views.length > 0;
                 const isExpanded = expandedViews[route.name];
@@ -187,7 +202,7 @@ const ViewsReorderGroup = ({
   onDelete
 }: {
   views: { id: string; name: string; to: string; sortOrder: number }[];
-  location: ReturnType<typeof useOptimisticLocation>;
+  location: ReturnType<typeof useSidebarLocation>;
   onReorder: (
     updates: { id: string; name: string; to: string; sortOrder: number }[]
   ) => void;

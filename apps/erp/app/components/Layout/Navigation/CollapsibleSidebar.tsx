@@ -18,9 +18,12 @@ import {
   forwardRef,
   useContext,
   useEffect,
-  useMemo
+  useMemo,
+  useRef
 } from "react";
 import { LuPanelLeft } from "react-icons/lu";
+import type { Location } from "react-router";
+import { useLocation, useNavigation } from "react-router";
 import { useOptimisticLocation } from "~/hooks";
 import { useUIStore } from "~/stores/ui";
 
@@ -52,12 +55,14 @@ export function CollapsibleSidebarProvider({ children }: PropsWithChildren) {
     (state) => state.setHasContentSidebar
   );
 
+  // Every module layout mounts its own provider. Opening on mount undid a
+  // collapse on each module change, and on a phone opened the drawer for a
+  // frame before closing it, so only a change of breakpoint moves it.
+  const wasMobile = useRef(false);
   useEffect(() => {
-    if (isMobile) {
-      setSidebarOpen(false);
-    } else {
-      setSidebarOpen(true);
-    }
+    if (isMobile) setSidebarOpen(false);
+    else if (wasMobile.current) setSidebarOpen(true);
+    wasMobile.current = isMobile;
   }, [isMobile, setSidebarOpen]);
 
   // Tell the (global) Topbar that this route has a content sub-nav, so it can
@@ -106,9 +111,21 @@ CollapsibleSidebarTrigger.displayName = "CollapsibleSidebarTrigger";
 // ease-out-quart: feels snappy and responsive for sidebar expand/collapse
 const easeOutQuart = [0.165, 0.84, 0.44, 1] as const;
 
+/**
+ * The location a module sidebar highlights against: the pending one while it
+ * is still inside this sidebar, otherwise the one on screen. A sidebar about
+ * to be replaced keeps its highlight instead of going blank for the length of
+ * the loader.
+ */
+export function useSidebarLocation(isInside: (pathname: string) => boolean) {
+  const current = useLocation();
+  const pending: Location | undefined = useNavigation().location;
+  return pending && isInside(pending.pathname) ? pending : current;
+}
+
 export const CollapsibleSidebar = ({
   children,
-  width = 180
+  width = 240
 }: PropsWithChildren<{ width?: number }>) => {
   const { isOpen } = useCollapsibleSidebar();
   const shouldReduceMotion = useReducedMotion();
