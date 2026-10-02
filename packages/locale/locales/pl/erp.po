@@ -3002,6 +3002,9 @@ msgstr "Pobranie wsteczne"
 msgid "Backup failed"
 msgstr "Kopia bezpieczeństwa nie powiodła się"
 
+msgid "Backup uploaded"
+msgstr ""
+
 msgid "Backups"
 msgstr "Kopie zapasowe"
 
@@ -8132,6 +8135,10 @@ msgstr "Nie udało się przesłać pliku PDF"
 
 msgid "Failed to upload thumbnail"
 msgstr "Nie udało się przesłać miniatury."
+
+#. placeholder {0}: (err as Error).message
+msgid "Failed to upload: {0}"
+msgstr ""
 
 msgid "Failure"
 msgstr "Niepowodzenie"
@@ -13641,6 +13648,9 @@ msgstr "Preferowany dostawca"
 msgid "Prefix"
 msgstr "Prefiks"
 
+msgid "Preparing the backup for restore…"
+msgstr ""
+
 msgid "Prepayments"
 msgstr "Zaliczki"
 
@@ -16099,6 +16109,9 @@ msgstr "Segmenty, które określają ceny i warunki dla klientów"
 
 msgid "Select"
 msgstr "Wybierz"
+
+msgid "Select a .carbon.tar.gz backup"
+msgstr ""
 
 msgid "Select a assignee"
 msgstr "Wybierz osobę przypisaną"
@@ -20052,6 +20065,9 @@ msgstr "Prześlij plik CSV"
 msgid "Upload failed. Please try again."
 msgstr "Przesłanie pliku nie powiodło się. Spróbuj ponownie."
 
+msgid "Upload new backup…"
+msgstr ""
+
 msgid "Uploaded model"
 msgstr "Model przesłany"
 
@@ -20068,6 +20084,12 @@ msgstr "Przesyłanie {0}"
 
 msgid "Uploading {fileName}"
 msgstr "Przesylanie {fileName}"
+
+msgid "Uploading backup"
+msgstr ""
+
+msgid "Uploading the backup file"
+msgstr ""
 
 msgid "Uploading..."
 msgstr "Przesyłanie..."

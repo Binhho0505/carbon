@@ -3002,6 +3002,9 @@ msgstr "Geriye dönük tüketim"
 msgid "Backup failed"
 msgstr "Yedekleme başarısız oldu"
 
+msgid "Backup uploaded"
+msgstr ""
+
 msgid "Backups"
 msgstr "Yedeklemeler"
 
@@ -8132,6 +8135,10 @@ msgstr "PDF yüklenemedi"
 
 msgid "Failed to upload thumbnail"
 msgstr "Küçük resim yüklenemedi"
+
+#. placeholder {0}: (err as Error).message
+msgid "Failed to upload: {0}"
+msgstr ""
 
 msgid "Failure"
 msgstr "Başarısızlık"
@@ -13641,6 +13648,9 @@ msgstr "Tercih Edilen Tedarikçi"
 msgid "Prefix"
 msgstr "Ön Ek"
 
+msgid "Preparing the backup for restore…"
+msgstr ""
+
 msgid "Prepayments"
 msgstr "Avanslar"
 
@@ -16099,6 +16109,9 @@ msgstr "Müşteri fiyatlandırması ve koşullarını belirleyen segmentler"
 
 msgid "Select"
 msgstr "Seç"
+
+msgid "Select a .carbon.tar.gz backup"
+msgstr ""
 
 msgid "Select a assignee"
 msgstr "Bir atanan seçin"
@@ -20052,6 +20065,9 @@ msgstr "CSV Yükle"
 msgid "Upload failed. Please try again."
 msgstr "Yükleme başarısız oldu. Lütfen tekrar deneyin."
 
+msgid "Upload new backup…"
+msgstr ""
+
 msgid "Uploaded model"
 msgstr "Yüklenen model"
 
@@ -20068,6 +20084,12 @@ msgstr "Yükleniyor {0}"
 
 msgid "Uploading {fileName}"
 msgstr "{\"fileName\"} yükleniyor"
+
+msgid "Uploading backup"
+msgstr ""
+
+msgid "Uploading the backup file"
+msgstr ""
 
 msgid "Uploading..."
 msgstr "Yükleniyor..."

@@ -3002,6 +3002,9 @@ msgstr "Retrograde Entnahme"
 msgid "Backup failed"
 msgstr "Sicherung fehlgeschlagen"
 
+msgid "Backup uploaded"
+msgstr ""
+
 msgid "Backups"
 msgstr "Sicherungen"
 
@@ -8132,6 +8135,10 @@ msgstr "Fehler beim Hochladen des PDF"
 
 msgid "Failed to upload thumbnail"
 msgstr "Fehler beim Hochladen des Vorschaubildes"
+
+#. placeholder {0}: (err as Error).message
+msgid "Failed to upload: {0}"
+msgstr ""
 
 msgid "Failure"
 msgstr "Fehler"
@@ -13641,6 +13648,9 @@ msgstr "Bevorzugter Lieferant"
 msgid "Prefix"
 msgstr "Präfix"
 
+msgid "Preparing the backup for restore…"
+msgstr ""
+
 msgid "Prepayments"
 msgstr "Anzahlungen"
 
@@ -16099,6 +16109,9 @@ msgstr "Segmente, die Kundenpreise und -bedingungen bestimmen"
 
 msgid "Select"
 msgstr "Auswählen"
+
+msgid "Select a .carbon.tar.gz backup"
+msgstr ""
 
 msgid "Select a assignee"
 msgstr "Einen Bearbeiter auswählen"
@@ -20052,6 +20065,9 @@ msgstr "CSV hochladen"
 msgid "Upload failed. Please try again."
 msgstr "Hochladen fehlgeschlagen. Bitte versuchen Sie es erneut."
 
+msgid "Upload new backup…"
+msgstr ""
+
 msgid "Uploaded model"
 msgstr "Modell hochgeladen"
 
@@ -20068,6 +20084,12 @@ msgstr "Wird hochgeladen {0}"
 
 msgid "Uploading {fileName}"
 msgstr "Wird hochgeladen {fileName}"
+
+msgid "Uploading backup"
+msgstr ""
+
+msgid "Uploading the backup file"
+msgstr ""
 
 msgid "Uploading..."
 msgstr "Wird hochgeladen..."

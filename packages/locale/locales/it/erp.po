@@ -3002,6 +3002,9 @@ msgstr "Backflush"
 msgid "Backup failed"
 msgstr "Backup non riuscito"
 
+msgid "Backup uploaded"
+msgstr ""
+
 msgid "Backups"
 msgstr "Backup"
 
@@ -8132,6 +8135,10 @@ msgstr "Caricamento PDF non riuscito"
 
 msgid "Failed to upload thumbnail"
 msgstr "Impossibile caricare la miniatura"
+
+#. placeholder {0}: (err as Error).message
+msgid "Failed to upload: {0}"
+msgstr ""
 
 msgid "Failure"
 msgstr "Errore"
@@ -13641,6 +13648,9 @@ msgstr "Fornitore preferenziale"
 msgid "Prefix"
 msgstr "Prefisso"
 
+msgid "Preparing the backup for restore…"
+msgstr ""
+
 msgid "Prepayments"
 msgstr "Acconti"
 
@@ -16099,6 +16109,9 @@ msgstr "Segmenti che determinano i prezzi e le condizioni dei clienti"
 
 msgid "Select"
 msgstr "Seleziona"
+
+msgid "Select a .carbon.tar.gz backup"
+msgstr ""
 
 msgid "Select a assignee"
 msgstr "Seleziona un assegnatario"
@@ -20052,6 +20065,9 @@ msgstr "Carica CSV"
 msgid "Upload failed. Please try again."
 msgstr "Caricamento non riuscito. Riprova."
 
+msgid "Upload new backup…"
+msgstr ""
+
 msgid "Uploaded model"
 msgstr "Modello caricato"
 
@@ -20068,6 +20084,12 @@ msgstr "Caricamento {0}"
 
 msgid "Uploading {fileName}"
 msgstr "Caricamento in corso {fileName}"
+
+msgid "Uploading backup"
+msgstr ""
+
+msgid "Uploading the backup file"
+msgstr ""
 
 msgid "Uploading..."
 msgstr "Caricamento in corso..."

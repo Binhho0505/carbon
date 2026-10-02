@@ -3002,6 +3002,9 @@ msgstr "バックフラッシュ"
 msgid "Backup failed"
 msgstr "バックアップに失敗しました"
 
+msgid "Backup uploaded"
+msgstr ""
+
 msgid "Backups"
 msgstr "バックアップ"
 
@@ -8132,6 +8135,10 @@ msgstr "PDFのアップロードに失敗しました"
 
 msgid "Failed to upload thumbnail"
 msgstr "サムネイルのアップロードに失敗しました"
+
+#. placeholder {0}: (err as Error).message
+msgid "Failed to upload: {0}"
+msgstr ""
 
 msgid "Failure"
 msgstr "失敗"
@@ -13641,6 +13648,9 @@ msgstr "優先仕入先"
 msgid "Prefix"
 msgstr "プレフィックス"
 
+msgid "Preparing the backup for restore…"
+msgstr ""
+
 msgid "Prepayments"
 msgstr "前払金（デフォルト）"
 
@@ -16099,6 +16109,9 @@ msgstr "得意先の価格設定と条件を決定するセグメント"
 
 msgid "Select"
 msgstr "選択"
+
+msgid "Select a .carbon.tar.gz backup"
+msgstr ""
 
 msgid "Select a assignee"
 msgstr "担当者を選択"
@@ -20052,6 +20065,9 @@ msgstr "CSVをアップロード"
 msgid "Upload failed. Please try again."
 msgstr "アップロードに失敗しました。もう一度お試しください。"
 
+msgid "Upload new backup…"
+msgstr ""
+
 msgid "Uploaded model"
 msgstr "モデルをアップロードしました"
 
@@ -20068,6 +20084,12 @@ msgstr "アップロード中 {0}"
 
 msgid "Uploading {fileName}"
 msgstr "アップロード中 {fileName}"
+
+msgid "Uploading backup"
+msgstr ""
+
+msgid "Uploading the backup file"
+msgstr ""
 
 msgid "Uploading..."
 msgstr "アップロード中..."

@@ -3002,6 +3002,9 @@ msgstr "बैकफ्लश"
 msgid "Backup failed"
 msgstr "बैकअप विफल रहा"
 
+msgid "Backup uploaded"
+msgstr ""
+
 msgid "Backups"
 msgstr "बैकअप"
 
@@ -8132,6 +8135,10 @@ msgstr "PDF अपलोड करने में विफल"
 
 msgid "Failed to upload thumbnail"
 msgstr "थंबनेल अपलोड करने में विफल"
+
+#. placeholder {0}: (err as Error).message
+msgid "Failed to upload: {0}"
+msgstr ""
 
 msgid "Failure"
 msgstr "विफलता"
@@ -13641,6 +13648,9 @@ msgstr "पसंदीदा आपूर्तिकर्ता"
 msgid "Prefix"
 msgstr "उपसर्ग"
 
+msgid "Preparing the backup for restore…"
+msgstr ""
+
 msgid "Prepayments"
 msgstr "अग्रिम भुगतान (डिफ़ॉल्ट)"
 
@@ -16099,6 +16109,9 @@ msgstr "ऐसे सेगमेंट जो ग्राहक मूल्�
 
 msgid "Select"
 msgstr "चुनें"
+
+msgid "Select a .carbon.tar.gz backup"
+msgstr ""
 
 msgid "Select a assignee"
 msgstr "एक असाइनी चुनें"
@@ -20052,6 +20065,9 @@ msgstr "CSV अपलोड करें"
 msgid "Upload failed. Please try again."
 msgstr "अपलोड विफल रहा। कृपया पुनः प्रयास करें।"
 
+msgid "Upload new backup…"
+msgstr ""
+
 msgid "Uploaded model"
 msgstr "अपलोड किया गया मॉडल"
 
@@ -20068,6 +20084,12 @@ msgstr "अपलोड किया जा रहा है {0}"
 
 msgid "Uploading {fileName}"
 msgstr "अपलोड किया जा रहा है {fileName}"
+
+msgid "Uploading backup"
+msgstr ""
+
+msgid "Uploading the backup file"
+msgstr ""
 
 msgid "Uploading..."
 msgstr "अपलोड हो रहा है..."

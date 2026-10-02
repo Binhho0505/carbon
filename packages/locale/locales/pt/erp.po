@@ -3002,6 +3002,9 @@ msgstr "Baixa automática"
 msgid "Backup failed"
 msgstr "Backup falhou"
 
+msgid "Backup uploaded"
+msgstr ""
+
 msgid "Backups"
 msgstr "Backups"
 
@@ -8132,6 +8135,10 @@ msgstr "Falha ao enviar arquivo PDF"
 
 msgid "Failed to upload thumbnail"
 msgstr "Falha ao enviar arquivo de miniatura"
+
+#. placeholder {0}: (err as Error).message
+msgid "Failed to upload: {0}"
+msgstr ""
 
 msgid "Failure"
 msgstr "Falha"
@@ -13641,6 +13648,9 @@ msgstr "Fornecedor preferencial"
 msgid "Prefix"
 msgstr "Prefixo"
 
+msgid "Preparing the backup for restore…"
+msgstr ""
+
 msgid "Prepayments"
 msgstr "Adiantamentos (padrão)"
 
@@ -16099,6 +16109,9 @@ msgstr "Segmentos que determinam a precificação e os termos do cliente"
 
 msgid "Select"
 msgstr "Selecionar"
+
+msgid "Select a .carbon.tar.gz backup"
+msgstr ""
 
 msgid "Select a assignee"
 msgstr "Selecione um designado"
@@ -20052,6 +20065,9 @@ msgstr "Enviar arquivo CSV"
 msgid "Upload failed. Please try again."
 msgstr "O envio do arquivo falhou. Por favor, tente novamente."
 
+msgid "Upload new backup…"
+msgstr ""
+
 msgid "Uploaded model"
 msgstr "Modelo carregado"
 
@@ -20068,6 +20084,12 @@ msgstr "Enviando {0}"
 
 msgid "Uploading {fileName}"
 msgstr "Carregando {fileName}"
+
+msgid "Uploading backup"
+msgstr ""
+
+msgid "Uploading the backup file"
+msgstr ""
 
 msgid "Uploading..."
 msgstr "Enviando..."

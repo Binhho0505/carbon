@@ -3002,6 +3002,9 @@ msgstr "倒冲"
 msgid "Backup failed"
 msgstr "备份失败"
 
+msgid "Backup uploaded"
+msgstr ""
+
 msgid "Backups"
 msgstr "备份"
 
@@ -8132,6 +8135,10 @@ msgstr "上传 PDF 失败"
 
 msgid "Failed to upload thumbnail"
 msgstr "上传缩略图失败"
+
+#. placeholder {0}: (err as Error).message
+msgid "Failed to upload: {0}"
+msgstr ""
 
 msgid "Failure"
 msgstr "故障"
@@ -13641,6 +13648,9 @@ msgstr "首选供应商"
 msgid "Prefix"
 msgstr "前缀"
 
+msgid "Preparing the backup for restore…"
+msgstr ""
+
 msgid "Prepayments"
 msgstr "预付款（默认）"
 
@@ -16099,6 +16109,9 @@ msgstr "驱动客户定价和条款的细分市场"
 
 msgid "Select"
 msgstr "选择"
+
+msgid "Select a .carbon.tar.gz backup"
+msgstr ""
 
 msgid "Select a assignee"
 msgstr "选择经办人"
@@ -20052,6 +20065,9 @@ msgstr "上传 CSV"
 msgid "Upload failed. Please try again."
 msgstr "上传失败。请重试。"
 
+msgid "Upload new backup…"
+msgstr ""
+
 msgid "Uploaded model"
 msgstr "已上传模型"
 
@@ -20068,6 +20084,12 @@ msgstr "正在上传 {0}"
 
 msgid "Uploading {fileName}"
 msgstr "正在上传 {fileName}"
+
+msgid "Uploading backup"
+msgstr ""
+
+msgid "Uploading the backup file"
+msgstr ""
 
 msgid "Uploading..."
 msgstr "上传中..."

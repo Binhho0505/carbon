@@ -3002,6 +3002,9 @@ msgstr "Ретроградное списание"
 msgid "Backup failed"
 msgstr "Ошибка резервной копии"
 
+msgid "Backup uploaded"
+msgstr ""
+
 msgid "Backups"
 msgstr "Резервные копии"
 
@@ -8132,6 +8135,10 @@ msgstr "Ошибка загрузки PDF"
 
 msgid "Failed to upload thumbnail"
 msgstr "Не удалось загрузить миниатюру"
+
+#. placeholder {0}: (err as Error).message
+msgid "Failed to upload: {0}"
+msgstr ""
 
 msgid "Failure"
 msgstr "Сбой"
@@ -13641,6 +13648,9 @@ msgstr "Основной поставщик"
 msgid "Prefix"
 msgstr "Префикс"
 
+msgid "Preparing the backup for restore…"
+msgstr ""
+
 msgid "Prepayments"
 msgstr "Предоплаты"
 
@@ -16099,6 +16109,9 @@ msgstr "Сегменты, которые определяют ценообраз
 
 msgid "Select"
 msgstr "Выбрать"
+
+msgid "Select a .carbon.tar.gz backup"
+msgstr ""
 
 msgid "Select a assignee"
 msgstr "Выберите исполнителя"
@@ -20052,6 +20065,9 @@ msgstr "Загрузить CSV"
 msgid "Upload failed. Please try again."
 msgstr "Не удалось загрузить файл. Попробуйте ещё раз."
 
+msgid "Upload new backup…"
+msgstr ""
+
 msgid "Uploaded model"
 msgstr "Модель загружена"
 
@@ -20068,6 +20084,12 @@ msgstr "Загрузка {0}"
 
 msgid "Uploading {fileName}"
 msgstr "Загрузка {fileName}"
+
+msgid "Uploading backup"
+msgstr ""
+
+msgid "Uploading the backup file"
+msgstr ""
 
 msgid "Uploading..."
 msgstr "Загрузка..."

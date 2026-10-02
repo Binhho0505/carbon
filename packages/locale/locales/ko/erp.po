@@ -3002,6 +3002,9 @@ msgstr "백플러시"
 msgid "Backup failed"
 msgstr "백업 실패"
 
+msgid "Backup uploaded"
+msgstr ""
+
 msgid "Backups"
 msgstr "백업"
 
@@ -8132,6 +8135,10 @@ msgstr "PDF를 업로드하지 못했습니다"
 
 msgid "Failed to upload thumbnail"
 msgstr "썸네일을 업로드하지 못했습니다"
+
+#. placeholder {0}: (err as Error).message
+msgid "Failed to upload: {0}"
+msgstr ""
 
 msgid "Failure"
 msgstr "실패"
@@ -13641,6 +13648,9 @@ msgstr "우선 공급업체"
 msgid "Prefix"
 msgstr "접두사"
 
+msgid "Preparing the backup for restore…"
+msgstr ""
+
 msgid "Prepayments"
 msgstr "선급금"
 
@@ -16099,6 +16109,9 @@ msgstr "고객 가격 책정과 계약 조건을 좌우하는 구분 항목"
 
 msgid "Select"
 msgstr "선택"
+
+msgid "Select a .carbon.tar.gz backup"
+msgstr ""
 
 msgid "Select a assignee"
 msgstr "담당자 선택"
@@ -20052,6 +20065,9 @@ msgstr "CSV 업로드"
 msgid "Upload failed. Please try again."
 msgstr "업로드에 실패했습니다. 다시 시도해 주세요."
 
+msgid "Upload new backup…"
+msgstr ""
+
 msgid "Uploaded model"
 msgstr "업로드된 모델"
 
@@ -20068,6 +20084,12 @@ msgstr "{0} 업로드 중"
 
 msgid "Uploading {fileName}"
 msgstr "{fileName} 업로드 중"
+
+msgid "Uploading backup"
+msgstr ""
+
+msgid "Uploading the backup file"
+msgstr ""
 
 msgid "Uploading..."
 msgstr "업로드 중..."

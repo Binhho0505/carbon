@@ -3002,6 +3002,9 @@ msgstr "Post-consommation"
 msgid "Backup failed"
 msgstr "La sauvegarde a échoué"
 
+msgid "Backup uploaded"
+msgstr ""
+
 msgid "Backups"
 msgstr "Sauvegardes"
 
@@ -8132,6 +8135,10 @@ msgstr "Impossible de téléverser le PDF"
 
 msgid "Failed to upload thumbnail"
 msgstr "Impossible de téléverser la miniature"
+
+#. placeholder {0}: (err as Error).message
+msgid "Failed to upload: {0}"
+msgstr ""
 
 msgid "Failure"
 msgstr "Échec"
@@ -13641,6 +13648,9 @@ msgstr "Fournisseur préféré"
 msgid "Prefix"
 msgstr "Préfixe"
 
+msgid "Preparing the backup for restore…"
+msgstr ""
+
 msgid "Prepayments"
 msgstr "Acomptes (par défaut)"
 
@@ -16099,6 +16109,9 @@ msgstr "Segments qui déterminent la tarification et les conditions client"
 
 msgid "Select"
 msgstr "Sélectionner"
+
+msgid "Select a .carbon.tar.gz backup"
+msgstr ""
 
 msgid "Select a assignee"
 msgstr "Sélectionner un assigné"
@@ -20052,6 +20065,9 @@ msgstr "Téléverser un CSV"
 msgid "Upload failed. Please try again."
 msgstr "Le téléversement a échoué. Veuillez réessayer."
 
+msgid "Upload new backup…"
+msgstr ""
+
 msgid "Uploaded model"
 msgstr "Modèle téléchargé"
 
@@ -20068,6 +20084,12 @@ msgstr "Téléchargement de {0}"
 
 msgid "Uploading {fileName}"
 msgstr "Téléchargement de {fileName}"
+
+msgid "Uploading backup"
+msgstr ""
+
+msgid "Uploading the backup file"
+msgstr ""
 
 msgid "Uploading..."
 msgstr "Téléchargement..."

@@ -3002,6 +3002,9 @@ msgstr "Backflush"
 msgid "Backup failed"
 msgstr "Backup failed"
 
+msgid "Backup uploaded"
+msgstr "Backup uploaded"
+
 msgid "Backups"
 msgstr "Backups"
 
@@ -8132,6 +8135,10 @@ msgstr "Failed to upload PDF"
 
 msgid "Failed to upload thumbnail"
 msgstr "Failed to upload thumbnail"
+
+#. placeholder {0}: (err as Error).message
+msgid "Failed to upload: {0}"
+msgstr "Failed to upload: {0}"
 
 msgid "Failure"
 msgstr "Failure"
@@ -13641,6 +13648,9 @@ msgstr "Preferred Supplier"
 msgid "Prefix"
 msgstr "Prefix"
 
+msgid "Preparing the backup for restore…"
+msgstr "Preparing the backup for restore…"
+
 msgid "Prepayments"
 msgstr "Prepayments"
 
@@ -16099,6 +16109,9 @@ msgstr "Segments that drive customer pricing and terms"
 
 msgid "Select"
 msgstr "Select"
+
+msgid "Select a .carbon.tar.gz backup"
+msgstr "Select a .carbon.tar.gz backup"
 
 msgid "Select a assignee"
 msgstr "Select a assignee"
@@ -20052,6 +20065,9 @@ msgstr "Upload CSV"
 msgid "Upload failed. Please try again."
 msgstr "Upload failed. Please try again."
 
+msgid "Upload new backup…"
+msgstr "Upload new backup…"
+
 msgid "Uploaded model"
 msgstr "Uploaded model"
 
@@ -20068,6 +20084,12 @@ msgstr "Uploading {0}"
 
 msgid "Uploading {fileName}"
 msgstr "Uploading {fileName}"
+
+msgid "Uploading backup"
+msgstr "Uploading backup"
+
+msgid "Uploading the backup file"
+msgstr "Uploading the backup file"
 
 msgid "Uploading..."
 msgstr "Uploading..."
