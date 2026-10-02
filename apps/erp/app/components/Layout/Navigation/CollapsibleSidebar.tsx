@@ -127,6 +127,67 @@ export function useSidebarLocation(isInside: (pathname: string) => boolean) {
 }
 
 /**
+ * The scrolling list of links inside the module sidebar, with the same hover
+ * card the icon rail has: one card for the whole list, moved with a transform
+ * to the link under the pointer, so the highlight travels between links
+ * instead of each one fading its own. The active link keeps its own
+ * background. A link opts in with `data-nav-item`.
+ */
+export function SidebarLinks({ children }: PropsWithChildren) {
+  const listRef = useRef<HTMLDivElement>(null);
+  const hoverCardRef = useRef<HTMLSpanElement>(null);
+
+  // Written straight to the element: a hover must not re-render the list.
+  const moveHoverCard = (item: HTMLElement | null) => {
+    const card = hoverCardRef.current;
+    const list = listRef.current;
+    if (!card || !list) return;
+    if (!item) {
+      card.style.opacity = "0";
+      return;
+    }
+    const itemRect = item.getBoundingClientRect();
+    const listRect = list.getBoundingClientRect();
+    const left = itemRect.left - listRect.left + list.scrollLeft;
+    const top = itemRect.top - listRect.top + list.scrollTop;
+    // Entering the list: appear on the link rather than slide in from
+    // wherever the card was last.
+    card.style.transitionProperty = card.style.opacity === "1" ? "" : "opacity";
+    card.style.transform = `translate(${left}px, ${top}px)`;
+    card.style.width = `${itemRect.width}px`;
+    card.style.height = `${itemRect.height}px`;
+    card.style.opacity = "1";
+  };
+
+  return (
+    <div
+      ref={listRef}
+      className="relative overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-accent h-full w-full pb-8"
+      // The gaps between links are not links: the card stays where it is
+      // while the pointer crosses one, and only leaves with the pointer.
+      onPointerOver={(event) => {
+        if (event.pointerType !== "mouse") return;
+        const item = (event.target as HTMLElement).closest<HTMLElement>(
+          "[data-nav-item]"
+        );
+        if (item) moveHoverCard(item);
+      }}
+      // A press navigates, expands a link's views or starts a reorder: the
+      // row under the card is about to change or move.
+      onPointerDown={() => moveHoverCard(null)}
+      onPointerLeave={() => moveHoverCard(null)}
+    >
+      <span
+        ref={hoverCardRef}
+        aria-hidden
+        className="pointer-events-none absolute left-0 top-0 rounded-md bg-active/60 opacity-0 transition-[transform,opacity] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none"
+      />
+      {children}
+    </div>
+  );
+}
+
+/**
  * The one module sidebar, rendered by the app shell around every page. A
  * module layout names its sub-navigation on its route handle (`sidebar`) and
  * the shell renders it here, so the sidebar's frame, width and collapsed

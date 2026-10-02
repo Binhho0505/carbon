@@ -30,7 +30,7 @@ import { Link, useSubmit } from "react-router";
 import { ConfirmDelete } from "~/components/Modals";
 import type { RouteGroup } from "~/types";
 import { path } from "~/utils/path";
-import { useSidebarLocation } from "./CollapsibleSidebar";
+import { SidebarLinks, useSidebarLocation } from "./CollapsibleSidebar";
 
 type GroupedRoute = RouteGroup["routes"][number];
 
@@ -91,7 +91,7 @@ const GroupedContentSidebar = ({
 
   return (
     <>
-      <div className="overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-accent h-full w-full pb-8">
+      <SidebarLinks>
         <VStack>
           {groups.map((group) => (
             <VStack
@@ -122,7 +122,10 @@ const GroupedContentSidebar = ({
 
                 return (
                   <div className="w-full flex flex-col" key={route.name}>
-                    <div className="flex items-center gap-x-0.5 relative">
+                    <div
+                      className="flex items-center gap-x-0.5 relative"
+                      data-nav-item=""
+                    >
                       <Button
                         asChild
                         leftIcon={route.icon}
@@ -131,7 +134,7 @@ const GroupedContentSidebar = ({
                           "justify-start flex-grow truncate",
                           isActive
                             ? "shadow-none dark:shadow-button-base"
-                            : "hover:bg-active hover:text-active-foreground hover:scale-100 focus-visible:scale-100"
+                            : "hover:bg-transparent hover:text-active-foreground hover:scale-100 focus-visible:scale-100"
                         )}
                       >
                         <Link
@@ -176,7 +179,7 @@ const GroupedContentSidebar = ({
             </VStack>
           ))}
         </VStack>
-      </div>
+      </SidebarLinks>
       {selectedView && (
         <ConfirmDelete
           isOpen={!!selectedView}
@@ -253,7 +256,10 @@ const ViewsReorderGroup = ({
 
         return (
           <Reorder.Item key={view.to} value={view} className="w-full">
-            <div className="group/view flex items-center relative">
+            <div
+              className="group/view flex items-center relative"
+              data-nav-item=""
+            >
               <Button
                 asChild
                 variant={isViewActive ? "active" : "ghost"}
@@ -261,7 +267,7 @@ const ViewsReorderGroup = ({
                   "justify-start text-sm pl-7 pr-7 truncate flex-grow !shadow-none",
                   isViewActive
                     ? "shadow-none border-active-foreground/30 dark:border-none dark:shadow-button-base"
-                    : "hover:bg-active hover:text-active-foreground"
+                    : "hover:bg-transparent hover:text-active-foreground"
                 )}
               >
                 <Link to={view.to} prefetch="intent">
