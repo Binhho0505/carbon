@@ -5,9 +5,12 @@
 import type { LoaderFunctionArgs } from "react-router";
 import { redirect } from "react-router";
 import { path } from "~/utils/path";
+import { redirectBeforeLoaders } from "~/utils/redirect.server";
 
 export async function loader({ params }: LoaderFunctionArgs) {
   const { receiptId } = params;
   if (!receiptId) throw new Error("Could not find receiptId");
   throw redirect(path.to.receiptDetails(receiptId));
 }
+
+export const middleware = [redirectBeforeLoaders(loader)];

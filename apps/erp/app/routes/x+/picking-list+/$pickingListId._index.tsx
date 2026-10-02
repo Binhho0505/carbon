@@ -5,9 +5,12 @@
 import type { LoaderFunctionArgs } from "react-router";
 import { redirect } from "react-router";
 import { path } from "~/utils/path";
+import { redirectBeforeLoaders } from "~/utils/redirect.server";
 
 export async function loader({ params }: LoaderFunctionArgs) {
   const { pickingListId } = params;
   if (!pickingListId) throw new Error("Could not find pickingListId");
   throw redirect(path.to.pickingListDetails(pickingListId));
 }
+
+export const middleware = [redirectBeforeLoaders(loader)];

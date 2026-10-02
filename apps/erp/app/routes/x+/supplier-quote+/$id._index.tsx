@@ -5,9 +5,12 @@
 import type { LoaderFunctionArgs } from "react-router";
 import { redirect } from "react-router";
 import { path } from "~/utils/path";
+import { redirectBeforeLoaders } from "~/utils/redirect.server";
 
 export async function loader({ params }: LoaderFunctionArgs) {
   const { id } = params;
   if (!id) throw new Error("Could not find id");
   throw redirect(path.to.supplierQuoteDetails(id));
 }
+
+export const middleware = [redirectBeforeLoaders(loader)];

@@ -5,9 +5,12 @@
 import type { LoaderFunctionArgs } from "react-router";
 import { redirect } from "react-router";
 import { path } from "~/utils/path";
+import { redirectBeforeLoaders } from "~/utils/redirect.server";
 
 export async function loader({ params }: LoaderFunctionArgs) {
   const { quoteId } = params;
   if (!quoteId) throw new Error("Could not find quoteId");
   throw redirect(path.to.quoteDetails(quoteId));
 }
+
+export const middleware = [redirectBeforeLoaders(loader)];
