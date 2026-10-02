@@ -2,10 +2,10 @@
 // Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
 // including ports, remain AGPLv3; serving them over a network requires releasing their source.
 
+import { redirectBeforeLoaders } from "@carbon/utils";
 import type { LoaderFunctionArgs } from "react-router";
 import { redirect } from "react-router";
 import { path } from "~/utils/path";
-import { redirectBeforeLoaders } from "~/utils/redirect.server";
 
 export async function loader({ params }: LoaderFunctionArgs) {
   const { transferId } = params;

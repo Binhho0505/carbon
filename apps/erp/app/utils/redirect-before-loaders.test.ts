@@ -2,6 +2,7 @@
 // Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
 // including ports, remain AGPLv3; serving them over a network requires releasing their source.
 
+import { redirectBeforeLoaders } from "@carbon/utils";
 import {
   createStaticHandler,
   type LoaderFunctionArgs,
@@ -9,7 +10,6 @@ import {
   redirect
 } from "react-router";
 import { describe, expect, it, vi } from "vitest";
-import { redirectBeforeLoaders } from "./redirect.server";
 
 // The shape of every entity page: a layout with a loader and an action, and an
 // index route that only redirects to the details child.
@@ -64,6 +64,36 @@ describe("redirectBeforeLoaders", () => {
       new Request("http://erp/x/issue/nc_1", { body: "a=1", method: "POST" })
     );
     expect(layoutAction).toHaveBeenCalledTimes(1);
+  });
+
+  it("honours a loader that returns its redirect instead of throwing it", async () => {
+    const parentLoader = vi.fn(async () => ({}));
+    const indexLoader = () => redirect("/x/operations");
+    const handler = createStaticHandler([
+      {
+        id: "shell",
+        path: "/x",
+        loader: parentLoader,
+        children: [
+          {
+            id: "index",
+            index: true,
+            loader: indexLoader,
+            middleware: [redirectBeforeLoaders(indexLoader)]
+          }
+        ]
+      }
+    ]);
+    const request = new Request("http://mes/x");
+    const response = (await handler.query(request, {
+      requestContext: new RouterContextProvider(),
+      generateMiddlewareResponse: async (query) => {
+        const inner = await query(request);
+        return inner instanceof Response ? inner : new Response("rendered");
+      }
+    })) as Response;
+    expect(response.headers.get("Location")).toBe("/x/operations");
+    expect(parentLoader).not.toHaveBeenCalled();
   });
 
   it("leaves the details URL alone", async () => {
