@@ -2,7 +2,6 @@
 // Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
 // including ports, remain AGPLv3; serving them over a network requires releasing their source.
 
-import { useCarbon } from "@carbon/auth";
 import { TEMP_STAGING_BUCKET } from "@carbon/files";
 import { useControlField } from "@carbon/form";
 import {
@@ -18,11 +17,24 @@ import {
   PopoverTrigger,
   toast
 } from "@carbon/react";
+import { useLingui } from "@lingui/react/macro";
 import type { ChangeEvent } from "react";
 import { useMemo, useRef, useState } from "react";
-import { LuArchive, LuChevronsUpDown, LuUpload } from "react-icons/lu";
+import {
+  LuArchive,
+  LuChevronsUpDown,
+  LuLoaderCircle,
+  LuUpload
+} from "react-icons/lu";
 import { useRevalidator } from "react-router";
+import { UploadProgress } from "~/components/UploadProgress";
+import { uploadToSignedUrlWithProgress } from "~/utils/signed-upload";
 import { formatBackupDate, formatBackupName } from "./format";
+
+// The archive's bytes, then the server unpacking it (no byte progress there).
+type UploadState =
+  | { phase: "uploading"; uploaded: number; total: number }
+  | { phase: "unpacking" };
 
 const triggerClass =
   "bg-transparent text-foreground flex h-10 w-full items-center justify-between gap-2 whitespace-nowrap rounded-md border border-input px-3 py-2 text-sm shadow-xs outline-none focus:border-ring focus:ring-[3px] focus:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50";
@@ -34,11 +46,12 @@ export function BackupSourcePicker({
 }: {
   backups: { name: string; label: string | null; exportedAt: string | null }[];
 }) {
-  const { carbon } = useCarbon();
+  const { t } = useLingui();
   const revalidator = useRevalidator();
   const [value, setValue] = useControlField<string>("source");
   const [open, setOpen] = useState(false);
-  const [uploading, setUploading] = useState(false);
+  const [upload, setUpload] = useState<UploadState | null>(null);
+  const uploading = upload !== null;
   const fileRef = useRef<HTMLInputElement>(null);
   const current = value ?? "";
 
@@ -55,51 +68,37 @@ export function BackupSourcePicker({
     e.target.value = "";
     if (!file) return;
     if (!file.name.endsWith(".tar.gz") && !file.name.endsWith(".tgz")) {
-      toast.error("Select a .carbon.tar.gz backup");
+      toast.error(t`Select a .carbon.tar.gz backup`);
       return;
     }
-    setUploading(true);
-    toast.info(`Uploading ${file.name}`);
+    setUpload({ phase: "uploading", uploaded: 0, total: file.size });
     try {
       // Presigned upload straight to storage (the archive can exceed a
       // serverless request body), then the server unpacks it into `exports/<name>/`.
-      const signRes = await fetch("/api/settings/backup-upload", {
-        method: "POST",
-        body: toFormData({ intent: "sign" })
-      });
-      if (!signRes.ok) {
-        toast.error(`Failed to upload: ${await signRes.text()}`);
-        return;
-      }
-      const { path, token } = (await signRes.json()) as {
+      const { path, token } = await postUploadIntent<{
         path: string;
         token: string;
-      };
-
-      const upload = await carbon.storage
-        .from(TEMP_STAGING_BUCKET)
-        .uploadToSignedUrl(path, token, file, {
-          contentType: "application/gzip"
-        });
-      if (upload.error) {
-        toast.error(`Failed to upload: ${upload.error.message}`);
-        return;
-      }
-
-      const res = await fetch("/api/settings/backup-upload", {
-        method: "POST",
-        body: toFormData({ intent: "unpack", path })
+      }>({ intent: "sign" });
+      await uploadToSignedUrlWithProgress({
+        bucket: TEMP_STAGING_BUCKET,
+        path,
+        token,
+        file,
+        onProgress: (uploaded, total) =>
+          setUpload({ phase: "uploading", uploaded, total })
       });
-      if (!res.ok) {
-        toast.error(`Failed to upload: ${await res.text()}`);
-        return;
-      }
-      const { name } = (await res.json()) as { name: string };
+      setUpload({ phase: "unpacking" });
+      const { name } = await postUploadIntent<{ name: string }>({
+        intent: "unpack",
+        path
+      });
       setValue(`backup:${name}`);
-      toast.success("Backup uploaded");
+      toast.success(t`Backup uploaded`);
       revalidator.revalidate();
+    } catch (err) {
+      toast.error(t`Failed to upload: ${(err as Error).message}`);
     } finally {
-      setUploading(false);
+      setUpload(null);
     }
   };
 
@@ -167,21 +166,42 @@ export function BackupSourcePicker({
                   }}
                 >
                   <LuUpload className="mr-2 h-4 w-4 opacity-60" />
-                  {uploading ? "Uploading…" : "Upload new backup…"}
+                  {uploading ? t`Uploading…` : t`Upload new backup…`}
                 </CommandItem>
               </CommandGroup>
             </CommandList>
           </Command>
         </PopoverContent>
       </Popover>
+      {upload?.phase === "uploading" && (
+        <UploadProgress
+          className="mt-3"
+          percent={upload.total ? (upload.uploaded / upload.total) * 100 : 0}
+          uploaded={upload.uploaded}
+          total={upload.total}
+          label={t`Uploading backup`}
+          description={t`Uploading the backup file`}
+        />
+      )}
+      {upload?.phase === "unpacking" && (
+        <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
+          <LuLoaderCircle className="h-3.5 w-3.5 shrink-0 animate-spin text-primary motion-reduce:animate-none" />
+          <span>{t`Preparing the backup for restore…`}</span>
+        </div>
+      )}
     </>
   );
 }
 
-function toFormData(fields: Record<string, string>) {
+async function postUploadIntent<T>(fields: Record<string, string>): Promise<T> {
   const formData = new FormData();
   for (const [key, value] of Object.entries(fields)) {
     formData.append(key, value);
   }
-  return formData;
+  const res = await fetch("/api/settings/backup-upload", {
+    method: "POST",
+    body: formData
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return (await res.json()) as T;
 }

@@ -36,7 +36,7 @@ import { useFetcher, useRevalidator } from "react-router";
 import { useModelUpload, useUser } from "~/hooks";
 import type { ModelUpload } from "~/types";
 import { getPrivateUrl, getRawModelUrl, path } from "~/utils/path";
-import { ModelUploadProgress } from "./ModelUploadProgress";
+import { UploadProgress } from "./UploadProgress";
 
 const SIZE_LIMIT = getFileSizeLimit("CAD_MODEL_UPLOAD");
 
@@ -281,7 +281,9 @@ const CadModel = ({
               />
               {upload !== null && (
                 <div className="absolute inset-0 z-30 flex items-center justify-center rounded-lg bg-background/95 p-6">
-                  <ModelUploadProgress
+                  <UploadProgress
+                    label="Uploading model"
+                    description="Uploading the CAD file"
                     percent={upload.percent}
                     uploaded={upload.uploaded}
                     total={upload.total}
