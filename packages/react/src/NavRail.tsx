@@ -19,6 +19,7 @@ import {
 import type { LinkProps } from "react-router";
 import { Link, useLocation } from "react-router";
 import { Drawer, DrawerContent, DrawerTitle } from "./Drawer";
+import { PrefetchLink } from "./PrefetchLink";
 import { Separator } from "./Separator";
 import { useSidebar } from "./Sidebar";
 import { cn } from "./utils/cn";
@@ -387,6 +388,7 @@ export function NavRailLink({
   target?: LinkProps["target"];
   rel?: string;
 }) {
+  const Anchor = external ? Link : PrefetchLink;
   return (
     <NavRailItem
       asChild
@@ -396,12 +398,11 @@ export function NavRailLink({
       tag={tag}
       trailing={trailing}
     >
-      <Link
+      <Anchor
         to={to}
         target={target}
         rel={rel}
         aria-current={isActive ? "page" : undefined}
-        prefetch={external ? "none" : "intent"}
       />
     </NavRailItem>
   );

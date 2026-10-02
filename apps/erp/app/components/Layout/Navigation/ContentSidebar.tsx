@@ -2,8 +2,7 @@
 // Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
 // including ports, remain AGPLv3; serving them over a network requires releasing their source.
 
-import { Button, cn, VStack } from "@carbon/react";
-import { Link } from "react-router";
+import { Button, cn, PrefetchLink, VStack } from "@carbon/react";
 import { useUrlParams } from "~/hooks";
 import type { Route } from "~/types";
 import { SidebarLinks, useSidebarLocation } from "./CollapsibleSidebar";
@@ -35,12 +34,9 @@ const ContentSidebar = ({ links }: { links: Route[] }) => {
                     "hover:bg-transparent hover:text-active-foreground"
                 )}
               >
-                <Link
-                  to={route.to + (route.q ? `?q=${route.q}` : "")}
-                  prefetch="intent"
-                >
+                <PrefetchLink to={route.to + (route.q ? `?q=${route.q}` : "")}>
                   {route.name}
-                </Link>
+                </PrefetchLink>
               </Button>
             );
           })}

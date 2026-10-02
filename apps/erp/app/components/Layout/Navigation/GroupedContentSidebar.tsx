@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
   IconButton,
   MENU_ITEM_SHORTCUTS,
+  PrefetchLink,
   Subheading,
   useDebounce,
   VStack
@@ -26,7 +27,7 @@ import {
   LuGripVertical,
   LuTrash
 } from "react-icons/lu";
-import { Link, useSubmit } from "react-router";
+import { useSubmit } from "react-router";
 import { ConfirmDelete } from "~/components/Modals";
 import type { RouteGroup } from "~/types";
 import { path } from "~/utils/path";
@@ -137,12 +138,11 @@ const GroupedContentSidebar = ({
                             : "hover:bg-transparent hover:text-active-foreground hover:scale-100 focus-visible:scale-100"
                         )}
                       >
-                        <Link
+                        <PrefetchLink
                           to={route.to + (route.q ? `?q=${route.q}` : "")}
-                          prefetch="intent"
                         >
                           {route.name}
-                        </Link>
+                        </PrefetchLink>
                       </Button>
                       {hasViews && (
                         <IconButton
@@ -270,9 +270,7 @@ const ViewsReorderGroup = ({
                     : "hover:bg-transparent hover:text-active-foreground"
                 )}
               >
-                <Link to={view.to} prefetch="intent">
-                  {view.name}
-                </Link>
+                <PrefetchLink to={view.to}>{view.name}</PrefetchLink>
               </Button>
               <IconButton
                 aria-label={t`Drag handle`}
