@@ -2999,6 +2999,9 @@ msgstr "İzlenebilirliğe geri dön"
 msgid "Backflush"
 msgstr "Geriye dönük tüketim"
 
+msgid "Backup"
+msgstr ""
+
 msgid "Backup failed"
 msgstr "Yedekleme başarısız oldu"
 
@@ -3791,6 +3794,9 @@ msgstr "Kontrol Noktası ·"
 
 msgid "Checkpoints"
 msgstr "Kontrol Noktaları"
+
+msgid "Choose a backup"
+msgstr ""
 
 msgid "Choose a batch number"
 msgstr "Bir parti numarası seçin"
@@ -8136,8 +8142,7 @@ msgstr "PDF yüklenemedi"
 msgid "Failed to upload thumbnail"
 msgstr "Küçük resim yüklenemedi"
 
-#. placeholder {0}: (err as Error).message
-msgid "Failed to upload: {0}"
+msgid "Failed to upload: {reason}"
 msgstr ""
 
 msgid "Failure"
@@ -11269,6 +11274,9 @@ msgid "Net Income"
 msgstr "Net Gelir"
 
 msgid "Net Unit Price"
+msgstr ""
+
+msgid "Network error"
 msgstr ""
 
 msgid "Never"
@@ -16080,6 +16088,9 @@ msgstr "Değişkenleri ara…"
 msgid "Search..."
 msgstr "Ara..."
 
+msgid "Search…"
+msgstr ""
+
 msgid "Seconds to complete"
 msgstr "Tamamlanmak için gereken saniye"
 
@@ -20088,7 +20099,13 @@ msgstr "{\"fileName\"} yükleniyor"
 msgid "Uploading backup"
 msgstr ""
 
+msgid "Uploading model"
+msgstr ""
+
 msgid "Uploading the backup file"
+msgstr ""
+
+msgid "Uploading the CAD file"
 msgstr ""
 
 msgid "Uploading..."
@@ -21317,6 +21334,9 @@ msgstr "{hoursElapsed} saattir işte idiniz. İş bitişini unuttunuz mu?"
 
 msgid "Your account stays safe even if your login is stolen"
 msgstr "Oturum açma bilgileriniz çalınsa bile hesabınız güvenli kalır"
+
+msgid "Your backups"
+msgstr ""
 
 msgid "Your books and how money flows."
 msgstr "Muhasebe defterleriniz ve paranın akışı."

@@ -2999,6 +2999,9 @@ msgstr "返回可追溯性"
 msgid "Backflush"
 msgstr "倒冲"
 
+msgid "Backup"
+msgstr ""
+
 msgid "Backup failed"
 msgstr "备份失败"
 
@@ -3791,6 +3794,9 @@ msgstr "检查点 ·"
 
 msgid "Checkpoints"
 msgstr "检查点"
+
+msgid "Choose a backup"
+msgstr ""
 
 msgid "Choose a batch number"
 msgstr "选择批号"
@@ -8136,8 +8142,7 @@ msgstr "上传 PDF 失败"
 msgid "Failed to upload thumbnail"
 msgstr "上传缩略图失败"
 
-#. placeholder {0}: (err as Error).message
-msgid "Failed to upload: {0}"
+msgid "Failed to upload: {reason}"
 msgstr ""
 
 msgid "Failure"
@@ -11269,6 +11274,9 @@ msgid "Net Income"
 msgstr "净收益"
 
 msgid "Net Unit Price"
+msgstr ""
+
+msgid "Network error"
 msgstr ""
 
 msgid "Never"
@@ -16080,6 +16088,9 @@ msgstr "搜索变量…"
 msgid "Search..."
 msgstr "搜索..."
 
+msgid "Search…"
+msgstr ""
+
 msgid "Seconds to complete"
 msgstr "完成秒数"
 
@@ -20088,7 +20099,13 @@ msgstr "正在上传 {fileName}"
 msgid "Uploading backup"
 msgstr ""
 
+msgid "Uploading model"
+msgstr ""
+
 msgid "Uploading the backup file"
+msgstr ""
+
+msgid "Uploading the CAD file"
 msgstr ""
 
 msgid "Uploading..."
@@ -21321,6 +21338,9 @@ msgstr "你已打卡{hoursElapsed}小时。你忘记收工了吗?"
 
 msgid "Your account stays safe even if your login is stolen"
 msgstr "即使您的登录被盗，您的账户也保持安全"
+
+msgid "Your backups"
+msgstr ""
 
 msgid "Your books and how money flows."
 msgstr "您的账簿和资金流向。"

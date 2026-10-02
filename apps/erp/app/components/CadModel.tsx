@@ -27,7 +27,7 @@ import { getFileSizeLimit, MODEL_RAW_KEEP_MAX_BYTES } from "@carbon/utils";
 import { ModelPreview } from "@carbon/viewer/model-preview";
 import { OptimizeProgress } from "@carbon/viewer/optimize-progress";
 import { useOptimizedModel } from "@carbon/viewer/use-optimized-model";
-import { Trans } from "@lingui/react/macro";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { nanoid } from "nanoid";
 import { useState } from "react";
 import { useDropzone } from "react-dropzone";
@@ -72,6 +72,7 @@ const CadModel = ({
   uploadClassName,
   viewerClassName
 }: CadModelProps) => {
+  const { t } = useLingui();
   const { modelPath = null, modelId: modelUploadId = null } = modelUpload ?? {};
   const {
     company: { id: companyId }
@@ -282,8 +283,8 @@ const CadModel = ({
               {upload !== null && (
                 <div className="absolute inset-0 z-30 flex items-center justify-center rounded-lg bg-background/95 p-6">
                   <UploadProgress
-                    label="Uploading model"
-                    description="Uploading the CAD file"
+                    label={t`Uploading model`}
+                    description={t`Uploading the CAD file`}
                     percent={upload.percent}
                     uploaded={upload.uploaded}
                     total={upload.total}

@@ -2999,6 +2999,9 @@ msgstr "Torna alla tracciabilità"
 msgid "Backflush"
 msgstr "Backflush"
 
+msgid "Backup"
+msgstr ""
+
 msgid "Backup failed"
 msgstr "Backup non riuscito"
 
@@ -3791,6 +3794,9 @@ msgstr "Checkpoint ·"
 
 msgid "Checkpoints"
 msgstr "Checkpoint"
+
+msgid "Choose a backup"
+msgstr ""
 
 msgid "Choose a batch number"
 msgstr "Scegli un numero di lotto"
@@ -8136,8 +8142,7 @@ msgstr "Caricamento PDF non riuscito"
 msgid "Failed to upload thumbnail"
 msgstr "Impossibile caricare la miniatura"
 
-#. placeholder {0}: (err as Error).message
-msgid "Failed to upload: {0}"
+msgid "Failed to upload: {reason}"
 msgstr ""
 
 msgid "Failure"
@@ -11269,6 +11274,9 @@ msgid "Net Income"
 msgstr "Proventi netti"
 
 msgid "Net Unit Price"
+msgstr ""
+
+msgid "Network error"
 msgstr ""
 
 msgid "Never"
@@ -16080,6 +16088,9 @@ msgstr "Cerca variabili…"
 msgid "Search..."
 msgstr "Cerca..."
 
+msgid "Search…"
+msgstr ""
+
 msgid "Seconds to complete"
 msgstr "Secondi per completare"
 
@@ -20088,7 +20099,13 @@ msgstr "Caricamento in corso {fileName}"
 msgid "Uploading backup"
 msgstr ""
 
+msgid "Uploading model"
+msgstr ""
+
 msgid "Uploading the backup file"
+msgstr ""
+
+msgid "Uploading the CAD file"
 msgstr ""
 
 msgid "Uploading..."
@@ -21317,6 +21334,9 @@ msgstr "Sei timbrato da {hoursElapsed} ore. Hai dimenticato di timbrare fine?"
 
 msgid "Your account stays safe even if your login is stolen"
 msgstr "Il tuo account rimane al sicuro anche se il tuo accesso viene rubato"
+
+msgid "Your backups"
+msgstr ""
 
 msgid "Your books and how money flows."
 msgstr "I tuoi libri e come scorre il denaro."

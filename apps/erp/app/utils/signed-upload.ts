@@ -45,7 +45,8 @@ export function uploadToSignedUrlWithProgress({
       if (xhr.status >= 200 && xhr.status < 300) return resolve();
       reject(new Error(storageErrorMessage(xhr) ?? `HTTP ${xhr.status}`));
     };
-    xhr.onerror = () => reject(new Error("Network error"));
+    // No message: the caller shows its own (translated) network-error copy.
+    xhr.onerror = () => reject(new Error());
     xhr.send(body);
   });
 }

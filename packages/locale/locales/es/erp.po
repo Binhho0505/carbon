@@ -2999,6 +2999,9 @@ msgstr "Volver a trazabilidad"
 msgid "Backflush"
 msgstr "Consumo retroactivo"
 
+msgid "Backup"
+msgstr ""
+
 msgid "Backup failed"
 msgstr "Falló la copia de seguridad"
 
@@ -3791,6 +3794,9 @@ msgstr "Punto de control ·"
 
 msgid "Checkpoints"
 msgstr "Puntos de control"
+
+msgid "Choose a backup"
+msgstr ""
 
 msgid "Choose a batch number"
 msgstr "Elige un número de lote"
@@ -8136,8 +8142,7 @@ msgstr "No se pudo subir PDF"
 msgid "Failed to upload thumbnail"
 msgstr "No se pudo subir miniatura"
 
-#. placeholder {0}: (err as Error).message
-msgid "Failed to upload: {0}"
+msgid "Failed to upload: {reason}"
 msgstr ""
 
 msgid "Failure"
@@ -11269,6 +11274,9 @@ msgid "Net Income"
 msgstr "Ingreso Neto"
 
 msgid "Net Unit Price"
+msgstr ""
+
+msgid "Network error"
 msgstr ""
 
 msgid "Never"
@@ -16080,6 +16088,9 @@ msgstr "Buscar variables…"
 msgid "Search..."
 msgstr "Buscar..."
 
+msgid "Search…"
+msgstr ""
+
 msgid "Seconds to complete"
 msgstr "Segundos para completar"
 
@@ -20088,7 +20099,13 @@ msgstr "Cargando {fileName}"
 msgid "Uploading backup"
 msgstr ""
 
+msgid "Uploading model"
+msgstr ""
+
 msgid "Uploading the backup file"
+msgstr ""
+
+msgid "Uploading the CAD file"
 msgstr ""
 
 msgid "Uploading..."
@@ -21317,6 +21334,9 @@ msgstr "Has estado fichado durante {hoursElapsed} horas. ¿Olvidaste fichar sali
 
 msgid "Your account stays safe even if your login is stolen"
 msgstr "Tu cuenta permanece segura incluso si tu inicio de sesión es robado"
+
+msgid "Your backups"
+msgstr ""
 
 msgid "Your books and how money flows."
 msgstr "Tus libros y cómo fluye el dinero."

@@ -2999,6 +2999,9 @@ msgstr "ट्रेसेबिलिटी पर वापस जाएं"
 msgid "Backflush"
 msgstr "बैकफ्लश"
 
+msgid "Backup"
+msgstr ""
+
 msgid "Backup failed"
 msgstr "बैकअप विफल रहा"
 
@@ -3791,6 +3794,9 @@ msgstr "चेकपॉइंट ·"
 
 msgid "Checkpoints"
 msgstr "चेकपॉइंट्स"
+
+msgid "Choose a backup"
+msgstr ""
 
 msgid "Choose a batch number"
 msgstr "एक बैच नंबर चुनें"
@@ -8136,8 +8142,7 @@ msgstr "PDF अपलोड करने में विफल"
 msgid "Failed to upload thumbnail"
 msgstr "थंबनेल अपलोड करने में विफल"
 
-#. placeholder {0}: (err as Error).message
-msgid "Failed to upload: {0}"
+msgid "Failed to upload: {reason}"
 msgstr ""
 
 msgid "Failure"
@@ -11269,6 +11274,9 @@ msgid "Net Income"
 msgstr "शुद्ध आय"
 
 msgid "Net Unit Price"
+msgstr ""
+
+msgid "Network error"
 msgstr ""
 
 msgid "Never"
@@ -16080,6 +16088,9 @@ msgstr "चर खोजें…"
 msgid "Search..."
 msgstr "खोजें..."
 
+msgid "Search…"
+msgstr ""
+
 msgid "Seconds to complete"
 msgstr "पूरा करने के सेकंड"
 
@@ -20088,7 +20099,13 @@ msgstr "अपलोड किया जा रहा है {fileName}"
 msgid "Uploading backup"
 msgstr ""
 
+msgid "Uploading model"
+msgstr ""
+
 msgid "Uploading the backup file"
+msgstr ""
+
+msgid "Uploading the CAD file"
 msgstr ""
 
 msgid "Uploading..."
@@ -21321,6 +21338,9 @@ msgstr "आप {hoursElapsed} घंटे से साइन इन हैं�
 
 msgid "Your account stays safe even if your login is stolen"
 msgstr "यहां तक कि अगर आपका लॉगिन चोरी हो जाता है तो आपका खाता सुरक्षित रहता है"
+
+msgid "Your backups"
+msgstr ""
 
 msgid "Your books and how money flows."
 msgstr "आपकी किताबें और पैसा कैसे बहता है।"

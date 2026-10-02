@@ -58,10 +58,10 @@ export function BackupSourcePicker({
   const label = useMemo(() => {
     if (current.startsWith("backup:")) {
       const match = backups.find((b) => `backup:${b.name}` === current);
-      return match ? match.label || formatBackupName(match.name) : "Backup";
+      return match ? match.label || formatBackupName(match.name) : t`Backup`;
     }
     return "";
-  }, [current, backups]);
+  }, [current, backups, t]);
 
   const onUpload = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -96,7 +96,8 @@ export function BackupSourcePicker({
       toast.success(t`Backup uploaded`);
       revalidator.revalidate();
     } catch (err) {
-      toast.error(t`Failed to upload: ${(err as Error).message}`);
+      const reason = (err as Error).message || t`Network error`;
+      toast.error(t`Failed to upload: ${reason}`);
     } finally {
       setUpload(null);
     }
@@ -120,7 +121,7 @@ export function BackupSourcePicker({
                 current ? "truncate" : "truncate text-muted-foreground"
               }
             >
-              {label || "Choose a backup"}
+              {label || t`Choose a backup`}
             </span>
             <LuChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
           </button>
@@ -130,11 +131,11 @@ export function BackupSourcePicker({
           className="p-0 w-[var(--radix-popover-trigger-width)]"
         >
           <Command>
-            <CommandInput placeholder="Search…" />
+            <CommandInput placeholder={t`Search…`} />
             <CommandList>
-              <CommandEmpty>No matches</CommandEmpty>
+              <CommandEmpty>{t`No matches`}</CommandEmpty>
               {backups.length > 0 && (
-                <CommandGroup heading="Your backups">
+                <CommandGroup heading={t`Your backups`}>
                   {backups.map((b) => (
                     <CommandItem
                       key={b.name}

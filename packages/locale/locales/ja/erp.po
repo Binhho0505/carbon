@@ -2999,6 +2999,9 @@ msgstr "トレーサビリティに戻る"
 msgid "Backflush"
 msgstr "バックフラッシュ"
 
+msgid "Backup"
+msgstr ""
+
 msgid "Backup failed"
 msgstr "バックアップに失敗しました"
 
@@ -3791,6 +3794,9 @@ msgstr "チェックポイント ·"
 
 msgid "Checkpoints"
 msgstr "チェックポイント"
+
+msgid "Choose a backup"
+msgstr ""
 
 msgid "Choose a batch number"
 msgstr "バッチ番号を選択"
@@ -8136,8 +8142,7 @@ msgstr "PDFのアップロードに失敗しました"
 msgid "Failed to upload thumbnail"
 msgstr "サムネイルのアップロードに失敗しました"
 
-#. placeholder {0}: (err as Error).message
-msgid "Failed to upload: {0}"
+msgid "Failed to upload: {reason}"
 msgstr ""
 
 msgid "Failure"
@@ -11269,6 +11274,9 @@ msgid "Net Income"
 msgstr "純収益"
 
 msgid "Net Unit Price"
+msgstr ""
+
+msgid "Network error"
 msgstr ""
 
 msgid "Never"
@@ -16080,6 +16088,9 @@ msgstr "変数を検索…"
 msgid "Search..."
 msgstr "検索..."
 
+msgid "Search…"
+msgstr ""
+
 msgid "Seconds to complete"
 msgstr "完了までの秒数"
 
@@ -20088,7 +20099,13 @@ msgstr "アップロード中 {fileName}"
 msgid "Uploading backup"
 msgstr ""
 
+msgid "Uploading model"
+msgstr ""
+
 msgid "Uploading the backup file"
+msgstr ""
+
+msgid "Uploading the CAD file"
 msgstr ""
 
 msgid "Uploading..."
@@ -21317,6 +21334,9 @@ msgstr "{hoursElapsed}時間作業しています。作業終了を忘れまし�
 
 msgid "Your account stays safe even if your login is stolen"
 msgstr "ログインが盗まれてもアカウントは安全です"
+
+msgid "Your backups"
+msgstr ""
 
 msgid "Your books and how money flows."
 msgstr "あなたの帳簿とお金の流れ。"

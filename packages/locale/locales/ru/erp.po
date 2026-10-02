@@ -2999,6 +2999,9 @@ msgstr "Вернуться к прослеживаемости"
 msgid "Backflush"
 msgstr "Ретроградное списание"
 
+msgid "Backup"
+msgstr ""
+
 msgid "Backup failed"
 msgstr "Ошибка резервной копии"
 
@@ -3791,6 +3794,9 @@ msgstr "Контрольная точка ·"
 
 msgid "Checkpoints"
 msgstr "Контрольные точки"
+
+msgid "Choose a backup"
+msgstr ""
 
 msgid "Choose a batch number"
 msgstr "Выберите номер партии"
@@ -8136,8 +8142,7 @@ msgstr "Ошибка загрузки PDF"
 msgid "Failed to upload thumbnail"
 msgstr "Не удалось загрузить миниатюру"
 
-#. placeholder {0}: (err as Error).message
-msgid "Failed to upload: {0}"
+msgid "Failed to upload: {reason}"
 msgstr ""
 
 msgid "Failure"
@@ -11269,6 +11274,9 @@ msgid "Net Income"
 msgstr "Чистый доход"
 
 msgid "Net Unit Price"
+msgstr ""
+
+msgid "Network error"
 msgstr ""
 
 msgid "Never"
@@ -16080,6 +16088,9 @@ msgstr "Поиск переменных…"
 msgid "Search..."
 msgstr "Поиск..."
 
+msgid "Search…"
+msgstr ""
+
 msgid "Seconds to complete"
 msgstr "Секунды для завершения"
 
@@ -20088,7 +20099,13 @@ msgstr "Загрузка {fileName}"
 msgid "Uploading backup"
 msgstr ""
 
+msgid "Uploading model"
+msgstr ""
+
 msgid "Uploading the backup file"
+msgstr ""
+
+msgid "Uploading the CAD file"
 msgstr ""
 
 msgid "Uploading..."
@@ -21317,6 +21334,9 @@ msgstr "Вы в работе уже {hoursElapsed} часов. Вы забыли
 
 msgid "Your account stays safe even if your login is stolen"
 msgstr "Ваша учетная запись остается в безопасности, даже если ваше имя входа украдено"
+
+msgid "Your backups"
+msgstr ""
 
 msgid "Your books and how money flows."
 msgstr "Ваши книги и движение денежных средств."

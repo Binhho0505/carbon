@@ -2999,6 +2999,9 @@ msgstr "Powrót do identyfikowalności"
 msgid "Backflush"
 msgstr "Pobranie wsteczne"
 
+msgid "Backup"
+msgstr ""
+
 msgid "Backup failed"
 msgstr "Kopia bezpieczeństwa nie powiodła się"
 
@@ -3791,6 +3794,9 @@ msgstr "Punkt kontrolny ·"
 
 msgid "Checkpoints"
 msgstr "Punkty kontrolne"
+
+msgid "Choose a backup"
+msgstr ""
 
 msgid "Choose a batch number"
 msgstr "Wybierz numer partii"
@@ -8136,8 +8142,7 @@ msgstr "Nie udało się przesłać pliku PDF"
 msgid "Failed to upload thumbnail"
 msgstr "Nie udało się przesłać miniatury."
 
-#. placeholder {0}: (err as Error).message
-msgid "Failed to upload: {0}"
+msgid "Failed to upload: {reason}"
 msgstr ""
 
 msgid "Failure"
@@ -11269,6 +11274,9 @@ msgid "Net Income"
 msgstr "Przychody netto"
 
 msgid "Net Unit Price"
+msgstr ""
+
+msgid "Network error"
 msgstr ""
 
 msgid "Never"
@@ -16080,6 +16088,9 @@ msgstr "Wyszukaj zmienne…"
 msgid "Search..."
 msgstr "Szukaj..."
 
+msgid "Search…"
+msgstr ""
+
 msgid "Seconds to complete"
 msgstr "Sekund do ukończenia"
 
@@ -20088,7 +20099,13 @@ msgstr "Przesylanie {fileName}"
 msgid "Uploading backup"
 msgstr ""
 
+msgid "Uploading model"
+msgstr ""
+
 msgid "Uploading the backup file"
+msgstr ""
+
+msgid "Uploading the CAD file"
 msgstr ""
 
 msgid "Uploading..."
@@ -21317,6 +21334,9 @@ msgstr "Pracujesz już {hoursElapsed} godzin. Czy zapomniałeś o zakończeniu p
 
 msgid "Your account stays safe even if your login is stolen"
 msgstr "Twoje konto pozostaje bezpieczne, nawet jeśli twoje logowanie zostanie skradzione"
+
+msgid "Your backups"
+msgstr ""
 
 msgid "Your books and how money flows."
 msgstr "Twoje księgi i przepływ pieniędzy."

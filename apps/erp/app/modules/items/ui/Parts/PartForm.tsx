@@ -387,8 +387,8 @@ const PartForm = ({ initialValues, type = "card", onClose }: PartFormProps) => {
                   <input id="model-upload" {...getInputProps()} />
                   {upload !== null ? (
                     <UploadProgress
-                      label="Uploading model"
-                      description="Uploading the CAD file"
+                      label={t`Uploading model`}
+                      description={t`Uploading the CAD file`}
                       percent={upload.percent}
                       uploaded={upload.uploaded}
                       total={upload.total}
