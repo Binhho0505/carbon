@@ -516,6 +516,9 @@ msgstr "今天到期？"
 msgid "Duplicate batch number"
 msgstr "生产批次号重复"
 
+msgid "Duplicate or copy"
+msgstr ""
+
 msgid "Duplicate serial number"
 msgstr "序列号重复"
 
@@ -711,6 +714,9 @@ msgstr "英制"
 #. placeholder {0}: precise?.text
 msgid "in {0}"
 msgstr "在 {0}"
+
+msgid "In an open menu"
+msgstr ""
 
 msgid "In Progress"
 msgstr "进行中"
@@ -1226,6 +1232,9 @@ msgstr "拣货替代{substitutedFrom}（工单上的物料）"
 msgid "picking in place of {substitutedFrom}, the item on the job, for {substitutedAssemblies} assemblies"
 msgstr "拣货替代{substitutedFrom}（工单上的物料），{substitutedAssemblies}个装配"
 
+msgid "Pin or unpin"
+msgstr ""
+
 msgid "Pin Out"
 msgstr "退出登录"
 
@@ -1352,6 +1361,9 @@ msgstr "移除库存管理"
 
 msgid "Remove part"
 msgstr "移除零件"
+
+msgid "Rename"
+msgstr ""
 
 msgid "Reopen the subassembly and create a replacement unit"
 msgstr "重新打开子装配件并创建替代件"
@@ -1837,6 +1849,9 @@ msgstr "验证"
 
 msgid "View maintenance dispatch"
 msgstr "查看维护工单"
+
+msgid "View or open"
+msgstr ""
 
 msgid "We've sent you a magic link to sign in to your account."
 msgstr "我们已向您发送了登录链接，请查收。"

@@ -6573,6 +6573,9 @@ msgstr "Görüntü dönüştürmeden sonra yinelenen dosya adları"
 msgid "Duplicate Item"
 msgstr "Stok Kartını Çoğalt"
 
+msgid "Duplicate or copy"
+msgstr ""
+
 msgid "Duplicate Price List"
 msgstr "Fiyat Listesini Çoğalt"
 
@@ -9105,6 +9108,9 @@ msgstr "BOM'unuzu İçe Aktarın"
 #. placeholder {0}: precise?.text
 msgid "in {0}"
 msgstr "{0} içinde"
+
+msgid "In an open menu"
+msgstr ""
 
 msgid "In Onshape, edit this OAuth application's permissions to include \"Application can write to your documents\", then connect again."
 msgstr "Onshape'te bu OAuth uygulamasının izinlerini düzenleyerek \"Uygulama belgelerinize yazabilir\" izni ekleyin, ardından yeniden bağlanın."
@@ -13369,6 +13375,9 @@ msgstr "Sabitle"
 msgid "Pin {0}"
 msgstr "Sabitle {0}"
 
+msgid "Pin or unpin"
+msgstr ""
+
 msgid "Pinned"
 msgstr "Sabitlenmiş"
 
@@ -14867,6 +14876,9 @@ msgstr "Kaldırıldı"
 #. placeholder {0}: count > 1 ? "s" : ""
 msgid "Removing this path will also disconnect {count} connection{0}. Continue?"
 msgstr "Bu yolu kaldırmak {count} bağlantı{0} da kesilecektir. Devam edilsin mi?"
+
+msgid "Rename"
+msgstr ""
 
 msgid "Rename Workflow"
 msgstr "İş Akışını Yeniden Adlandır"
@@ -20259,6 +20271,9 @@ msgstr "Açık Teklifleri Görüntüle"
 
 msgid "View Open RFQs"
 msgstr "Açık RFQ'ları Görüntüle"
+
+msgid "View or open"
+msgstr ""
 
 msgid "View Payables"
 msgstr "Borçları görüntüle"

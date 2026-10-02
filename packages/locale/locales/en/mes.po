@@ -516,6 +516,9 @@ msgstr "Due today?"
 msgid "Duplicate batch number"
 msgstr "Duplicate batch number"
 
+msgid "Duplicate or copy"
+msgstr "Duplicate or copy"
+
 msgid "Duplicate serial number"
 msgstr "Duplicate serial number"
 
@@ -711,6 +714,9 @@ msgstr "Imperial"
 #. placeholder {0}: precise?.text
 msgid "in {0}"
 msgstr "in {0}"
+
+msgid "In an open menu"
+msgstr "In an open menu"
 
 msgid "In Progress"
 msgstr "In Progress"
@@ -1226,6 +1232,9 @@ msgstr "picking in place of {substitutedFrom}, the item on the job"
 msgid "picking in place of {substitutedFrom}, the item on the job, for {substitutedAssemblies} assemblies"
 msgstr "picking in place of {substitutedFrom}, the item on the job, for {substitutedAssemblies} assemblies"
 
+msgid "Pin or unpin"
+msgstr "Pin or unpin"
+
 msgid "Pin Out"
 msgstr "Pin Out"
 
@@ -1352,6 +1361,9 @@ msgstr "Remove Inventory"
 
 msgid "Remove part"
 msgstr "Remove part"
+
+msgid "Rename"
+msgstr "Rename"
 
 msgid "Reopen the subassembly and create a replacement unit"
 msgstr "Reopen the subassembly and create a replacement unit"
@@ -1837,6 +1849,9 @@ msgstr "Verify"
 
 msgid "View maintenance dispatch"
 msgstr "View maintenance dispatch"
+
+msgid "View or open"
+msgstr "View or open"
 
 msgid "We've sent you a magic link to sign in to your account."
 msgstr "We've sent you a magic link to sign in to your account."

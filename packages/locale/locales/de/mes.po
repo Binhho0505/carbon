@@ -516,6 +516,9 @@ msgstr "Fällig heute?"
 msgid "Duplicate batch number"
 msgstr "Doppelte Losnummer"
 
+msgid "Duplicate or copy"
+msgstr ""
+
 msgid "Duplicate serial number"
 msgstr "Doppelte Seriennummer"
 
@@ -711,6 +714,9 @@ msgstr "Imperiale"
 #. placeholder {0}: precise?.text
 msgid "in {0}"
 msgstr "in {0}"
+
+msgid "In an open menu"
+msgstr ""
 
 msgid "In Progress"
 msgstr "In Bearbeitung"
@@ -1226,6 +1232,9 @@ msgstr "Kommissionierung anstelle von {substitutedFrom}, dem Artikel im Fertigun
 msgid "picking in place of {substitutedFrom}, the item on the job, for {substitutedAssemblies} assemblies"
 msgstr "Kommissionierung anstelle von {substitutedFrom}, dem Artikel im Fertigungsauftrag, für {substitutedAssemblies} Baugruppen"
 
+msgid "Pin or unpin"
+msgstr ""
+
 msgid "Pin Out"
 msgstr "Abmelden"
 
@@ -1352,6 +1361,9 @@ msgstr "Bestand entfernen"
 
 msgid "Remove part"
 msgstr "Teil entfernen"
+
+msgid "Rename"
+msgstr ""
 
 msgid "Reopen the subassembly and create a replacement unit"
 msgstr "Baugruppe wieder öffnen und Ersatzeinheit erstellen"
@@ -1837,6 +1849,9 @@ msgstr "Bestätigen"
 
 msgid "View maintenance dispatch"
 msgstr "Instandhaltungseinsatz anzeigen"
+
+msgid "View or open"
+msgstr ""
 
 msgid "We've sent you a magic link to sign in to your account."
 msgstr "Wir haben Ihnen einen Magic Link zur Anmeldung an Ihrem Konto gesendet."

@@ -516,6 +516,9 @@ msgstr "Bugün vade bitecek mi?"
 msgid "Duplicate batch number"
 msgstr "Çoğaltılmış parti numarası"
 
+msgid "Duplicate or copy"
+msgstr ""
+
 msgid "Duplicate serial number"
 msgstr "Çoğaltılmış seri numarası"
 
@@ -711,6 +714,9 @@ msgstr "İmparatorluk"
 #. placeholder {0}: precise?.text
 msgid "in {0}"
 msgstr "{0} içinde"
+
+msgid "In an open menu"
+msgstr ""
 
 msgid "In Progress"
 msgstr "Devam Ediyor"
@@ -1226,6 +1232,9 @@ msgstr "{substitutedFrom} yerine toplama, iş emrindeki stok kartı"
 msgid "picking in place of {substitutedFrom}, the item on the job, for {substitutedAssemblies} assemblies"
 msgstr "{substitutedFrom} yerine toplama, iş emrindeki stok kartı, {substitutedAssemblies} montaj için"
 
+msgid "Pin or unpin"
+msgstr ""
+
 msgid "Pin Out"
 msgstr "Çıkış Yap"
 
@@ -1352,6 +1361,9 @@ msgstr "Envanter Kaldır"
 
 msgid "Remove part"
 msgstr "Parçayı kaldır"
+
+msgid "Rename"
+msgstr ""
 
 msgid "Reopen the subassembly and create a replacement unit"
 msgstr "Alt montajı yeniden aç ve bir yedek birim oluştur"
@@ -1837,6 +1849,9 @@ msgstr "Doğrula"
 
 msgid "View maintenance dispatch"
 msgstr "Bakım emrini Görüntüle"
+
+msgid "View or open"
+msgstr ""
 
 msgid "We've sent you a magic link to sign in to your account."
 msgstr "Hesabınıza giriş yapmak için size bir sihirli bağlantı gönderdik."

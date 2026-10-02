@@ -6573,6 +6573,9 @@ msgstr "Doppelte Dateinamen nach der Bildkonvertierung"
 msgid "Duplicate Item"
 msgstr "Artikel duplizieren"
 
+msgid "Duplicate or copy"
+msgstr ""
+
 msgid "Duplicate Price List"
 msgstr "Preisliste duplizieren"
 
@@ -9105,6 +9108,9 @@ msgstr "Importieren Sie Ihre BOM"
 #. placeholder {0}: precise?.text
 msgid "in {0}"
 msgstr "in {0}"
+
+msgid "In an open menu"
+msgstr ""
 
 msgid "In Onshape, edit this OAuth application's permissions to include \"Application can write to your documents\", then connect again."
 msgstr "In Onshape die Berechtigungen dieser OAuth-Anwendung bearbeiten, um „Anwendung kann Ihre Dokumente schreiben\" einzuschließen, dann erneut verbinden."
@@ -13369,6 +13375,9 @@ msgstr "Anheften"
 msgid "Pin {0}"
 msgstr "Anheften {0}"
 
+msgid "Pin or unpin"
+msgstr ""
+
 msgid "Pinned"
 msgstr "Angeheftet"
 
@@ -14867,6 +14876,9 @@ msgstr "Entfernt"
 #. placeholder {0}: count > 1 ? "s" : ""
 msgid "Removing this path will also disconnect {count} connection{0}. Continue?"
 msgstr "Das Entfernen dieses Pfads trennt auch {count} Verbindung{0}. Fortfahren?"
+
+msgid "Rename"
+msgstr ""
 
 msgid "Rename Workflow"
 msgstr "Workflow umbenennen"
@@ -20259,6 +20271,9 @@ msgstr "Offene Angebote anzeigen"
 
 msgid "View Open RFQs"
 msgstr "Offene Anfragen anzeigen"
+
+msgid "View or open"
+msgstr ""
 
 msgid "View Payables"
 msgstr "Verbindlichkeiten anzeigen"

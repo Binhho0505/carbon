@@ -6573,6 +6573,9 @@ msgstr "图像转换后文件名重复"
 msgid "Duplicate Item"
 msgstr "复制项目"
 
+msgid "Duplicate or copy"
+msgstr ""
+
 msgid "Duplicate Price List"
 msgstr "复制价格表"
 
@@ -9105,6 +9108,9 @@ msgstr "导入您的BOM"
 #. placeholder {0}: precise?.text
 msgid "in {0}"
 msgstr "{0} 后"
+
+msgid "In an open menu"
+msgstr ""
 
 msgid "In Onshape, edit this OAuth application's permissions to include \"Application can write to your documents\", then connect again."
 msgstr "在Onshape中编辑此OAuth应用程序的权限以包括\"应用程序可以写入您的文档\"，然后重新连接。"
@@ -13369,6 +13375,9 @@ msgstr "固定"
 msgid "Pin {0}"
 msgstr "固定{0}"
 
+msgid "Pin or unpin"
+msgstr ""
+
 msgid "Pinned"
 msgstr "已固定"
 
@@ -14867,6 +14876,9 @@ msgstr "已移除"
 #. placeholder {0}: count > 1 ? "s" : ""
 msgid "Removing this path will also disconnect {count} connection{0}. Continue?"
 msgstr "删除此路径将同时断开 {count} 个连接{0}。是否继续？"
+
+msgid "Rename"
+msgstr ""
 
 msgid "Rename Workflow"
 msgstr "重命名工作流"
@@ -20259,6 +20271,9 @@ msgstr "查看未结报价"
 
 msgid "View Open RFQs"
 msgstr "查看未结束的询价单"
+
+msgid "View or open"
+msgstr ""
 
 msgid "View Payables"
 msgstr "查看应付款项"

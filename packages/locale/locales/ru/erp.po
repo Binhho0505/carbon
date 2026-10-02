@@ -6573,6 +6573,9 @@ msgstr "Дублирующиеся имена файлов после преоб
 msgid "Duplicate Item"
 msgstr "Дублировать элемент"
 
+msgid "Duplicate or copy"
+msgstr ""
+
 msgid "Duplicate Price List"
 msgstr "Дублировать прайс-лист"
 
@@ -9105,6 +9108,9 @@ msgstr "Импортируйте вашу BOM"
 #. placeholder {0}: precise?.text
 msgid "in {0}"
 msgstr "через {0}"
+
+msgid "In an open menu"
+msgstr ""
 
 msgid "In Onshape, edit this OAuth application's permissions to include \"Application can write to your documents\", then connect again."
 msgstr "В Onshape отредактируйте разрешения этого приложения OAuth, чтобы включить «Application can write to your documents», затем подключитесь снова."
@@ -13369,6 +13375,9 @@ msgstr "Закрепить"
 msgid "Pin {0}"
 msgstr "Закрепить {0}"
 
+msgid "Pin or unpin"
+msgstr ""
+
 msgid "Pinned"
 msgstr "Закреплено"
 
@@ -14867,6 +14876,9 @@ msgstr "Удалено"
 #. placeholder {0}: count > 1 ? "s" : ""
 msgid "Removing this path will also disconnect {count} connection{0}. Continue?"
 msgstr "Удаление этого пути также отключит {count} соединени{0}. Продолжить?"
+
+msgid "Rename"
+msgstr ""
 
 msgid "Rename Workflow"
 msgstr "Переименовать рабочий процесс"
@@ -20259,6 +20271,9 @@ msgstr "Просмотреть открытые предложения"
 
 msgid "View Open RFQs"
 msgstr "Просмотреть открытые РФП"
+
+msgid "View or open"
+msgstr ""
 
 msgid "View Payables"
 msgstr "Просмотр кредиторской задолженности"

@@ -516,6 +516,9 @@ msgstr "Przypada dzisiaj?"
 msgid "Duplicate batch number"
 msgstr "Zduplikowany numer partii"
 
+msgid "Duplicate or copy"
+msgstr ""
+
 msgid "Duplicate serial number"
 msgstr "Zduplikowany numer seryjny"
 
@@ -711,6 +714,9 @@ msgstr "Imperialny"
 #. placeholder {0}: precise?.text
 msgid "in {0}"
 msgstr "za {0}"
+
+msgid "In an open menu"
+msgstr ""
 
 msgid "In Progress"
 msgstr "W toku"
@@ -1226,6 +1232,9 @@ msgstr "kompletacja zamiast {substitutedFrom}, artykułu w zleceniu produkcyjnym
 msgid "picking in place of {substitutedFrom}, the item on the job, for {substitutedAssemblies} assemblies"
 msgstr "kompletacja zamiast {substitutedFrom}, artykułu w zleceniu produkcyjnym, dla {substitutedAssemblies} montaży"
 
+msgid "Pin or unpin"
+msgstr ""
+
 msgid "Pin Out"
 msgstr "Wyloguj PIN"
 
@@ -1352,6 +1361,9 @@ msgstr "Usuń zapasy"
 
 msgid "Remove part"
 msgstr "Usuń część"
+
+msgid "Rename"
+msgstr ""
 
 msgid "Reopen the subassembly and create a replacement unit"
 msgstr "Ponownie otwórz podzespół i utwórz zastępczą jednostkę"
@@ -1837,6 +1849,9 @@ msgstr "Zweryfikuj"
 
 msgid "View maintenance dispatch"
 msgstr "Wyświetl zlecenie utrzymania ruchu"
+
+msgid "View or open"
+msgstr ""
 
 msgid "We've sent you a magic link to sign in to your account."
 msgstr "Wysłaliśmy Ci link do logowania na Twoje konto."

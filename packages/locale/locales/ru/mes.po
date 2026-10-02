@@ -516,6 +516,9 @@ msgstr "Срок сегодня?"
 msgid "Duplicate batch number"
 msgstr "Дублированный номер серии"
 
+msgid "Duplicate or copy"
+msgstr ""
+
 msgid "Duplicate serial number"
 msgstr "Дублированный серийный номер"
 
@@ -711,6 +714,9 @@ msgstr "Имперская"
 #. placeholder {0}: precise?.text
 msgid "in {0}"
 msgstr "через {0}"
+
+msgid "In an open menu"
+msgstr ""
 
 msgid "In Progress"
 msgstr "В работе"
@@ -1226,6 +1232,9 @@ msgstr "Отбор вместо {substitutedFrom}, номенклатура в �
 msgid "picking in place of {substitutedFrom}, the item on the job, for {substitutedAssemblies} assemblies"
 msgstr "Отбор вместо {substitutedFrom}, номенклатура в производственном заказе, для {substitutedAssemblies} сборок"
 
+msgid "Pin or unpin"
+msgstr ""
+
 msgid "Pin Out"
 msgstr "Выход по PIN"
 
@@ -1352,6 +1361,9 @@ msgstr "Убрать запасы"
 
 msgid "Remove part"
 msgstr "Убрать деталь"
+
+msgid "Rename"
+msgstr ""
 
 msgid "Reopen the subassembly and create a replacement unit"
 msgstr "Открыть заново узел и создать единицу для замены"
@@ -1837,6 +1849,9 @@ msgstr "Подтвердить"
 
 msgid "View maintenance dispatch"
 msgstr "Просмотреть заявку на техобслуживание"
+
+msgid "View or open"
+msgstr ""
 
 msgid "We've sent you a magic link to sign in to your account."
 msgstr "Мы отправили вам ссылку для входа в ваш аккаунт."

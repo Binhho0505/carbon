@@ -6573,6 +6573,9 @@ msgstr "이미지 변환 후 중복된 파일 이름"
 msgid "Duplicate Item"
 msgstr "품목 복제"
 
+msgid "Duplicate or copy"
+msgstr ""
+
 msgid "Duplicate Price List"
 msgstr "가격표 복제"
 
@@ -9105,6 +9108,9 @@ msgstr "BOM 가져오기"
 #. placeholder {0}: precise?.text
 msgid "in {0}"
 msgstr "{0} 안에"
+
+msgid "In an open menu"
+msgstr ""
 
 msgid "In Onshape, edit this OAuth application's permissions to include \"Application can write to your documents\", then connect again."
 msgstr "Onshape에서 이 OAuth 애플리케이션의 권한을 편집하여 \"애플리케이션이 문서에 쓸 수 있음\"을 포함하도록 한 후 다시 연결합니다."
@@ -13369,6 +13375,9 @@ msgstr "핀"
 msgid "Pin {0}"
 msgstr "{0} 고정"
 
+msgid "Pin or unpin"
+msgstr ""
+
 msgid "Pinned"
 msgstr "고정됨"
 
@@ -14867,6 +14876,9 @@ msgstr "제거됨"
 #. placeholder {0}: count > 1 ? "s" : ""
 msgid "Removing this path will also disconnect {count} connection{0}. Continue?"
 msgstr "이 경로를 제거하면 {count}개 연결도 끊어집니다{0}. 계속하시겠습니까?"
+
+msgid "Rename"
+msgstr ""
 
 msgid "Rename Workflow"
 msgstr "워크플로우 이름 바꾸기"
@@ -20259,6 +20271,9 @@ msgstr "미결 견적 보기"
 
 msgid "View Open RFQs"
 msgstr "미결 견적요청 보기"
+
+msgid "View or open"
+msgstr ""
 
 msgid "View Payables"
 msgstr "매입채무 보기"
