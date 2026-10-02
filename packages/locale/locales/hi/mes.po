@@ -167,6 +167,9 @@ msgstr "सभी पुनः कार्य"
 msgid "All scrap"
 msgstr "सभी स्क्रैप"
 
+msgid "All steps"
+msgstr ""
+
 msgid "Allocate failed units"
 msgstr "विफल इकाइयों को आवंटित करें"
 
@@ -1144,6 +1147,11 @@ msgstr "MRB निपटान के लिए एक NCR खोलें"
 msgid "Open Jobs"
 msgstr "खुली जॉब्स"
 
+#. placeholder {0}: subAssemblyNumber(item.headerId)
+#. placeholder {1}: subAssemblyTitle(item.headerId)
+msgid "Open sub-assembly {0}: {1}"
+msgstr ""
+
 msgid "Operations"
 msgstr "ऑपरेशन"
 
@@ -1652,6 +1660,21 @@ msgstr "चरण गायब हैं"
 msgid "Storage Unit"
 msgstr "भंडारण इकाई"
 
+msgid "Sub-Assembly"
+msgstr ""
+
+#. placeholder {0}: subAssemblyNumber(item.headerId)
+#. placeholder {0}: subAssemblyNumber(openSubAssemblyId)
+#. placeholder {1}: subAssemblyTitle(item.headerId)
+#. placeholder {1}: subAssemblyTitle(openSubAssemblyId)
+msgid "Sub-Assembly {0} · {1}"
+msgstr ""
+
+#. placeholder {0}: subAssemblyNumber(playbackInfo.headerId)
+#. placeholder {1}: subAssemblyTitle( playbackInfo.headerId )
+msgid "Sub-Assembly {0} · {1} — shown on its own"
+msgstr ""
+
 msgid "Submit anonymously"
 msgstr "गुमनाम रूप से सबमिट करें"
 
@@ -1840,6 +1863,11 @@ msgstr "एक अलग खाता उपयोग करें"
 
 msgid "Used automatically at completion"
 msgstr "पूर्णता पर स्वचालित रूप से उपयोग किया जाता है"
+
+#. placeholder {0}: subAssemblyNumber(headerId)
+#. placeholder {1}: subAssemblyTitle(headerId)
+msgid "Uses {0} · {1}"
+msgstr ""
 
 msgid "Value"
 msgstr "मान"
