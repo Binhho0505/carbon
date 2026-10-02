@@ -30,7 +30,7 @@ import { Link, useSubmit } from "react-router";
 import { ConfirmDelete } from "~/components/Modals";
 import type { RouteGroup } from "~/types";
 import { path } from "~/utils/path";
-import { CollapsibleSidebar, useSidebarLocation } from "./CollapsibleSidebar";
+import { useSidebarLocation } from "./CollapsibleSidebar";
 
 type GroupedRoute = RouteGroup["routes"][number];
 
@@ -47,11 +47,9 @@ const matchesRoute = (
 
 const GroupedContentSidebar = ({
   groups,
-  width = 240,
   exactMatch = false
 }: {
   groups: RouteGroup[];
-  width?: number;
   exactMatch?: boolean;
 }) => {
   const { t } = useLingui();
@@ -92,7 +90,7 @@ const GroupedContentSidebar = ({
   };
 
   return (
-    <CollapsibleSidebar width={width}>
+    <>
       <div className="overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-accent h-full w-full pb-8">
         <VStack>
           {groups.map((group) => (
@@ -191,7 +189,7 @@ const GroupedContentSidebar = ({
           }}
         />
       )}
-    </CollapsibleSidebar>
+    </>
   );
 };
 
