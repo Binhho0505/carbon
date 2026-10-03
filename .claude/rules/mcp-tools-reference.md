@@ -277,7 +277,7 @@ dispatcher (`apps/erp/app/routes/api+/inngest.ts`). There is no separate
   Pinned by `dispatch-parity.test.ts` a3. Payload params are
   stamped with auth fields via `enrichWithAuthContext` (now in
   `dispatch.server.ts`) — including `userId` when the payload itself declares one
-  (the edge-function wrappers), which the manifest marks via `injectAuth` and the
+  (the server-function wrappers), which the manifest marks via `injectAuth` and the
   generator derives from the signature. Without it the service runs with no acting
   user; `apps/erp/test/mcp-tool-auth-injection.test.ts` guards the pairing.
   A param literally named `args` is stamped too, and which wire shape it takes
@@ -384,12 +384,11 @@ dispatcher (`apps/erp/app/routes/api+/inngest.ts`). There is no separate
   - `CallResult.error` (MCP, the in-app agent, workflows) carries a **fixed
     message from the closed set** in `api+/v1+/lib/database-errors.ts` —
     `conflict`, `reference`, `required`, `permission`, `notFound`, `rule`,
-    `unknown`. `classifyDatabaseFailure` picks one from STRUCTURED fields only
-    (a Postgres SQLSTATE, or the `FunctionsHttpError` name); message text is never
-    parsed, since parsing it would make the public string a function of the private
-    one. It used to interpolate `JSON.stringify(error)`, which handed a caller the
-    column, constraint and value out of the PostgREST body, and later an edge
-    function's own text — CWE-209 either way.
+    `unknown`. `classifyDatabaseFailure` picks one from the Postgres/PostgREST
+    `code` only; message text is never parsed, since parsing it would make the
+    public string a function of the private one. It used to interpolate
+    `JSON.stringify(error)`, which handed a caller the column, constraint and value
+    out of the PostgREST body — CWE-209.
   - The one exception is a service's own refusal: an error built with
     `ruleError(message)` (`~/utils/supabase`, code `CARBON_RULE`) is written for
     the caller, so `isServiceRuleError` lets `callOperation` return its message
@@ -398,21 +397,20 @@ dispatcher (`apps/erp/app/routes/api+/inngest.ts`). There is no separate
     in it.
   - The **full detail is logged** instead (`logger.error("Operation failed", …)` in
     `call.server.ts`) with the operation name, the classification, the raw Supabase
-    error, and — for an edge function — the message read off the unread `Response`
-    on `error.context` by `edgeFunctionMessage`. Without that read the log would
-    hold an empty `{"name":"FunctionsHttpError","context":{}}` rather than the rule
-    that fired ("The process is not batchable"), so a business-rule rejection and a
-    malformed payload would be indistinguishable in the log too.
+    error.
   - **HTTP is a separate path and is unchanged**: a 400 body is serialized from the
     `ORPCError` by the oRPC handler, never from `CallResult`, so HTTP callers still
     receive the Postgres `code`/`details`/`hint`. Narrowing that is a separate
     decision about the public API.
 
-  The consequence is deliberate and worth knowing when debugging an agent: a
-  business rule an agent could act on ("already in a batch") now reads as the
-  generic `rule` message, and the specific cause is in the server log. An
-  enumerated code returned by the edge functions themselves, mapped to public
-  strings here, is the way to give that back without echoing server text.
+  - A **server function's** failure (`ServerFnError`, from a service that calls
+    `@carbon/server-functions`) never reaches that classifier: `dispatch.server.ts`
+    throws it as an `ORPCError` carrying the function's own message, so
+    `CallResult` returns it as an `execution` error. The HTTP code comes from its
+    status — 400/403/404/409 map to BAD_REQUEST/FORBIDDEN/NOT_FOUND/CONFLICT; a
+    status ≥ 500 with a non-empty message (a refusal thrown at the default status)
+    is BAD_REQUEST; an empty message (a data-layer failure) stays
+    INTERNAL_SERVER_ERROR with a generic message.
 - The dispatch behavior is pinned by
   `api+/v1+/lib/dispatch-parity.test.ts` (golden cases carried over from the
   deleted `executeFunction`) — a change there is a behavior change for MCP,

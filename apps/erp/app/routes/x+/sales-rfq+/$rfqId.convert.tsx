@@ -20,6 +20,7 @@ import {
   resolvePurchaseToOrderPrices,
   resolveQuoteLinePrices
 } from "~/modules/sales";
+import { getDatabaseClient } from "~/services/database.server";
 import { path } from "~/utils/path";
 
 export async function action({ request, params }: ActionFunctionArgs) {
@@ -33,9 +34,9 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
   const serviceRole = getCarbonServiceRole();
 
-  // Terminal gate before the `convert` edge function mints quote lines. Gating
-  // here rather than inside the edge function keeps the evaluator in one place
-  // (it is Deno and cannot import the ERP server runtime the plan gate needs).
+  // Terminal gate before the `convert` server function mints quote lines. Gating
+  // here rather than inside the server function keeps the evaluator in one place
+  // (the plan gate needs the ERP server runtime).
   const acknowledged =
     (await request.formData()).get("acknowledged") === "true";
   let violations: Violation[];
@@ -73,11 +74,15 @@ export async function action({ request, params }: ActionFunctionArgs) {
     return { violations: deduped, ruleNames };
   }
 
-  const convert = await convertSalesRfqToQuote(serviceRole, {
-    id,
-    companyId,
-    userId
-  });
+  const convert = await convertSalesRfqToQuote(
+    serviceRole,
+    getDatabaseClient(),
+    {
+      id,
+      companyId,
+      userId
+    }
+  );
 
   if (convert.error) {
     throw redirect(

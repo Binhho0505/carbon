@@ -10,6 +10,7 @@
 // values stand as golden literals: they ARE executeFunction's behavior, and a change
 // here is a behavior change for MCP, the agent, the workflow engine and HTTP at once.
 
+import { ServerFnError } from "@carbon/server-functions/errors";
 import { ORPCError } from "@orpc/server";
 import { createClient } from "@supabase/supabase-js";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -1086,6 +1087,55 @@ describe("dispatchOperation service-call contract (golden, ex-executeFunction pa
     ).toEqual(supabaseError);
   });
 
+  it("k2. an operation's error keeps its status and sanitized message", async () => {
+    spies.getAccountLedger.mockReset();
+    spies.getAccountLedger.mockResolvedValue({
+      data: null,
+      error: new ServerFnError("Receipt not found", 404)
+    });
+    const r = await runDispatch(
+      "accounting_getAccountLedger",
+      spies.getAccountLedger,
+      {}
+    );
+    const orpcError = r.dispatchError as ORPCError<string, unknown>;
+    expect(orpcError.code).toBe("NOT_FOUND");
+    expect(orpcError.message).toBe("Receipt not found");
+    expect(orpcError.data).toBeUndefined();
+  });
+
+  it("k3. a data-layer operation error (empty message) gets a fixed message", async () => {
+    spies.getAccountLedger.mockReset();
+    spies.getAccountLedger.mockResolvedValue({
+      data: null,
+      error: new ServerFnError("")
+    });
+    const r = await runDispatch(
+      "accounting_getAccountLedger",
+      spies.getAccountLedger,
+      {}
+    );
+    const orpcError = r.dispatchError as ORPCError<string, unknown>;
+    expect(orpcError.code).toBe("INTERNAL_SERVER_ERROR");
+    expect(orpcError.message).toBe("The operation could not be completed.");
+  });
+
+  it("k4. an authored refusal from a 500-default operation is the caller's (BAD_REQUEST)", async () => {
+    spies.getAccountLedger.mockReset();
+    spies.getAccountLedger.mockResolvedValue({
+      data: null,
+      error: new ServerFnError("Receipt is already posted")
+    });
+    const r = await runDispatch(
+      "accounting_getAccountLedger",
+      spies.getAccountLedger,
+      {}
+    );
+    const orpcError = r.dispatchError as ORPCError<string, unknown>;
+    expect(orpcError.code).toBe("BAD_REQUEST");
+    expect(orpcError.message).toBe("Receipt is already posted");
+  });
+
   it("l. a single-key payload whose key matches no param is unwrapped positionally", async () => {
     const r = await runDispatch(
       "account_upsertNotificationPreference",
@@ -1423,6 +1473,23 @@ describe("callOperation (the MCP/agent/workflow entry point)", () => {
       success: false,
       errorKind: "database",
       error: DATABASE_ERROR_MESSAGES.conflict
+    });
+  });
+
+  it("passes an operation's own message through as an execution error", async () => {
+    spies.getAccountLedger.mockResolvedValue({
+      data: null,
+      error: new ServerFnError("Insufficient quantity", 400)
+    });
+    const result = await callOperation(
+      "accounting_getAccountLedger",
+      ctx,
+      LEDGER_ARGS
+    );
+    expect(result).toEqual({
+      success: false,
+      errorKind: "execution",
+      error: "Insufficient quantity"
     });
   });
 

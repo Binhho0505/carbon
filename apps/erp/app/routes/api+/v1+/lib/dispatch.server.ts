@@ -13,6 +13,7 @@
 // callOperation reconstructs the { success:false, error } envelope.
 
 import type { AuthField, ContextSource, ManifestEntry } from "@carbon/api";
+import { ServerFnError } from "@carbon/server-functions/errors";
 import { ORPCError } from "@orpc/server";
 import { getDatabaseClient } from "~/services/database.server";
 import type { AuthedContext } from "./base.server";
@@ -346,6 +347,21 @@ function addressesWholeParam(meta: ManifestEntry, paramName: string): boolean {
   return own.length === 1 && own[0] === paramName;
 }
 
+function operationErrorCode(status: number) {
+  switch (status) {
+    case 400:
+      return "BAD_REQUEST";
+    case 403:
+      return "FORBIDDEN";
+    case 404:
+      return "NOT_FOUND";
+    case 409:
+      return "CONFLICT";
+    default:
+      return "INTERNAL_SERVER_ERROR";
+  }
+}
+
 /**
  * Whether the schema declares `paramName` as an argument of its own that a
  * caller may leave out — as opposed to the one payload param the body IS. A
@@ -648,6 +664,21 @@ function readServiceResult(
   }
 
   if (!isRecord(result)) return { data: result };
+
+  // An operation's error is already sanitized (empty when it came from the
+  // data layer) and carries its own status.
+  if (result.error instanceof ServerFnError) {
+    // A function whose thrown refusals default to 500 still reports its own
+    // message; that is the caller's to fix (as the edge path reported it),
+    // so only a data-layer failure — empty message — stays a server error.
+    const code =
+      result.error.status >= 500 && result.error.message
+        ? "BAD_REQUEST"
+        : operationErrorCode(result.error.status);
+    throw new ORPCError(code, {
+      message: result.error.message || "The operation could not be completed."
+    });
+  }
 
   // Read whatever the manifest says: a truthy `error` on the result object is a
   // failure under every shape, including a return type the checker saw as `any`.

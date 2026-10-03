@@ -106303,6 +106303,41 @@ export default {
         tags: ["(rpc) get_maintenance_dispatches_by_location"]
       }
     },
+    "/rpc/set_inngest_event_url": {
+      post: {
+        parameters: [
+          {
+            in: "body",
+            name: "args",
+            required: true,
+            schema: {
+              properties: {
+                p_url: {
+                  format: "text",
+                  type: "string"
+                }
+              },
+              required: ["p_url"],
+              type: "object"
+            }
+          },
+          {
+            $ref: "#/parameters/preferParams"
+          }
+        ],
+        produces: [
+          "application/json",
+          "application/vnd.pgrst.object+json;nulls=stripped",
+          "application/vnd.pgrst.object+json"
+        ],
+        responses: {
+          "200": {
+            description: "OK"
+          }
+        },
+        tags: ["(rpc) set_inngest_event_url"]
+      }
+    },
     "/rpc/sync_on_maintenance_dispatch_complete": {
       post: {
         parameters: [

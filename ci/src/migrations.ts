@@ -55,6 +55,8 @@ export type Workspace = {
   database_password: string | null;
   jwt_key: string | null;
   service_role_key: string | null;
+  inngest_base_url: string | null;
+  inngest_event_key: string | null;
 };
 
 /**
@@ -217,6 +219,30 @@ async function migrate(): Promise<void> {
         await $$`supabase db push --include-all`;
         console.log(`✅ 🐣 Starting deployments for ${workspace.id}`);
         await $$`supabase functions deploy`;
+      }
+
+      // Postgres posts its Inngest events (util.send_inngest_event) to this
+      // URL. The app also writes it on boot from its own INNGEST_EVENT_KEY, so
+      // a workspace with no key here is wired by its first instance instead.
+      if (!workspace.inngest_event_key || !service_role_key) {
+        console.log(
+          `⏭️  📨 ${workspace.id} has no Inngest event key here: the app sets the database's event URL on boot`
+        );
+      } else {
+        const eventUrl = new URL(
+          `e/${workspace.inngest_event_key}`,
+          workspace.inngest_base_url ?? "https://inn.gs/"
+        ).href;
+        const { error: eventUrlError } = await createClient(
+          database_url,
+          service_role_key
+        ).rpc("set_inngest_event_url", { p_url: eventUrl });
+        if (eventUrlError) {
+          console.error(
+            `🔴 📨 Failed to set the Inngest event URL for ${workspace.id}: ${eventUrlError.message}`
+          );
+          hasErrors = true;
+        }
       }
 
       if (!workspace.seeded) {

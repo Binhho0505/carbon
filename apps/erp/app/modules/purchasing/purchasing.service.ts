@@ -7,6 +7,7 @@ import { fetchAllFromTable, getCompanyTimeZone } from "@carbon/database";
 import type { Kysely, KyselyDatabase } from "@carbon/database/client";
 import { storage } from "@carbon/files";
 import { getLogger } from "@carbon/logger";
+import { serverFns } from "@carbon/server-functions";
 import {
   datetime,
   EPSILON,
@@ -97,6 +98,7 @@ export async function closePurchaseOrder(
 /** @mcp update */
 export async function convertSupplierQuoteToOrder(
   client: SupabaseClient<Database>,
+  db: Kysely<KyselyDatabase>,
   payload: {
     id: string;
     selectedLines: z.infer<typeof selectedLinesValidator>;
@@ -104,11 +106,10 @@ export async function convertSupplierQuoteToOrder(
     userId: string;
   }
 ) {
-  return client.functions.invoke<{ convertedId: string }>("convert", {
-    body: {
-      type: "supplierQuoteToPurchaseOrder",
-      ...payload
-    }
+  const { companyId, userId, ...input } = payload;
+  return serverFns.as({ client, db, companyId, userId }).invoke("convert", {
+    type: "supplierQuoteToPurchaseOrder",
+    ...input
   });
 }
 

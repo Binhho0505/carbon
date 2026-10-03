@@ -37,9 +37,13 @@ import { noUnroundedTrackedQuantity } from "./conformance/no-unrounded-tracked-q
 import { noUnscopedKyselyWrite } from "./conformance/no-unscoped-kysely-write";
 import { noViewWithoutInvoker } from "./conformance/no-view-without-invoker";
 import { noZeroConcurrency } from "./conformance/no-zero-concurrency";
+import { serverFnAuthorizesCaller } from "./conformance/server-fn-authorizes-caller";
 import { spdxLicenseHeader } from "./conformance/spdx-license-header";
 import { loadDbTableColumns } from "./sources/db-columns";
-import { loadEdgeFunctions } from "./sources/edge-functions";
+import {
+  loadEdgeFunctions,
+  loadServerFunctions
+} from "./sources/edge-functions";
 import { loadLicenseFiles } from "./sources/license-files";
 import { loadSqlFiles, migrationsDir, repoRoot } from "./sources/migrations";
 import { loadModules, modulesDir } from "./sources/modules";
@@ -80,6 +84,9 @@ export const TS_CHECKS: ConformanceCheck[] = [
 export const EDGE_FUNCTION_CHECKS: ConformanceCheck[] = [
   edgeFunctionAuthorizesCaller
 ];
+
+/** Checks that run once per `@carbon/server-functions` entry point. */
+export const SERVER_FN_CHECKS: ConformanceCheck[] = [serverFnAuthorizesCaller];
 
 export const STRUCTURE_CHECKS: StructureCheck[] = [moduleShape];
 
@@ -155,6 +162,7 @@ export function collectFindings(root: string = repoRoot()): Finding[] {
       indexRedirectBeforeLoaders
     ]),
     ...scanAll(loadEdgeFunctions(root), EDGE_FUNCTION_CHECKS),
+    ...scanAll(loadServerFunctions(root), SERVER_FN_CHECKS),
     ...scanAll(loadLicenseFiles(root), [spdxLicenseHeader])
   ];
 }
