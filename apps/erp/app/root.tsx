@@ -60,6 +60,7 @@ import Background from "~/styles/background.css?url";
 import NProgress from "~/styles/nprogress.css?url";
 import Tailwind from "~/styles/tailwind.css?url";
 import "@carbon/lib/shims";
+import { MotionConfig } from "motion/react";
 import type { Route } from "./+types/root";
 import { getTheme } from "./services/theme.server";
 
@@ -242,10 +243,7 @@ export function Document({
     >
       <head>
         <meta charSet="utf-8" />
-        <meta
-          name="viewport"
-          content="width=device-width, initial-scale=1, maximum-scale=1"
-        />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
         <Meta />
         <Links />
       </head>
@@ -312,10 +310,17 @@ export default function App() {
       <OperatingSystemContextProvider platform={prefs.platform}>
         <LocaleProvider locale={appLanguage} catalog={catalog}>
           <I18nProvider locale={prefs.locale}>
-            <TooltipProvider delayDuration={200}>
-              <Document mode={mode} theme={theme} lang={appLanguage} env={env}>
-                <Outlet />
-              </Document>
+            <TooltipProvider>
+              <MotionConfig reducedMotion="user">
+                <Document
+                  mode={mode}
+                  theme={theme}
+                  lang={appLanguage}
+                  env={env}
+                >
+                  <Outlet />
+                </Document>
+              </MotionConfig>
             </TooltipProvider>
           </I18nProvider>
         </LocaleProvider>
