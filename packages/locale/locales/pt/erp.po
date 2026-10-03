@@ -2097,6 +2097,9 @@ msgstr "Chaves de API para acesso programático aos seus dados do Carbon."
 msgid "API, webhooks, and integrations"
 msgstr "API, webhooks e integrações"
 
+msgid "Appearance"
+msgstr ""
+
 msgid "Applied"
 msgstr "Aplicado"
 
@@ -3907,8 +3910,14 @@ msgstr "Clique para enviar arquivo de desenho PDF"
 msgid "Clock In"
 msgstr "Apontar início"
 
+msgid "Clock out"
+msgstr ""
+
 msgid "Clock Out"
 msgstr "Apontar fim"
+
+msgid "Clocked in"
+msgstr ""
 
 msgid "Clocked in since <0/>"
 msgstr "Marcado desde <0/>"
@@ -5479,9 +5488,6 @@ msgstr "Uso Diário"
 
 msgid "Dark"
 msgstr "Escuro"
-
-msgid "Dark Mode"
-msgstr "Modo Escuro"
 
 msgid "Dashboard"
 msgstr "Painel"
@@ -10194,12 +10200,6 @@ msgstr "Uso de Vida Útil (Unidades)"
 
 msgid "Light"
 msgstr "Claro"
-
-msgid "Light Mode"
-msgstr "Modo Claro"
-
-msgid "Light or dark mode"
-msgstr "Modo claro ou escuro"
 
 msgid "Lights Out (24×7)"
 msgstr "Luzes Apagadas (24×7)"
@@ -16556,9 +16556,6 @@ msgstr "Configure o Carbon de acordo com como sua empresa funciona: locais, peç
 msgid "Set Clock Out"
 msgstr "Apontar fim"
 
-msgid "Set clock-out time"
-msgstr "Definir hora de saída"
-
 msgid "Set Console PIN"
 msgstr "Definir PIN do Console"
 
@@ -16576,6 +16573,9 @@ msgstr "Definir precificação"
 
 msgid "Set Quantity"
 msgstr "Definir Quantidade"
+
+msgid "Set the time you stopped working, or acknowledge that you're still working."
+msgstr ""
 
 msgid "Set up authenticator app"
 msgstr "Configurar aplicativo autenticador"
@@ -21334,9 +21334,6 @@ msgstr "Você pode alterar o estilo da interface a qualquer momento através da 
 
 msgid "You can only see this key once. Store it safely."
 msgstr "Você só pode ver esta chave uma vez. Guarde-a com segurança."
-
-msgid "You clocked in at <0/>. You can edit your clock-out time below or acknowledge that you're still working."
-msgstr "Você se marcou às <0/>. Você pode editar seu horário de saída abaixo ou confirmar que ainda está trabalhando."
 
 #. placeholder {0}: leftoverQuantity === 1 ? "part" : "parts"
 #. placeholder {1}: job.quantity

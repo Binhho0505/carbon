@@ -25,6 +25,7 @@ import {
 import { RootErrorBoundary } from "@carbon/react/ErrorBoundary";
 import type { Theme } from "@carbon/utils";
 import {
+  colorSchemeHintScript,
   getPreferenceHeaders,
   isSearchParamOnlyNavigation,
   modeValidator,
@@ -136,7 +137,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         VERCEL_ENV,
         VERCEL_URL
       },
-      mode: getMode(request),
+      ...getMode(request),
       theme: getTheme(request),
       preferences,
       result: context.get(flashResultContext)
@@ -227,6 +228,13 @@ function Document({
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+        {/* Before any paint: records the OS color scheme for a `system` user
+            and reloads once if the server rendered the wrong mode. */}
+        <script
+          nonce={nonce}
+          suppressHydrationWarning
+          dangerouslySetInnerHTML={{ __html: colorSchemeHintScript }}
+        />
         <Meta />
         <title>{title}</title>
         <Links />
