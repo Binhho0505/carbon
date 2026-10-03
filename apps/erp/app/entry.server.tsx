@@ -3,6 +3,7 @@
 // including ports, remain AGPLv3; serving them over a network requires releasing their source.
 
 import { POSTHOG_API_HOST, SUPABASE_URL } from "@carbon/auth";
+import { installFormBodyGuard } from "@carbon/auth/middleware/form-body.server";
 import {
   getNonce,
   setStrictContentSecurityPolicy
@@ -19,10 +20,10 @@ import { handleRequest as vercelHandleRequest } from "@vercel/react-router/entry
 import { InngestSpanProcessor } from "inngest/experimental";
 import type { EntryContext, RouterContextProvider } from "react-router";
 import { isRouteErrorResponse } from "react-router";
-import { scheduleInngestEventUrlSync } from "./utils/inngest-event-url.server";
 import { scheduleInngestSelfSync } from "./utils/inngest-self-sync.server";
 
 ensureLoggingConfigured();
+installFormBodyGuard();
 
 // Vercel freezes an instance once its response is sent: keep it up until idle
 // database connections have closed and background work has finished.
@@ -42,7 +43,6 @@ export const instrumentations = createTracing({
   spanProcessors: [new InngestSpanProcessor(inngest)]
 });
 scheduleInngestSelfSync();
-scheduleInngestEventUrlSync();
 
 const log = getLogger("erp");
 
