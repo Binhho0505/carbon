@@ -20,6 +20,7 @@
 //! fallback. Wires the `converter` and `planner` crates via `actions::*`.
 
 mod actions;
+mod admission;
 mod cache;
 mod config;
 mod dispatch;
@@ -41,7 +42,6 @@ use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
-use tokio::sync::Semaphore;
 use tower_http::compression::{predicate::SizeAbove, CompressionLayer};
 
 const VERSION: &str = "0.1.0";
@@ -57,9 +57,17 @@ const DEFAULT_MAX_RENDER_WEIGHT_BYTES: u64 = 419_430_400; // 400 MiB
 #[global_allocator]
 static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 
+// Read by jemalloc at startup. A background thread purges freed pages after a
+// second (and skips the lazy "muzzy" stage), so memory a finished job freed
+// goes back to the OS instead of sitting in the allocator until the next job.
+#[cfg(target_os = "linux")]
+#[allow(non_upper_case_globals)]
+#[export_name = "malloc_conf"]
+pub static malloc_conf: &[u8] = b"background_thread:true,dirty_decay_ms:1000,muzzy_decay_ms:0\0";
+
 #[derive(Clone)]
 pub struct AppState {
-    pub slots: Arc<Semaphore>,
+    pub admission: admission::Admission,
     pub jobs: jobs::JobStore,
     pub cache: Arc<cache::ResultCache>,
     pub progress: progress::ProgressStore,
@@ -84,17 +92,29 @@ fn main() {
 /// one-shot `run-job` CLI so both share one JobStore + cache + concurrency.
 pub async fn build_state() -> AppState {
     AppState {
-        slots: Arc::new(Semaphore::new(config::max_concurrency())),
+        admission: admission::Admission::from_env(),
         jobs: jobs::JobStore::from_env().await,
-        cache: Arc::new(cache::ResultCache::new(config::cache_bytes())),
+        cache: Arc::new(cache::ResultCache::new(
+            config::cache_dir(),
+            config::cache_bytes(),
+        )),
         progress: progress::ProgressStore::default(),
     }
 }
 
 async fn serve() {
-    let max = config::max_concurrency();
+    http::clear_stale_sources();
     let state = build_state().await;
-    let slots = Arc::clone(&state.slots);
+    let admission = state.admission.clone();
+    // Parked outputs nobody drained (see `jobs.rs`): the disk half of the
+    // pending TTL, including whatever a previous process left behind.
+    let sweeper = state.jobs.clone();
+    tokio::spawn(async move {
+        loop {
+            sweeper.sweep_parked().await;
+            tokio::time::sleep(std::time::Duration::from_secs(60)).await;
+        }
+    });
     let app = Router::new()
         .route("/health", get(health))
         .route("/v1", get(discovery))
@@ -120,7 +140,8 @@ async fn serve() {
         .with_state(state);
 
     eprintln!(
-        "assembler config: version={VERSION} concurrency={max} cacheMB={} maxParts={} maxSourceMB={} longPollCap={}s jobTtl={}s resultTtl={}s",
+        "assembler config: version={VERSION} memoryBudgetMB={} cacheMB={} maxParts={} maxSourceMB={} longPollCap={}s jobTtl={}s resultTtl={}s",
+        admission.budget_mb(),
         config::cache_bytes() / 1024 / 1024,
         config::max_parts(),
         config::max_source_bytes() / 1024 / 1024,
@@ -140,11 +161,12 @@ async fn serve() {
         .await
         .unwrap();
 
-    // Jobs run detached (create returns 202) and each holds a slot; wait for
-    // every slot to free before exiting so a deploy/scale-down doesn't kill an
-    // in-flight job. The grace deadline in shutdown_signal force-exits a wedged one.
+    // Jobs run detached (create returns 202) and each holds part of the memory
+    // budget while it computes; wait for all of it to come back before exiting
+    // so a deploy/scale-down doesn't kill an in-flight job. The grace deadline
+    // in shutdown_signal force-exits a wedged one.
     eprintln!("assembler draining in-flight jobs");
-    let _ = slots.acquire_many(max as u32).await;
+    admission.drain().await;
     eprintln!("assembler drained cleanly; exiting");
 }
 
@@ -176,8 +198,16 @@ async fn shutdown_signal() {
     });
 }
 
-async fn health() -> Json<Value> {
-    Json(json!({ "ok": true, "version": VERSION }))
+/// Healthy means it can do its job, and it cannot without Redis: every job's
+/// status lives there. A probe that fails here gets the instance replaced.
+async fn health(State(state): State<AppState>) -> (StatusCode, Json<Value>) {
+    if state.jobs.ping().await {
+        return (StatusCode::OK, Json(json!({ "ok": true, "version": VERSION })));
+    }
+    (
+        StatusCode::SERVICE_UNAVAILABLE,
+        Json(json!({ "ok": false, "version": VERSION, "error": "redis unreachable" })),
+    )
 }
 
 async fn discovery(headers: HeaderMap) -> Result<Json<Value>, ApiError> {
