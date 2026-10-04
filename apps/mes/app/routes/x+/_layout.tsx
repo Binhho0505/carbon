@@ -523,7 +523,10 @@ export default function AuthenticatedRoute() {
                     timeCardEnabled={timeCardEnabled}
                   />
                   <div className="flex flex-1 flex-col min-w-0 overflow-hidden bg-card md:mt-2 md:mr-2 md:mb-2 md:rounded-2xl md:border md:border-border">
-                    <Outlet />
+                    {/* A company switch stays on the same page. Without the key the page
+                        keeps its state, so a form still held the previous company's
+                        values and saving wrote them to the new one. */}
+                    <Outlet key={companyId} />
                   </div>
                   <ShortcutHelp />
                   {timeCardEnabled && (

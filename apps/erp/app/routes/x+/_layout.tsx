@@ -522,7 +522,10 @@ export default function AuthenticatedRoute() {
                     <Topbar />
                     <main className="flex-1 overflow-y-auto scrollbar-hide relative">
                       <ModuleSidebarLayout>
-                        <Outlet />
+                        {/* A company switch stays on the same page. Without the key the page
+                            keeps its state, so a form still held the previous company's
+                            values and saving wrote them to the new one. */}
+                        <Outlet key={companyId} />
                       </ModuleSidebarLayout>
                     </main>
                   </div>
