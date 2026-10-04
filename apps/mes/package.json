@@ -28,7 +28,6 @@
     "@emoji-mart/react": "catalog:",
     "@internationalized/date": "catalog:",
     "@lingui/core": "catalog:",
-    "@lingui/macro": "catalog:",
     "@lingui/react": "catalog:",
     "@lingui/vite-plugin": "catalog:",
     "@nanostores/react": "catalog:",
@@ -93,6 +92,8 @@
     "zod-form-data": "catalog:"
   },
   "devDependencies": {
+    "@lingui/conf": "catalog:",
+    "@react-aria/optimize-locales-plugin": "catalog:",
     "@carbon/config": "workspace:*",
     "@carbon/dev": "workspace:*",
     "@types/react": "catalog:",
@@ -104,8 +105,9 @@
     "tailwind-scrollbar-hide": "catalog:",
     "tailwindcss": "catalog:",
     "typescript": "catalog:",
+    "@vitejs/devtools": "catalog:",
+    "@vitejs/devtools-rolldown": "catalog:",
     "vite": "catalog:",
-    "vite-plugin-babel-macros": "catalog:",
     "vitest": "catalog:",
     "wait-on": "catalog:"
   },
