@@ -43,6 +43,7 @@ import { getStripeCustomerByCompanyId } from "@carbon/stripe/stripe.server";
 import {
   Edition,
   redirect,
+  redirectExternal,
   requiresItarEntityCertification,
   SHELL_MAX_AGE_MS
 } from "@carbon/utils";
@@ -247,7 +248,8 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     : { entityCertified: true, userCertified: true, entityRequired: false };
 
   if (!companyPlan && CarbonEdition === Edition.Cloud) {
-    throw redirect(path.to.onboarding);
+    // Onboarding lives in the ERP: another origin.
+    throw redirectExternal(path.to.onboarding);
   }
 
   if (!locations.data || locations.data.length === 0) {
