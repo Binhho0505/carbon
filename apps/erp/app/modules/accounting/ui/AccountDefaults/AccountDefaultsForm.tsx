@@ -35,6 +35,7 @@ type AccountDefaultField = {
   label: string;
   description: string;
   badgeType: BadgeType;
+  allowedClasses?: BadgeType[];
   termId?: TermId;
 };
 
@@ -72,6 +73,23 @@ const AccountDefaultsForm = ({
   const closeRoute = useCloseRoute();
   const onClose = () => closeRoute();
   const [salesAccount, setSalesAccount] = useState(initialValues.salesAccount);
+  const recoverableInputTaxAccount = balanceSheetAccounts.find(
+    (account) =>
+      account.id === initialValues.purchaseTaxPayableAccount &&
+      account.class === "Asset"
+  );
+  const customerDiscountClass: BadgeType =
+    incomeStatementAccounts.find(
+      (account) => account.id === initialValues.customerPaymentDiscountAccount
+    )?.class === "Expense"
+      ? "Expense"
+      : "Revenue";
+  const supplierDiscountClass: BadgeType =
+    incomeStatementAccounts.find(
+      (account) => account.id === initialValues.supplierPaymentDiscountAccount
+    )?.class === "Revenue"
+      ? "Revenue"
+      : "Expense";
 
   const isDisabled = !permissions.can("update", "accounting");
 
@@ -251,10 +269,15 @@ const AccountDefaultsForm = ({
           },
           {
             name: "purchaseTaxPayableAccount",
-            label: t`Purchase Tax Payable`,
-            description: t`Liability account for tax paid on purchases`,
-            badgeType: "Liability",
-            termId: "account-default-purchase-tax-payable"
+            label: recoverableInputTaxAccount?.name ?? t`Purchase Tax Payable`,
+            description: recoverableInputTaxAccount
+              ? t`Default accounts for tax-related transactions`
+              : t`Liability account for tax paid on purchases`,
+            badgeType: recoverableInputTaxAccount ? "Asset" : "Liability",
+            allowedClasses: ["Asset", "Liability"],
+            termId: recoverableInputTaxAccount
+              ? undefined
+              : "account-default-purchase-tax-payable"
           },
           {
             name: "reverseChargeSalesTaxPayableAccount",
@@ -323,7 +346,8 @@ const AccountDefaultsForm = ({
             name: "customerPaymentDiscountAccount",
             label: t`Customer Payment Discounts`,
             description: t`Discounts given to customers for early payment`,
-            badgeType: "Revenue",
+            badgeType: customerDiscountClass,
+            allowedClasses: ["Expense", "Revenue"],
             termId: "account-default-customer-payment-discounts"
           },
           {
@@ -357,7 +381,8 @@ const AccountDefaultsForm = ({
             name: "supplierPaymentDiscountAccount",
             label: t`Supplier Payment Discounts`,
             description: t`Discounts earned for early payment to suppliers`,
-            badgeType: "Expense",
+            badgeType: supplierDiscountClass,
+            allowedClasses: ["Revenue", "Expense"],
             termId: "account-default-supplier-payment-discounts"
           }
         ]
@@ -515,7 +540,12 @@ const AccountDefaultsForm = ({
         ]
       }
     ],
-    [t]
+    [
+      t,
+      recoverableInputTaxAccount,
+      customerDiscountClass,
+      supplierDiscountClass
+    ]
   );
 
   const accountOptions: Record<
@@ -669,7 +699,12 @@ const AccountDefaultsForm = ({
                               ? accountOptions.Revenue.filter(
                                   (account) => account.value !== salesAccount
                                 )
-                              : accountOptions[field.badgeType]
+                              : field.allowedClasses
+                                ? field.allowedClasses.flatMap(
+                                    (accountClass) =>
+                                      accountOptions[accountClass]
+                                  )
+                                : accountOptions[field.badgeType]
                           }
                           onChange={
                             field.name === "salesAccount"

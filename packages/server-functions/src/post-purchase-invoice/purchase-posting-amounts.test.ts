@@ -42,6 +42,27 @@ function line(
   };
 }
 
+it("deductible input VAT stays outside inventory cost while legacy nonrecoverable tax remains capitalized", () => {
+  const input = {
+    lines: [line({ quantity: 2, unitPrice: 100000, taxAmount: 20000 })],
+    exchangeRate: 1,
+    supplierShippingCost: 0
+  };
+  const [deductible] = calculatePurchasePostingAmounts({
+    ...input,
+    recoverablePurchaseTax: true
+  });
+  const [legacy] = calculatePurchasePostingAmounts(input);
+  expect(deductible!.totalBaseCost).toBe(200000);
+  expect(deductible!.inventoryUnitCost).toBe(100000);
+  expect(deductible!.recoverableTaxBase).toBe(20000);
+  expect(deductible!.totalBaseCost + deductible!.recoverableTaxBase).toBe(
+    220000
+  );
+  expect(legacy!.totalBaseCost).toBe(220000);
+  expect(legacy!.recoverableTaxBase).toBe(0);
+});
+
 for (const invoiceLineType of [
   "Part",
   "Service",

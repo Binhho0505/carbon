@@ -2923,3 +2923,33 @@ tag until proven otherwise.
 **Rule:** When a transform plugin misbehaves only on route modules, look at the id's query. Verify a build-plugin change with a real `react-router build` of ERP, not with vitest.
 
 **Applies to:** `packages/dev/vite.js` (`linguiWithoutIdQuery`), `apps/*/vite.config.ts`.
+
+## Model constants should avoid service and UI barrels
+
+**Context:** Bootstrapping Carbon on Windows/Git Bash; ERP /login failed in Vite SSR while MES and the production build worked.
+
+**Problem:** sales.models imported currencyCodes through the accounting barrel. This pulled accounting.service -> settings barrel -> Settings UI -> Form/Customer -> CustomerForm -> sales.models into a static import cycle. The observed cold-start failure was an undefined enum passed to z.enum in sales.models.
+
+**Rule:** Import currencyCodes directly from accounting/types, which defines the constant and uses type-only accounting dependencies. Do not import the accounting service/UI graph just to load a model constant. Verify with the existing sales.models tests and a real ERP /login request.
+
+**Applies to:** sales.models and model-only imports of runtime constants exposed by service/UI barrels. Local evidence: .ai/runs/2026-10-05-erp-import.md.
+
+## Posted journal line metadata is immutable too
+
+**Context:** Building the fictional FMCG company's TT99 gross debtor/creditor and cash-flow classifications.
+
+**Problem:** Updating a Posted journal line's `customFields` is rejected by the ledger immutability trigger, even when the amount is unchanged.
+
+**Rule:** Populate classification before posting, or store explicit supplemental allocations in an editable account profile keyed by journal line ID. Readers must scope the account/company group and the journal/company consistently. Never bypass the immutability trigger to backfill metadata.
+
+**Applies to:** `datasets/fmcg-accounting.ts`, Vietnamese financial report loaders and any metadata added to previously posted journal lines.
+
+## Preserve the database schema when storing a generic client
+
+**Context:** Native TT99 rollback integration worked at runtime but full ERP typecheck failed.
+
+**Problem:** `ReturnType<typeof getPostgresClient>` erases the generic schema to `Kysely<unknown>`. Passing its transaction to a typed service generated enormous structural diagnostics and expensive type comparison.
+
+**Rule:** Import `Kysely`/`KyselyDatabase`, store `Kysely<KyselyDatabase>` and instantiate `getPostgresClient<KyselyDatabase>` explicitly. Do not cast away the schema or rely on Vitest's transpilation as a typecheck. The pinned compiler's `--singleThreaded` flag can reduce peak memory while still checking the entire project; it does not replace the full package check.
+
+**Applies to:** Integration fixtures and services storing generic database clients. Local evidence: `.cc1-agentic/tt99-native-erp-typecheck-verified.log` and subsequent fiscal/release gates.

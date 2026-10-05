@@ -193,6 +193,13 @@ export const companyTemplateFunction = inngest.createFunction(
       snapshot: takeSnapshot = false
     } = event.data;
 
+    // Refuse local fixtures before any marker, snapshot, wipe or other mutation.
+    if (getDataset(datasetKey)?.industryId === null) {
+      throw new NonRetriableError(
+        "This local fixture requires its dedicated seed runner."
+      );
+    }
+
     const applied = await step.run("apply-template", async () => {
       const client = getCarbonServiceRole();
 

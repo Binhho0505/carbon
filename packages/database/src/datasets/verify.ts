@@ -19,6 +19,7 @@
 import type { PoolClient } from "pg";
 import { seedCompanyReferenceData } from "./bootstrap.ts";
 import { COVERAGE_FLOORS, COVERAGE_SCOPES } from "./coverage.ts";
+import { FMCG_COVERAGE_EXCLUSIONS } from "./fmcg-verify.ts";
 import { applyDatasetTiers } from "./index.ts";
 import { quote } from "./sql.ts";
 import { type Dataset, resolveCompanyTimeZone } from "./types.ts";
@@ -66,7 +67,8 @@ export async function resolveCheckUserId(
 /** A tier that inserts nothing raises no error on its own. */
 export async function findCoverageShortfalls(
   client: PoolClient,
-  companyId: string
+  companyId: string,
+  exclusions: Readonly<Record<string, string>> = {}
 ): Promise<string[]> {
   const tables = Object.keys(COVERAGE_FLOORS);
   const union = tables
@@ -83,6 +85,7 @@ export async function findCoverageShortfalls(
   const counts = new Map(res.rows.map((r) => [r.table_name, r.count]));
   const shortfalls: string[] = [];
   for (const table of tables) {
+    if (exclusions[table]) continue;
     const floor = COVERAGE_FLOORS[table]!;
     const count = counts.get(table) ?? 0;
     if (count < floor) {
@@ -119,6 +122,12 @@ export async function verifyDataset(
       userId,
       companyName: SCRATCH_COMPANY_NAME
     });
+    if (dataset.baseCurrencyCode) {
+      await client.query(
+        `UPDATE company SET "baseCurrencyCode"=$2 WHERE id=$1`,
+        [companyId, dataset.baseCurrencyCode]
+      );
+    }
     const timeZone = await resolveCompanyTimeZone(client, companyId);
 
     await applyDatasetTiers(client, {
@@ -129,7 +138,11 @@ export async function verifyDataset(
       log
     });
 
-    const shortfalls = await findCoverageShortfalls(client, companyId);
+    const shortfalls = await findCoverageShortfalls(
+      client,
+      companyId,
+      dataset.key === "fmcg" ? FMCG_COVERAGE_EXCLUSIONS : {}
+    );
     if (shortfalls.length > 0) {
       return {
         key,

@@ -1,0 +1,72 @@
+[
+  {
+    "part": 0,
+    "path": ".cc1-agentic\\tt99-official-0.pdf",
+    "pages": 74,
+    "sha256": "9aa44ed7a5aed27f18001df6e163858332ede3c4280397faf74fba01c1ccc86d",
+    "markers": [10, 11, 24, 51]
+  },
+  {
+    "part": 1,
+    "path": ".cc1-agentic\\tt99-official-1.pdf",
+    "pages": 95,
+    "sha256": "2f8edab015d1291675d58e9b4452641350a66a5b5d23f47c85ca6dfd9953c99d",
+    "markers": [34, 48, 49, 53, 73, 74, 75, 76]
+  },
+  {
+    "part": 2,
+    "path": ".cc1-agentic\\tt99-official-2.pdf",
+    "pages": 95,
+    "sha256": "dac22e664f5eb419b15c91d6e5cf569fcf14d09929b1fa4743f86a581d4460c8",
+    "markers": [5, 6, 7, 8, 12, 13, 19, 20, 22, 24, 33, 34, 35, 43]
+  },
+  {
+    "part": 3,
+    "path": ".cc1-agentic\\tt99-official-3.pdf",
+    "pages": 95,
+    "sha256": "30ad018089c09bb47dafce1a41826fc75575a75162e98976a30a48eb2df5539c",
+    "markers": [26, 27, 31, 66, 68]
+  },
+  {
+    "part": 4,
+    "path": ".cc1-agentic\\tt99-official-4.pdf",
+    "pages": 95,
+    "sha256": "ba7f72c4fa84572d1348bc70fc98c068a83f9f63f8238e88a44da197da3752d0",
+    "markers": [52, 54]
+  },
+  {
+    "part": 5,
+    "path": ".cc1-agentic\\tt99-official-5.pdf",
+    "pages": 95,
+    "sha256": "67b138c145f091b855b5248d717ae20e8b53c8f332a9c440616faf8150fdebe7",
+    "markers": [24, 39, 40, 41, 45, 69, 71, 81]
+  },
+  {
+    "part": 6,
+    "path": ".cc1-agentic\\tt99-official-6.pdf",
+    "pages": 95,
+    "sha256": "c7a514ba54b425b2abf662becdc9d0e9a4dd5c7065f3f053e2d81ec1d4744c55",
+    "markers": [90, 92]
+  },
+  {
+    "part": 7,
+    "path": ".cc1-agentic\\tt99-official-7.pdf",
+    "pages": 95,
+    "sha256": "94f75ec07a7f45962e3961f8dd8e843b3dea86ea552dbdff0d562c28c5799368",
+    "markers": [31, 39, 44, 46, 49, 52]
+  },
+  {
+    "part": 8,
+    "path": ".cc1-agentic\\tt99-official-8.pdf",
+    "pages": 95,
+    "sha256": "fdcbc84695731c7b2cc0ff1c1896087a8d35515614eab0357abc59eb040e9b4a",
+    "markers": [1, 43, 44, 45, 46, 47, 49, 51, 52, 86]
+  },
+  {
+    "part": 9,
+    "path": ".cc1-agentic\\tt99-official-9.pdf",
+    "pages": 49,
+    "sha256": "f58424d455fb229eaf87d0d22bf41fe56f2c0f94191f58f835b65f15ef12e5cc",
+    "markers": [9]
+  }
+]

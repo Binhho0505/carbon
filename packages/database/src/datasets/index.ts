@@ -13,6 +13,7 @@
 
 import { today } from "@internationalized/date";
 import type { PoolClient } from "pg";
+import { fmcg } from "./data/fmcg/index.ts";
 import { motor } from "./data/motor/index.ts";
 import { precision } from "./data/precision/index.ts";
 import { robotics } from "./data/robotics/index.ts";
@@ -35,7 +36,8 @@ export const DATASETS: Record<DatasetKey, Dataset> = {
   satellite,
   robotics,
   precision,
-  motor
+  motor,
+  fmcg
 };
 
 export function getDataset(key: string): Dataset | null {
@@ -47,6 +49,11 @@ export function getDataset(key: string): Dataset | null {
 
 export function datasetKeys(): DatasetKey[] {
   return Object.keys(DATASETS) as DatasetKey[];
+}
+
+/** Generic templates require an industry binding; local fixtures use their own runner. */
+export function companyTemplateDatasetKeys(): DatasetKey[] {
+  return datasetKeys().filter((key) => DATASETS[key].industryId !== null);
 }
 
 export function datasetForIndustry(industryId: string | null): Dataset | null {

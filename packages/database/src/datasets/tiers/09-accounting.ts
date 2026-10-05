@@ -62,6 +62,11 @@ const MONTH_NUMBER: Record<string, number> = {
 export async function runTier9(ctx: Ctx): Promise<void> {
   const { client, companyId, companyGroupId } = ctx;
   const data = ctx.dataset.accounting;
+  const { baseCurrencyCode } = await one<{ baseCurrencyCode: string }>(
+    client,
+    `SELECT "baseCurrencyCode" FROM company WHERE id = $1`,
+    [companyId]
+  );
 
   // account is scoped by companyGroupId, not companyId. The client bypasses RLS,
   // so an unscoped pick would post this company's lines to another tenant's account.
@@ -290,7 +295,7 @@ export async function runTier9(ctx: Ctx): Promise<void> {
       supplierId: isReceipt
         ? undefined
         : need(ctx.refs.suppliers, spec.supplier ?? "", "supplier"),
-      currencyCode: "USD",
+      currencyCode: baseCurrencyCode,
       exchangeRate: 1,
       bankAccount: defaults.bankCashAccount,
       paymentDate,

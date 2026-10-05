@@ -2,6 +2,7 @@
 // Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
 // including ports, remain AGPLv3; serving them over a network requires releasing their source.
 
+import { companyTemplateDatasetKeys } from "@carbon/database/datasets";
 import { trigger } from "@carbon/jobs";
 import { nanoid } from "nanoid";
 
@@ -20,6 +21,9 @@ export async function startCompanyTemplate(args: {
   userId: string;
   datasetKey: string;
 }): Promise<string> {
+  if (!companyTemplateDatasetKeys().includes(args.datasetKey as never)) {
+    throw new Error("Choose an available company template dataset");
+  }
   const templateRunId = nanoid();
   await trigger("company-template", {
     ...args,

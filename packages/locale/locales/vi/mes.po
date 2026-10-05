@@ -1,0 +1,1931 @@
+msgid ""
+msgstr ""
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: @lingui/cli\n"
+"Language: vi\n"
+
+msgid "(Inactive)"
+msgstr "(Không hoạt động)"
+
+#. placeholder {0}: attribute.name
+#. placeholder {1}: activeStep + 1
+msgid "{0} - Set {1}"
+msgstr "{0} - Bộ {1}"
+
+#. placeholder {0}: employeeIds.length
+msgid "{0} Active"
+msgstr "{0} đang hoạt động"
+
+#. placeholder {0}: precise?.text
+msgid "{0} ago"
+msgstr "{0} trước"
+
+#. placeholder {0}: batchFacts.customers.length
+msgid "{0} customers"
+msgstr "{0} khách hàng"
+
+#. placeholder {0}: unplanned .map( (m) => (m.job as { jobId?: string | null } | null)?.jobId ) .filter(Boolean) .join(", ")
+msgid "{0} has no lot number. Set it on the batch or job in Carbon, then complete."
+msgstr "{0} chưa có số lô. Đặt trên mẻ hoặc lệnh sản xuất trong Carbon rồi hoàn thành."
+
+#. placeholder {0}: batchFacts.items.length
+msgid "{0} items"
+msgstr "{0} mặt hàng"
+
+#. placeholder {0}: (batch.operations ?? []).length
+msgid "{0} jobs"
+msgstr "{0} lệnh sản xuất"
+
+#. placeholder {0}: issuedLines.length
+#. placeholder {0}: operation.quantityComplete
+#. placeholder {0}: serialIndex + 1
+#. placeholder {1}: operation.operationQuantity
+#. placeholder {1}: operation.targetQuantity
+#. placeholder {1}: trackedLines.length
+msgid "{0} of {1}"
+msgstr "{0} trên {1}"
+
+#. placeholder {0}: attributes.filter((a) => a.jobOperationStepRecord.some( (r) => r.index === activeStep ) ).length
+#. placeholder {1}: attributes.length
+msgid "{0} of {1} complete"
+msgstr "{0} trên {1} hoàn thành"
+
+#. placeholder {0}: attributes.filter((a) => a.jobOperationStepRecord.some( (r) => r.index === activeStep ) ).length
+#. placeholder {1}: attributes.length
+msgid "{0} of {1} completed"
+msgstr "Đã hoàn thành {0} trên {1}"
+
+#. placeholder {0}: rows.length
+msgid "{0} queued"
+msgstr "{0} đang chờ"
+
+#. placeholder {0}: activeWork.length
+msgid "{0} running"
+msgstr "{0} đang chạy"
+
+#. placeholder {0}: operation.jobReadableId
+#. placeholder {1}: batch.readableId
+msgid "{0} runs in batch {1}"
+msgstr "{0} chạy trong mẻ {1}"
+
+#. placeholder {0}: item.quantityScrapped
+msgid "{0} Scrapped"
+msgstr "{0} phế phẩm"
+
+msgid "{completed} of {quantity}"
+msgstr "{completed} trên {quantity}"
+
+msgid "{completions} passed unit(s) will be completed."
+msgstr "{completions} đơn vị đạt sẽ được hoàn thành."
+
+msgid "{fails} sampled failure(s) are recorded and will NOT be completed — resolve them from the actions menu."
+msgstr "{fails} mẫu không đạt được ghi nhận và sẽ KHÔNG hoàn thành — xử lý từ menu thao tác."
+
+#. placeholder {0}: step.perMember.length
+msgid "{recorded}/{0} jobs"
+msgstr "{recorded}/{0} lệnh sản xuất"
+
+msgid "+{overflow} more"
+msgstr "+{overflow} nữa"
+
+msgid "A previous completion did not finish. Retrying resumes the remaining steps — quantities are not double-counted."
+msgstr "Lần hoàn thành trước chưa kết thúc. Thử lại để tiếp tục bước còn lại — số lượng không bị tính hai lần."
+
+msgid "About"
+msgstr "Giới thiệu"
+
+msgid "Accept"
+msgstr "Chấp nhận"
+
+msgid "Accept Lot"
+msgstr "Chấp nhận lô"
+
+msgid "Accept lot?"
+msgstr "Chấp nhận lô?"
+
+msgid "Account Settings"
+msgstr "Thiết lập tài khoản"
+
+msgid "Acknowledge & finish"
+msgstr "Xác nhận & hoàn tất"
+
+#. placeholder {0}: members.length
+msgid "across {0} jobs"
+msgstr "trên {0} lệnh sản xuất"
+
+msgid "Active"
+msgstr "Đang hoạt động"
+
+msgid "Actual"
+msgstr "Thực tế"
+
+msgid "Add"
+msgstr "Thêm"
+
+msgid "Add & Issue"
+msgstr "Thêm & Xuất vật tư"
+
+msgid "Add a printer in the printing settings to print labels directly."
+msgstr "Thêm máy in trong thiết lập in để in nhãn trực tiếp."
+
+msgid "Add Inventory"
+msgstr "Thêm tồn kho"
+
+msgid "Add Sample"
+msgstr "Thêm mẫu"
+
+msgid "Add Spare Part"
+msgstr "Thêm phụ tùng"
+
+msgid "All"
+msgstr "Tất cả"
+
+msgid "All clear"
+msgstr "Không còn vấn đề"
+
+msgid "All gauges"
+msgstr "Tất cả dụng cụ đo"
+
+msgid "All jobs"
+msgstr "Tất cả lệnh sản xuất"
+
+#. placeholder {0}: batch.outputLotNumber
+msgid "All output goes to lot <0>{0}</0>"
+msgstr "Toàn bộ đầu ra vào lô <0>{0}</0>"
+
+msgid "All rework"
+msgstr "Tất cả gia công lại"
+
+msgid "All scrap"
+msgstr "Tất cả phế phẩm"
+
+msgid "All steps"
+msgstr "Tất cả bước"
+
+msgid "Allocate failed units"
+msgstr "Phân bổ đơn vị không đạt"
+
+msgid "Allocate units"
+msgstr "Phân bổ đơn vị"
+
+msgid "Appearance"
+msgstr "Giao diện"
+
+msgid "Are you sure you want to delete this step?"
+msgstr "Bạn chắc muốn xóa bước này?"
+
+msgid "Are you sure you want to delete this timecard? This cannot be undone."
+msgstr "Bạn có chắc muốn xóa bảng chấm công này? Không thể hoàn tác."
+
+msgid "Are you sure you want to end all production events? This will end all active operations without completing or finishing them."
+msgstr "Bạn chắc muốn kết thúc mọi sự kiện sản xuất? Thao tác kết thúc mọi công đoạn đang chạy mà không ghi hoàn thành hoặc kết thúc công đoạn."
+
+msgid "Are you sure you want to finish this operation? This will end all active production events for this operation."
+msgstr "Bạn chắc muốn kết thúc công đoạn? Thao tác kết thúc mọi sự kiện sản xuất đang chạy của công đoạn."
+
+msgid "Are you sure you want to leave this page?"
+msgstr "Bạn có chắc muốn rời trang này?"
+
+msgid "Assembly steps"
+msgstr "Các bước lắp ráp"
+
+msgid "Assigned"
+msgstr "Đã giao"
+
+msgid "Assigned to Me"
+msgstr "Được giao cho tôi"
+
+msgid "Assignee"
+msgstr "Người được giao"
+
+msgid "Authentication Error"
+msgstr "Lỗi xác thực"
+
+msgid "available"
+msgstr "khả dụng"
+
+msgid "Available"
+msgstr "Khả dụng"
+
+msgid "Back to batch"
+msgstr "Trở lại mẻ"
+
+msgid "Batch"
+msgstr "Mẻ"
+
+msgid "Batch Details"
+msgstr "Chi tiết mẻ"
+
+msgid "Batch is not available"
+msgstr "Mẻ không khả dụng"
+
+#. placeholder {0}: index + 1
+msgid "Batch Number {0}"
+msgstr "Số mẻ {0}"
+
+msgid "Batch number is required"
+msgstr "Bắt buộc có số mẻ"
+
+msgid "Batch quantity"
+msgstr "Số lượng mẻ"
+
+msgid "batch total"
+msgstr "tổng mẻ"
+
+msgid "Behind target by {daysBehindTarget} day(s)"
+msgstr "Chậm mục tiêu {daysBehindTarget} ngày"
+
+#. placeholder {0}: step.minValue
+#. placeholder {1}: step.maxValue
+#. placeholder {2}: step.unitOfMeasureCode ?? ""
+msgid "Between {0} and {1} {2}"
+msgstr "Từ {0} đến {1} {2}"
+
+#. placeholder {0}: column.blockingDispatchReadableId
+msgid "Blocked by {0}"
+msgstr "Bị chặn bởi {0}"
+
+msgid "Blocking"
+msgstr "Đang chặn"
+
+msgid "Board view"
+msgstr "Dạng bảng"
+
+msgid "But don't worry. You can use the forgot password flow to request a new magic link."
+msgstr "Bạn có thể dùng chức năng quên mật khẩu để yêu cầu liên kết đăng nhập mới."
+
+msgid "By signing in, you agree to the <0>Terms of Service</0> and <1>Privacy Policy.</1>"
+msgstr "Bằng việc đăng nhập, bạn đồng ý với <0>Điều khoản dịch vụ</0> và <1>Chính sách quyền riêng tư.</1>"
+
+msgid "By?"
+msgstr "Bởi ai?"
+
+msgid "Cancel"
+msgstr "Hủy"
+
+msgid "Cancelled"
+msgstr "Đã hủy"
+
+msgid "Carbon Logo"
+msgstr "Logo Carbon"
+
+msgid "Cards"
+msgstr "Thẻ"
+
+msgid "Characteristic"
+msgstr "Đặc tính"
+
+msgid "Characteristics"
+msgstr "Đặc tính"
+
+msgid "Chat"
+msgstr "Trò chuyện"
+
+msgid "Check your email"
+msgstr "Kiểm tra email của bạn"
+
+msgid "Choose a job"
+msgstr "Chọn lệnh sản xuất"
+
+msgid "Clear"
+msgstr "Xóa lựa chọn"
+
+msgid "Clear Filters"
+msgstr "Xóa bộ lọc"
+
+msgid "Clear gauge"
+msgstr "Bỏ chọn dụng cụ đo"
+
+msgid "Clear Search"
+msgstr "Xóa tìm kiếm"
+
+msgid "Clear station default"
+msgstr "Xóa mặc định trạm"
+
+msgid "Clock In"
+msgstr "Bắt đầu chấm giờ"
+
+msgid "Clock out"
+msgstr "Kết thúc chấm giờ"
+
+msgid "Clock Out"
+msgstr "Kết thúc chấm giờ"
+
+msgid "Clocked in"
+msgstr "Đã bắt đầu chấm giờ"
+
+msgid "Clocked in since <0/>"
+msgstr "Đã chấm giờ từ <0/>"
+
+msgid "Close"
+msgstr "Đóng"
+
+msgid "Collapse characteristics table"
+msgstr "Thu gọn bảng đặc tính"
+
+msgid "Collapse panel"
+msgstr "Thu gọn bảng bên"
+
+#. placeholder {0}: active.data.current.column.title
+#. placeholder {1}: overColumnPosition + 1
+#. placeholder {2}: columnOrder.length
+msgid "Column {0} was dropped into position {1} of {2}"
+msgstr "Cột {0} đã thả vào vị trí {1} trên {2}"
+
+#. placeholder {0}: active.data.current.column.title
+#. placeholder {1}: over.data.current.column.title
+#. placeholder {2}: overIndex + 1
+#. placeholder {3}: columnOrder.length
+msgid "Column {0} was moved over {1} at position {2} of {3}"
+msgstr "Cột {0} đã di chuyển trên {1} tại vị trí {2} trên {3}"
+
+#. placeholder {0}: column.title
+msgid "Column: {0}"
+msgstr "Cột: {0}"
+
+msgid "Columns"
+msgstr "Cột"
+
+msgid "Company"
+msgstr "Công ty"
+
+msgid "Complete"
+msgstr "Hoàn thành"
+
+msgid "Complete All"
+msgstr "Hoàn thành tất cả"
+
+msgid "Complete batch"
+msgstr "Hoàn thành mẻ"
+
+msgid "Complete Batch"
+msgstr "Hoàn thành mẻ"
+
+msgid "Complete passed"
+msgstr "Hoàn thành đơn vị đạt"
+
+msgid "Completed"
+msgstr "Đã hoàn thành"
+
+msgid "Completing"
+msgstr "Đang hoàn thành"
+
+msgid "Connecting"
+msgstr "Đang kết nối"
+
+msgid "Console Mode"
+msgstr "Chế độ thiết bị đầu cuối"
+
+msgid "Consumed"
+msgstr "Đã tiêu hao"
+
+msgid "Consumed expired"
+msgstr "Đã tiêu hao hàng hết hạn"
+
+msgid "Continue"
+msgstr "Tiếp tục"
+
+msgid "Copied!"
+msgstr "Đã sao chép!"
+
+msgid "Copy"
+msgstr "Sao chép"
+
+msgid "Copy to clipboard"
+msgstr "Sao chép vào bảng nhớ tạm"
+
+#. placeholder {0}: board.unplannedCost.days
+msgid "Cost of unplanned maintenance, last {0} days"
+msgstr "Chi phí bảo trì ngoài kế hoạch, {0} ngày qua"
+
+#. placeholder {0}: search.trim() === "" ? (createLabel ?? label) : search
+#. placeholder {0}: search.trim() === "" ? label : search
+msgid "Create {0}"
+msgstr "Tạo {0}"
+
+msgid "Create Issue"
+msgstr "Tạo vấn đề"
+
+msgid "Create Quality Issue"
+msgstr "Tạo vấn đề chất lượng"
+
+msgid "Create Rework"
+msgstr "Tạo gia công lại"
+
+msgid "Current work"
+msgstr "Công việc hiện tại"
+
+msgid "Customer"
+msgstr "Khách hàng"
+
+msgid "Dark"
+msgstr "Tối"
+
+msgid "Date"
+msgstr "Ngày"
+
+msgid "Deadline"
+msgstr "Hạn chót"
+
+msgid "Default"
+msgstr "Mặc định"
+
+msgid "Default Storage Unit"
+msgstr "Đơn vị lưu trữ mặc định"
+
+msgid "Delete"
+msgstr "Xóa"
+
+msgid "Delete Step"
+msgstr "Xóa bước"
+
+msgid "Delete Timecard (<0/>)"
+msgstr "Xóa bảng chấm công (<0/>)"
+
+msgid "Describe the problem..."
+msgstr "Mô tả vấn đề..."
+
+msgid "Describe what needs to be reworked..."
+msgstr "Mô tả nội dung cần gia công lại..."
+
+msgid "Description"
+msgstr "Mô tả"
+
+msgid "Details"
+msgstr "Chi tiết"
+
+msgid "Dispatch not found"
+msgstr "Không tìm thấy phiếu điều phối"
+
+msgid "Display"
+msgstr "Màn hình"
+
+msgid "Displays"
+msgstr "Các màn hình"
+
+msgid "Done"
+msgstr "Đã hoàn thành"
+
+msgid "Down"
+msgstr "Dừng"
+
+msgid "Down for maintenance"
+msgstr "Dừng để bảo trì"
+
+#. placeholder {0}: workCenter.blockingDispatchReadableId
+msgid "Down for maintenance · {0}"
+msgstr "Dừng để bảo trì · {0}"
+
+msgid "Down for planned maintenance"
+msgstr "Dừng để bảo trì theo kế hoạch"
+
+msgid "Download"
+msgstr "Tải xuống"
+
+msgid "Download Labels"
+msgstr "Tải xuống nhãn"
+
+msgid "Draft"
+msgstr "Bản nháp"
+
+msgid "Drag and drop a file here, or click to select a file"
+msgstr "Kéo thả tệp vào đây hoặc nhấn để chọn tệp"
+
+msgid "Drag to resize drawing and characteristics"
+msgstr "Kéo để đổi kích thước bản vẽ và đặc tính"
+
+#. placeholder {0}: active.data.current?.type
+msgid "Dragging {0} cancelled."
+msgstr "Đã hủy kéo {0}."
+
+msgid "Due"
+msgstr "Đến hạn"
+
+#. placeholder {0}: formatRelativeTime( convertDateStringToIsoString( operation.operationDueDate ) )
+#. placeholder {0}: formatRelativeTime( convertDateStringToIsoString(operation.jobDueDate) )
+#. placeholder {0}: formatRelativeTime( convertDateStringToIsoString( operation.operationDueDate ) )
+msgid "Due {0}"
+msgstr "Đến hạn {0}"
+
+msgid "Due Date"
+msgstr "Ngày đến hạn"
+
+#. placeholder {0}: board.dueSoon.days
+msgid "Due in the next {0} days?"
+msgstr "Đến hạn trong {0} ngày tới?"
+
+msgid "Due today?"
+msgstr "Đến hạn hôm nay?"
+
+msgid "Duplicate batch number"
+msgstr "Số mẻ trùng"
+
+msgid "Duplicate or copy"
+msgstr "Nhân bản hoặc sao chép"
+
+msgid "Duplicate serial number"
+msgstr "Số sê-ri trùng"
+
+msgid "Duration"
+msgstr "Thời lượng"
+
+msgid "Each job's output is its own lot — keep each job's parts apart."
+msgstr "Đầu ra mỗi lệnh là lô riêng — giữ chi tiết từng lệnh tách biệt."
+
+msgid "Edit"
+msgstr "Chỉnh sửa"
+
+msgid "Elapsed"
+msgstr "Đã trôi qua"
+
+msgid "Email Address"
+msgstr "Địa chỉ email"
+
+msgid "Empty work centers"
+msgstr "Trung tâm sản xuất trống"
+
+msgid "End Operations"
+msgstr "Kết thúc công đoạn"
+
+msgid "Enter each job's value, or fill every job at once from the first row. Empty rows are skipped."
+msgstr "Nhập giá trị từng lệnh hoặc điền mọi lệnh từ dòng đầu. Bỏ qua dòng trống."
+
+#. placeholder {0}: selectedPerson.name
+msgid "Enter PIN for {0}"
+msgstr "Nhập PIN cho {0}"
+
+msgid "Enter the 6-digit code from your authenticator app"
+msgstr "Nhập mã 6 chữ số từ ứng dụng xác thực"
+
+msgid "Enter the 6-digit code from your authenticator app to resume."
+msgstr "Nhập mã 6 chữ số từ ứng dụng xác thực để tiếp tục."
+
+msgid "Error"
+msgstr "Lỗi"
+
+msgid "Estimated"
+msgstr "Ước tính"
+
+msgid "Every job in the batch follows these steps. Record a step for all of them at once."
+msgstr "Mọi lệnh trong mẻ theo các bước này. Ghi nhận một bước cho tất cả cùng lúc."
+
+msgid "Every unit has a verdict: {passes} passed and {fails} failed. The lot closes with each unit routed to its own outcome."
+msgstr "Mọi đơn vị có kết luận: {passes} đạt và {fails} không đạt. Lô đóng với từng đơn vị chuyển đến kết quả riêng."
+
+msgid "Expand characteristics table"
+msgstr "Mở rộng bảng đặc tính"
+
+msgid "Expand panel"
+msgstr "Mở rộng bảng bên"
+
+msgid "Expired"
+msgstr "Đã hết hạn"
+
+#. placeholder {0}: formatDate(date)
+msgid "Expired {0}"
+msgstr "Đã hết hạn {0}"
+
+msgid "Expires <0/>"
+msgstr "Hết hạn <0/>"
+
+msgid "Expiring first"
+msgstr "Hết hạn sớm nhất"
+
+msgid "Failed"
+msgstr "Không đạt"
+
+msgid "Failed characteristics"
+msgstr "Đặc tính không đạt"
+
+msgid "Failed to complete inventory adjustment"
+msgstr "Không thể hoàn thành điều chỉnh tồn kho"
+
+msgid "Failed to convert image"
+msgstr "Không thể chuyển đổi ảnh"
+
+msgid "Failed to end operations"
+msgstr "Không thể kết thúc công đoạn"
+
+msgid "Failed to fetch active operations"
+msgstr "Không thể lấy công đoạn đang chạy"
+
+msgid "Failed to fetch storageUnits"
+msgstr "Không thể lấy đơn vị lưu trữ"
+
+msgid "Failed to record gauge"
+msgstr "Không thể ghi nhận dụng cụ đo"
+
+msgid "Failed to save measurement"
+msgstr "Không thể lưu số đo"
+
+msgid "Failed to save result"
+msgstr "Không thể lưu kết quả"
+
+#. placeholder {0}: file.name
+msgid "Failed to upload {0}"
+msgstr "Không thể tải lên {0}"
+
+#. placeholder {0}: fileUpload.name
+msgid "Failed to upload file: {0}"
+msgstr "Không thể tải lên tệp: {0}"
+
+msgid "Failed to upload image"
+msgstr "Không thể tải lên ảnh"
+
+msgid "File size exceeds 10MB limit"
+msgstr "Kích thước tệp vượt giới hạn 10MB"
+
+msgid "Files"
+msgstr "Tệp"
+
+msgid "Files related to the job and the opportunity line."
+msgstr "Tệp liên quan lệnh sản xuất và dòng cơ hội."
+
+msgid "Filter"
+msgstr "Bộ lọc"
+
+msgid "Filter by location"
+msgstr "Lọc theo địa điểm"
+
+msgid "Finish"
+msgstr "Hoàn tất"
+
+#. placeholder {0}: operation.itemReadableId
+msgid "Finish {0}"
+msgstr "Kết thúc {0}"
+
+msgid "Finish Anyways"
+msgstr "Vẫn kết thúc"
+
+msgid "Finish setting up your account"
+msgstr "Hoàn tất thiết lập tài khoản"
+
+msgid "Finish with material unpicked?"
+msgstr "Hoàn tất khi còn vật tư chưa lấy?"
+
+#. placeholder {0}: formatRelativeTime( convertDateStringToIsoString(batchFacts.dueDate) )
+msgid "First due {0}"
+msgstr "Hạn sớm nhất {0}"
+
+msgid "Fix the highlighted quantities before completing."
+msgstr "Sửa số lượng được đánh dấu trước khi hoàn thành."
+
+msgid "Forgot to Clock Out?"
+msgstr "Quên kết thúc chấm giờ?"
+
+msgid "Gauge"
+msgstr "Dụng cụ đo"
+
+msgid "Gauge for characteristic {characteristicLabel}: {currentGauge}"
+msgstr "Dụng cụ đo cho đặc tính {characteristicLabel}: {currentGauge}"
+
+msgid "General"
+msgstr "Chung"
+
+msgid "Go back to operation"
+msgstr "Trở lại công đoạn"
+
+msgid "Go to onboarding"
+msgstr "Đi đến thiết lập ban đầu"
+
+msgid "Hide description"
+msgstr "Ẩn mô tả"
+
+msgid "How many were actually picked?"
+msgstr "Thực tế đã lấy bao nhiêu?"
+
+msgid "How many?"
+msgstr "Bao nhiêu?"
+
+msgid "I understand and want to complete without issuing"
+msgstr "Tôi hiểu và muốn hoàn thành mà không xuất vật tư"
+
+msgid "I'm Still Working"
+msgstr "Tôi vẫn đang làm việc"
+
+msgid "Ideas, suggestions or problems?"
+msgstr "Có ý tưởng, đề xuất hoặc vấn đề?"
+
+msgid "Idle for"
+msgstr "Nhàn rỗi trong"
+
+msgid "Impact"
+msgstr "Tác động"
+
+msgid "Imperial"
+msgstr "Hệ đo Anh"
+
+#. placeholder {0}: precise?.text
+msgid "in {0}"
+msgstr "sau {0}"
+
+msgid "In an open menu"
+msgstr "Trong menu đang mở"
+
+msgid "In Progress"
+msgstr "Đang thực hiện"
+
+msgid "Inspect Item"
+msgstr "Kiểm tra mặt hàng"
+
+msgid "inspected"
+msgstr "đã kiểm tra"
+
+msgid "Instructions"
+msgstr "Hướng dẫn"
+
+msgid "Insufficient quantity"
+msgstr "Không đủ số lượng"
+
+msgid "Inventory adjustment completed"
+msgstr "Đã hoàn thành điều chỉnh tồn kho"
+
+msgid "Inventory Adjustments"
+msgstr "Các điều chỉnh tồn kho"
+
+msgid "is"
+msgstr "là"
+
+msgid "is any of"
+msgstr "là một trong"
+
+msgid "Issue"
+msgstr "Vấn đề"
+
+msgid "Issue Material"
+msgstr "Xuất vật tư"
+
+msgid "Issue Type"
+msgstr "Loại vấn đề"
+
+msgid "Issued"
+msgstr "Đã xuất dùng"
+
+msgid "Issued {issuedQuantity} of {lotLabel}"
+msgstr "Đã xuất {issuedQuantity} của {lotLabel}"
+
+msgid "Issued {issuedQuantity} of {lotLabel} — {remainingQuantity} remains"
+msgstr "Đã xuất {issuedQuantity} của {lotLabel} — còn {remainingQuantity}"
+
+msgid "Item"
+msgstr "Mặt hàng"
+
+msgid "Item Master"
+msgstr "Danh mục mặt hàng"
+
+msgid "Job"
+msgstr "Lệnh sản xuất"
+
+msgid "Job Details"
+msgstr "Chi tiết lệnh sản xuất"
+
+msgid "Job Traveler"
+msgstr "Phiếu theo dõi lệnh sản xuất"
+
+msgid "Jobs"
+msgstr "Các lệnh sản xuất"
+
+msgid "Keep picking"
+msgstr "Tiếp tục lấy hàng"
+
+msgid "Keyboard shortcuts"
+msgstr "Phím tắt"
+
+msgid "Kit"
+msgstr "Bộ mặt hàng"
+
+msgid "Labor"
+msgstr "Nhân công"
+
+msgid "Last completed"
+msgstr "Hoàn thành gần nhất"
+
+msgid "Learn more"
+msgstr "Tìm hiểu thêm"
+
+msgid "Leave an operation at 0 to skip it — it returns to the schedule un-run with no time or quantity recorded."
+msgstr "Để công đoạn bằng 0 để bỏ qua — công đoạn trở lại lịch chưa chạy, không ghi thời gian hoặc số lượng."
+
+msgid "Leave this page"
+msgstr "Rời trang này"
+
+msgid "Let's build something"
+msgstr "Cùng tạo nên điều gì đó"
+
+msgid "Light"
+msgstr "Sáng"
+
+msgid "lines"
+msgstr "dòng"
+
+msgid "List view"
+msgstr "Chế độ xem danh sách"
+
+msgid "Load list"
+msgstr "Nạp danh sách"
+
+msgid "Loading item details..."
+msgstr "Đang tải chi tiết mặt hàng..."
+
+msgid "Loading..."
+msgstr "Đang tải..."
+
+msgid "Local"
+msgstr "Cục bộ"
+
+msgid "Location"
+msgstr "Địa điểm"
+
+msgid "Log completed"
+msgstr "Ghi nhận hoàn thành"
+
+msgid "Log Completed"
+msgstr "Ghi nhận hoàn thành"
+
+#. placeholder {0}: operation.itemReadableId
+msgid "Log completed for {0}"
+msgstr "Ghi nhận hoàn thành cho {0}"
+
+msgid "Log Rework"
+msgstr "Ghi nhận gia công lại"
+
+#. placeholder {0}: operation.itemReadableId
+msgid "Log rework for {0}"
+msgstr "Ghi nhận gia công lại cho {0}"
+
+msgid "Log Scrap"
+msgstr "Ghi nhận phế phẩm"
+
+#. placeholder {0}: operation.itemReadableId
+msgid "Log scrap for {0}"
+msgstr "Ghi nhận phế phẩm cho {0}"
+
+msgid "Login"
+msgstr "Đăng nhập"
+
+msgid "Lot"
+msgstr "Lô"
+
+msgid "Lot numbers missing"
+msgstr "Thiếu số lô"
+
+msgid "Lot tracked"
+msgstr "Theo dõi theo lô"
+
+msgid "Machine"
+msgstr "Máy"
+
+msgid "Machine down for maintenance now?"
+msgstr "Máy đang dừng để bảo trì?"
+
+msgid "Maintenance"
+msgstr "Bảo trì"
+
+msgid "Maintenance Completed"
+msgstr "Đã hoàn thành bảo trì"
+
+msgid "Maintenance overdue"
+msgstr "Bảo trì quá hạn"
+
+msgid "Make a replacement"
+msgstr "Sản xuất sản phẩm thay thế"
+
+msgid "Manually add items to inventory"
+msgstr "Thêm mặt hàng vào tồn kho thủ công"
+
+msgid "Manually remove items from inventory"
+msgstr "Loại mặt hàng khỏi tồn kho thủ công"
+
+msgid "Mark Short"
+msgstr "Đánh dấu thiếu"
+
+msgid "Mark the step done / record"
+msgstr "Đánh dấu bước đã xong / ghi nhận"
+
+msgid "matches"
+msgstr "khớp"
+
+msgid "Materials"
+msgstr "Vật tư"
+
+msgid "Materials issued"
+msgstr "Đã xuất vật tư"
+
+msgid "Maximum number of records reached"
+msgstr "Đã đạt số bản ghi tối đa"
+
+msgid "Metric"
+msgstr "Hệ mét"
+
+msgid "Model"
+msgstr "Mô hình"
+
+msgid "More actions"
+msgstr "Thao tác khác"
+
+msgid "More Actions"
+msgstr "Thao tác khác"
+
+msgid "More options"
+msgstr "Tùy chọn khác"
+
+#. placeholder {0}: column.title
+msgid "Move column: {0}"
+msgstr "Di chuyển cột: {0}"
+
+msgid "Must be < {maxValue} {unitOfMeasureCode}"
+msgstr "Phải < {maxValue} {unitOfMeasureCode}"
+
+msgid "Must be > {minValue} {unitOfMeasureCode}"
+msgstr "Phải > {minValue} {unitOfMeasureCode}"
+
+msgid "Must be between {minValue} and {maxValue} {unitOfMeasureCode}"
+msgstr "Phải từ {minValue} đến {maxValue} {unitOfMeasureCode}"
+
+msgid "My Hours"
+msgstr "Giờ của tôi"
+
+msgid "Name"
+msgstr "Tên"
+
+msgid "Navigation"
+msgstr "Điều hướng"
+
+msgid "New"
+msgstr "Mới"
+
+msgid "New Record"
+msgstr "Bản ghi mới"
+
+msgid "Newest first"
+msgstr "Mới nhất trước"
+
+msgid "Next"
+msgstr "Tiếp theo"
+
+msgid "Next step"
+msgstr "Bước tiếp theo"
+
+msgid "No"
+msgstr "Không"
+
+msgid "No active job at this work center"
+msgstr "Không có lệnh đang hoạt động tại trung tâm này"
+
+msgid "No active maintenance dispatches"
+msgstr "Không có phiếu điều phối bảo trì đang hoạt động"
+
+msgid "No active operations"
+msgstr "Không có công đoạn đang chạy"
+
+msgid "No active work centers at this location."
+msgstr "Không có trung tâm sản xuất đang hoạt động tại địa điểm."
+
+msgid "No assigned operations"
+msgstr "Không có công đoạn đã phân công"
+
+msgid "No available filters"
+msgstr "Không có bộ lọc khả dụng"
+
+msgid "No available serial numbers found"
+msgstr "Không tìm thấy số sê-ri khả dụng"
+
+msgid "No available tracked entities found"
+msgstr "Không tìm thấy thực thể được theo dõi khả dụng"
+
+msgid "No dispatches assigned to you"
+msgstr "Không có phiếu điều phối giao cho bạn"
+
+msgid "No files"
+msgstr "Không có tệp"
+
+msgid "No gauges found."
+msgstr "Không tìm thấy dụng cụ đo."
+
+msgid "No Impact"
+msgstr "Không ảnh hưởng"
+
+msgid "No issue types configured"
+msgstr "Chưa cấu hình loại vấn đề"
+
+msgid "No maintenance scheduled for today"
+msgstr "Không có bảo trì theo lịch hôm nay"
+
+msgid "No matches. Type to create one."
+msgstr "Không có kết quả khớp. Nhập để tạo mới."
+
+msgid "No materials"
+msgstr "Không có vật tư"
+
+msgid "No materials on this batch."
+msgstr "Mẻ không có vật tư."
+
+msgid "No open jobs"
+msgstr "Không có lệnh sản xuất đang mở"
+
+msgid "No open units to allocate"
+msgstr "Không có đơn vị mở để phân bổ"
+
+msgid "No operators"
+msgstr "Không có nhân viên vận hành"
+
+msgid "No option found."
+msgstr "Không tìm thấy tùy chọn."
+
+msgid "No options found."
+msgstr "Không tìm thấy tùy chọn."
+
+msgid "No picking lists assigned"
+msgstr "Chưa giao danh sách lấy hàng"
+
+msgid "No printer configured"
+msgstr "Chưa cấu hình máy in"
+
+msgid "No recent operations"
+msgstr "Không có công đoạn gần đây"
+
+msgid "No remaining entities to inspect."
+msgstr "Không còn thực thể cần kiểm tra."
+
+msgid "No results"
+msgstr "Không có kết quả"
+
+msgid "No results exist"
+msgstr "Chưa có kết quả"
+
+msgid "No results found"
+msgstr "Không tìm thấy kết quả"
+
+msgid "No samples required."
+msgstr "Không yêu cầu mẫu."
+
+msgid "No scheduled time"
+msgstr "Chưa có thời gian theo lịch"
+
+msgid "No serial numbers"
+msgstr "Không có số sê-ri"
+
+msgid "No serial numbers found"
+msgstr "Không tìm thấy số sê-ri"
+
+msgid "No shortcuts available on this page."
+msgstr "Trang này không có phím tắt."
+
+msgid "No spare parts added yet"
+msgstr "Chưa thêm phụ tùng"
+
+msgid "No stock"
+msgstr "Không có tồn kho"
+
+msgid "No time entries for this week"
+msgstr "Không có ghi nhận thời gian tuần này"
+
+msgid "No warehouse stock is on record for this item. You can still pick it — on-hand will go negative until the count is reconciled."
+msgstr "Chưa ghi nhận tồn kho cho mặt hàng này. Bạn vẫn có thể lấy hàng — tồn thực tế trên hệ thống sẽ âm cho đến khi đối chiếu số lượng kiểm kê."
+
+msgid "No Work Center"
+msgstr "Không có trung tâm sản xuất"
+
+msgid "No work centers are blocked"
+msgstr "Không có trung tâm bị chặn"
+
+msgid "No work centers exist"
+msgstr "Chưa có trung tâm sản xuất"
+
+msgid "None"
+msgstr "Không có"
+
+msgid "Notes"
+msgstr "Ghi chú"
+
+msgid "Nothing running"
+msgstr "Không có gì đang chạy"
+
+msgid "Nothing scheduled at this work center"
+msgstr "Trung tâm này chưa có công việc theo lịch"
+
+msgid "Nothing to scrap"
+msgstr "Không có gì để ghi phế phẩm"
+
+msgid "OEE Impact"
+msgstr "Tác động OEE"
+
+msgid "OEM Required"
+msgstr "Yêu cầu OEM"
+
+#. placeholder {0}: m.operationQuantity ?? 0
+msgid "of {0}"
+msgstr "trên {0}"
+
+msgid "Oldest first"
+msgstr "Cũ nhất trước"
+
+msgid "one combined lot · planned"
+msgstr "một lô gộp · đã lên kế hoạch"
+
+msgid "one per job · planned"
+msgstr "một lô mỗi lệnh · đã lên kế hoạch"
+
+msgid "One pick covers the whole batch — it is shared out to the jobs automatically."
+msgstr "Một lần lấy hàng cho toàn bộ mẻ — tự chia cho các lệnh."
+
+#. placeholder {0}: batch.quantity
+msgid "Only {0} available"
+msgstr "Chỉ có {0} khả dụng"
+
+msgid "Oops. You shouldn't see this page. Eventually it will be a landing page."
+msgstr "Bạn không nên thấy trang này. Sau này đây sẽ là trang đích."
+
+msgid "Open"
+msgstr "Đang mở"
+
+msgid "Open a display on the screen mounted at the work center and leave it running. Each board refreshes on its own."
+msgstr "Mở màn hình hiển thị trên thiết bị tại trung tâm sản xuất và để chạy. Mỗi bảng tự cập nhật."
+
+msgid "Open a job in this batch"
+msgstr "Mở lệnh trong mẻ này"
+
+msgid "Open an NCR for MRB disposition"
+msgstr "Mở NCR để MRB quyết định xử lý"
+
+msgid "Open Jobs"
+msgstr "Lệnh sản xuất đang mở"
+
+#. placeholder {0}: subAssemblyNumber(item.headerId)
+#. placeholder {1}: subAssemblyTitle(item.headerId)
+msgid "Open sub-assembly {0}: {1}"
+msgstr "Mở cụm lắp ráp phụ {0}: {1}"
+
+msgid "Operations"
+msgstr "Các công đoạn"
+
+msgid "Operations ended"
+msgstr "Đã kết thúc công đoạn"
+
+msgid "Operator"
+msgstr "Nhân viên vận hành"
+
+msgid "Operator Performed"
+msgstr "Do nhân viên vận hành thực hiện"
+
+msgid "Optional"
+msgstr "Tùy chọn"
+
+msgid "or"
+msgstr "hoặc"
+
+msgid "Out of calibration"
+msgstr "Hiệu chuẩn không còn hợp lệ"
+
+msgid "Output lot"
+msgstr "Lô đầu ra"
+
+msgid "Overall result"
+msgstr "Kết quả tổng thể"
+
+msgid "Overdue PMs?"
+msgstr "Bảo trì phòng ngừa quá hạn?"
+
+msgid "Parameters"
+msgstr "Tham số"
+
+msgid "Part"
+msgstr "Chi tiết"
+
+msgid "Partial"
+msgstr "Một phần"
+
+msgid "Partial Disposition"
+msgstr "Xử lý một phần"
+
+msgid "Passed inspection"
+msgstr "Đã đạt kiểm tra"
+
+msgid "Passed Inspection"
+msgstr "Đã đạt kiểm tra"
+
+msgid "Passkey unlock failed"
+msgstr "Mở khóa bằng khóa truy cập thất bại"
+
+msgid "Pause"
+msgstr "Tạm dừng"
+
+msgid "Pick"
+msgstr "Lấy hàng"
+
+#. placeholder {0}: round(m.required - m.issued)
+msgid "Pick {0}"
+msgstr "Lấy {0}"
+
+msgid "Pick tracked item"
+msgstr "Lấy mặt hàng được theo dõi"
+
+msgid "Picked"
+msgstr "Đã lấy"
+
+msgid "Picked as"
+msgstr "Đã lấy dưới dạng"
+
+msgid "Picked quantity"
+msgstr "Số lượng đã lấy"
+
+#. placeholder {0}: startColumn?.title
+#. placeholder {1}: startIndex + 1
+#. placeholder {2}: columnOrder.length
+msgid "Picked up Column {0} at position: {1} of {2}"
+msgstr "Đã nhấc cột {0} tại vị trí: {1} trên {2}"
+
+msgid "Picking"
+msgstr "Lấy hàng"
+
+msgid "picking in place of {substitutedFrom}, the item on the job"
+msgstr "lấy hàng thay cho {substitutedFrom}, mặt hàng trên lệnh sản xuất"
+
+msgid "picking in place of {substitutedFrom}, the item on the job, for {substitutedAssemblies} assemblies"
+msgstr "lấy thay cho {substitutedFrom}, mặt hàng trên lệnh, cho {substitutedAssemblies} cụm lắp ráp"
+
+msgid "Pin or unpin"
+msgstr "Ghim hoặc bỏ ghim"
+
+msgid "Pin Out"
+msgstr "Đăng xuất bằng PIN"
+
+msgid "Planned"
+msgstr "Đã lập kế hoạch"
+
+msgid "Please record all steps for this operation before closing."
+msgstr "Ghi nhận mọi bước công đoạn trước khi đóng."
+
+msgid "Please select an item"
+msgstr "Vui lòng chọn mặt hàng"
+
+msgid "PM schedule lapsed"
+msgstr "Lịch bảo trì phòng ngừa đã quá hạn"
+
+msgid "Press ? on any page to open this list. Shortcuts are ignored while you type in a field."
+msgstr "Nhấn ? trên bất kỳ trang nào để mở danh sách này. Phím tắt bị bỏ qua khi bạn đang nhập trong trường."
+
+msgid "Prev"
+msgstr "Trước"
+
+msgid "Preventive"
+msgstr "Phòng ngừa"
+
+msgid "Previous step"
+msgstr "Bước trước"
+
+msgid "Print"
+msgstr "In"
+
+msgid "Print batch list"
+msgstr "In danh sách mẻ"
+
+msgid "Printer Settings"
+msgstr "Thiết lập máy in"
+
+msgid "Priority"
+msgstr "Mức ưu tiên"
+
+msgid "Procedure"
+msgstr "Quy trình"
+
+msgid "Process"
+msgstr "Quy trình công nghệ"
+
+msgid "Process parameters"
+msgstr "Tham số quy trình"
+
+msgid "Process Parameters"
+msgstr "Tham số quy trình"
+
+msgid "Processes"
+msgstr "Các quy trình công nghệ"
+
+msgid "Progress"
+msgstr "Tiến độ"
+
+#. placeholder {0}: formatDate( projectedCompletionDate )
+#. placeholder {0}: formatDate(projectedCompletionDate)
+msgid "Proj. {0}"
+msgstr "Dự kiến {0}"
+
+msgid "Quality Issue"
+msgstr "Vấn đề chất lượng"
+
+msgid "Quality issue created"
+msgstr "Đã tạo vấn đề chất lượng"
+
+msgid "Quantity"
+msgstr "Số lượng"
+
+msgid "Quantity must be greater than 0"
+msgstr "Số lượng phải lớn hơn 0"
+
+msgid "Queue empty"
+msgstr "Hàng đợi trống"
+
+msgid "Reason for rework"
+msgstr "Lý do gia công lại"
+
+msgid "Recent"
+msgstr "Gần đây"
+
+msgid "Recently used"
+msgstr "Dùng gần đây"
+
+msgid "Record"
+msgstr "Ghi nhận"
+
+#. placeholder {0}: activeStep + 1
+msgid "Record {0}"
+msgstr "Ghi nhận {0}"
+
+#. placeholder {0}: changed.length
+msgid "Record {0} jobs"
+msgstr "Ghi nhận {0} lệnh sản xuất"
+
+msgid "Record only"
+msgstr "Chỉ ghi nhận"
+
+msgid "Record Partial"
+msgstr "Ghi nhận một phần"
+
+msgid "Recorded"
+msgstr "Đã ghi nhận"
+
+msgid "Reject"
+msgstr "Từ chối"
+
+msgid "Reject Lot"
+msgstr "Từ chối lô"
+
+msgid "Released"
+msgstr "Đã phát hành"
+
+msgid "Remove"
+msgstr "Gỡ bỏ"
+
+msgid "Remove filter"
+msgstr "Gỡ bộ lọc"
+
+msgid "Remove Inventory"
+msgstr "Giảm tồn kho"
+
+msgid "Remove part"
+msgstr "Gỡ chi tiết"
+
+msgid "Rename"
+msgstr "Đổi tên"
+
+msgid "Reopen the subassembly and create a replacement unit"
+msgstr "Mở lại cụm lắp ráp phụ và tạo đơn vị thay thế"
+
+msgid "Required"
+msgstr "Bắt buộc"
+
+msgid "Result"
+msgstr "Kết quả"
+
+msgid "Retry Completion"
+msgstr "Thử hoàn thành lại"
+
+msgid "Rework"
+msgstr "Gia công lại"
+
+msgid "Rework created successfully"
+msgstr "Đã tạo gia công lại thành công"
+
+msgid "Rework quantity"
+msgstr "Số lượng gia công lại"
+
+msgid "Running"
+msgstr "Đang chạy"
+
+msgid "Sales Order"
+msgstr "Đơn bán hàng"
+
+msgid "Same for every job"
+msgstr "Giống nhau cho mọi lệnh"
+
+msgid "Save"
+msgstr "Lưu"
+
+msgid "Save the form you're editing"
+msgstr "Lưu biểu mẫu đang chỉnh sửa"
+
+msgid "Scan"
+msgstr "Quét"
+
+msgid "Scan a tracked entity to add the first sample column."
+msgstr "Quét thực thể theo dõi để thêm cột mẫu đầu tiên."
+
+msgid "Scan or enter serial number"
+msgstr "Quét hoặc nhập số sê-ri"
+
+msgid "Scan or enter tracked entity ID, serial, or batch"
+msgstr "Quét hoặc nhập ID thực thể được theo dõi, số sê-ri hoặc mẻ"
+
+msgid "Scan or enter tracking number"
+msgstr "Quét hoặc nhập mã theo dõi"
+
+msgid "Scan or search serial number..."
+msgstr "Quét hoặc tìm số sê-ri..."
+
+msgid "Scan or select a tracked entity from this lot to add it as a sample column, then record its result in the grid."
+msgstr "Quét hoặc chọn thực thể được theo dõi từ lô này để thêm thành cột mẫu, rồi ghi kết quả trong bảng."
+
+msgid "Schedule"
+msgstr "Lịch sản xuất"
+
+msgid "Scheduling conflict"
+msgstr "Xung đột lập lịch"
+
+msgid "Scrap"
+msgstr "Phế phẩm"
+
+msgid "Scrap {readableId}"
+msgstr "Ghi phế phẩm {readableId}"
+
+msgid "Scrap material"
+msgstr "Ghi phế phẩm vật tư"
+
+msgid "Scrap quantity"
+msgstr "Số lượng phế phẩm"
+
+msgid "Scrap Reason"
+msgstr "Lý do phế phẩm"
+
+msgid "Scrapped"
+msgstr "Đã ghi phế phẩm"
+
+msgid "Scrapping serial {trackedEntityReadableId}"
+msgstr "Đang ghi phế phẩm sê-ri {trackedEntityReadableId}"
+
+msgid "Scrapping the selected serial"
+msgstr "Đang ghi phế phẩm số sê-ri đã chọn"
+
+msgid "Search"
+msgstr "Tìm kiếm"
+
+msgid "Search {gaugeTypeName}..."
+msgstr "Tìm {gaugeTypeName}..."
+
+msgid "Search by job or item ID"
+msgstr "Tìm theo ID lệnh sản xuất hoặc mặt hàng"
+
+msgid "Search gauges..."
+msgstr "Tìm dụng cụ đo..."
+
+msgid "Search operators..."
+msgstr "Tìm nhân viên vận hành..."
+
+msgid "Search..."
+msgstr "Tìm kiếm..."
+
+msgid "Select"
+msgstr "Chọn"
+
+msgid "Select a completion quantity"
+msgstr "Chọn số lượng hoàn thành"
+
+msgid "Select a rework quantity"
+msgstr "Chọn số lượng gia công lại"
+
+msgid "Select a scrap quantity and reason"
+msgstr "Chọn số lượng và lý do phế phẩm"
+
+msgid "Select a serial number to continue with this operation"
+msgstr "Chọn số sê-ri để tiếp tục công đoạn"
+
+msgid "Select an issue type"
+msgstr "Chọn loại vấn đề"
+
+msgid "Select an item and specify the quantity to issue"
+msgstr "Chọn mặt hàng và nhập số lượng cần xuất kho"
+
+msgid "Select an item..."
+msgstr "Chọn mặt hàng..."
+
+#. placeholder {0}: index + 1
+msgid "Select Batch {0}"
+msgstr "Chọn mẻ {0}"
+
+msgid "Select gauge"
+msgstr "Chọn dụng cụ đo"
+
+msgid "Select Printer"
+msgstr "Chọn máy in"
+
+#. placeholder {0}: index + 1
+msgid "Select Serial {0}"
+msgstr "Chọn sê-ri {0}"
+
+msgid "Select Serial Number"
+msgstr "Chọn số sê-ri"
+
+msgid "Select the operation to go back to. All operations from that point to the current operation will be redone."
+msgstr "Chọn công đoạn quay lại. Mọi công đoạn từ đó đến công đoạn hiện tại sẽ làm lại."
+
+msgid "Selected"
+msgstr "Đã chọn"
+
+msgid "Send"
+msgstr "Gửi"
+
+msgid "Send to Carbon"
+msgstr "Gửi đến Carbon"
+
+msgid "Separate lots"
+msgstr "Các lô riêng"
+
+msgid "Serial"
+msgstr "Sê-ri"
+
+#. placeholder {0}: index + 1
+msgid "Serial Number {0}"
+msgstr "Số sê-ri {0}"
+
+msgid "Serial number is not available"
+msgstr "Số sê-ri không khả dụng"
+
+msgid "Serial number is required"
+msgstr "Bắt buộc có số sê-ri"
+
+msgid "Serial numbers"
+msgstr "Các số sê-ri"
+
+msgid "Serial Numbers"
+msgstr "Các số sê-ri"
+
+msgid "Serialized"
+msgstr "Đã gán số sê-ri"
+
+msgid "Session locked"
+msgstr "Phiên đã khóa"
+
+msgid "Set Clock Out"
+msgstr "Đặt thời điểm kết thúc ghi giờ"
+
+msgid "Set the time you stopped working, or acknowledge that you're still working."
+msgstr "Đặt thời điểm bạn ngừng làm việc hoặc xác nhận bạn vẫn đang làm việc."
+
+msgid "Set up in Carbon"
+msgstr "Thiết lập trong Carbon"
+
+msgid "Set when the batch was planned."
+msgstr "Được đặt khi lên kế hoạch mẻ."
+
+msgid "Setup"
+msgstr "Chuẩn bị"
+
+msgid "short"
+msgstr "thiếu"
+
+msgid "Short"
+msgstr "Thiếu"
+
+msgid "Short pick {itemName}"
+msgstr "Lấy thiếu {itemName}"
+
+msgid "Show description"
+msgstr "Hiện mô tả"
+
+msgid "Show keyboard shortcuts"
+msgstr "Hiện phím tắt"
+
+msgid "Sign in with Google"
+msgstr "Đăng nhập bằng Google"
+
+msgid "Sign in with Outlook"
+msgstr "Đăng nhập bằng Outlook"
+
+msgid "Sign in with Passkey"
+msgstr "Đăng nhập bằng khóa truy cập"
+
+msgid "Sign out"
+msgstr "Đăng xuất"
+
+msgid "Sign Out"
+msgstr "Đăng xuất"
+
+msgid "Sign out instead"
+msgstr "Chọn đăng xuất"
+
+msgid "Signed in as {stationName}"
+msgstr "Đăng nhập với tên {stationName}"
+
+msgid "Size"
+msgstr "Kích thước"
+
+msgid "Source"
+msgstr "Nguồn"
+
+msgid "Spare Parts"
+msgstr "Các phụ tùng"
+
+msgid "Spare Parts Used"
+msgstr "Phụ tùng đã dùng"
+
+msgid "Start"
+msgstr "Bắt đầu"
+
+#. placeholder {0}: workTypeLabels[ eventType.toLowerCase() as keyof typeof workTypeLabels ].toLowerCase()
+msgid "Start {0}"
+msgstr "Bắt đầu {0}"
+
+msgid "Start or pause the operation"
+msgstr "Bắt đầu hoặc tạm dừng công đoạn"
+
+msgid "Station User"
+msgstr "Người dùng trạm"
+
+msgid "Station: {stationName}"
+msgstr "Trạm: {stationName}"
+
+#. placeholder {0}: inspection.lotSize
+msgid "Statistical acceptance failed, so the entire lot of {0} is considered non-conforming (ISO 9001:2015 §8.7) — {passes} sampled pass(es) and {fails} failure(s). Route the units below to scrap or rework, or record the verdict only."
+msgstr "Nghiệm thu thống kê không đạt nên toàn bộ lô {0} được coi là không phù hợp (ISO 9001:2015 §8.7) — {passes} mẫu đạt và {fails} không đạt. Chuyển đơn vị bên dưới thành phế phẩm hoặc gia công lại, hoặc chỉ ghi kết luận."
+
+msgid "Status"
+msgstr "Trạng thái"
+
+msgid "Statuses"
+msgstr "Các trạng thái"
+
+msgid "Stay on this page"
+msgstr "Ở lại trang này"
+
+msgid "Steps"
+msgstr "Các bước"
+
+msgid "Steps are missing"
+msgstr "Thiếu các bước"
+
+msgid "Storage Unit"
+msgstr "Đơn vị lưu trữ"
+
+msgid "Sub-Assembly"
+msgstr "Cụm lắp ráp phụ"
+
+#. placeholder {0}: subAssemblyNumber(item.headerId)
+#. placeholder {0}: subAssemblyNumber(openSubAssemblyId)
+#. placeholder {1}: subAssemblyTitle(item.headerId)
+#. placeholder {1}: subAssemblyTitle(openSubAssemblyId)
+msgid "Sub-Assembly {0} · {1}"
+msgstr "Cụm lắp ráp phụ {0} · {1}"
+
+#. placeholder {0}: subAssemblyNumber(playbackInfo.headerId)
+#. placeholder {1}: subAssemblyTitle( playbackInfo.headerId )
+msgid "Sub-Assembly {0} · {1} — shown on its own"
+msgstr "Cụm lắp ráp phụ {0} · {1} — hiển thị riêng"
+
+msgid "Submit anonymously"
+msgstr "Gửi ẩn danh"
+
+msgid "Suggestion"
+msgstr "Đề xuất"
+
+msgid "Support Required"
+msgstr "Cần hỗ trợ"
+
+msgid "Switch Operator"
+msgstr "Đổi nhân viên vận hành"
+
+msgid "System"
+msgstr "Hệ thống"
+
+msgid "Tag"
+msgstr "Thẻ"
+
+msgid "The completed quantity for this operation is less than the required quantity of {targetQuantity}."
+msgstr "Số lượng hoàn thành công đoạn thấp hơn số lượng yêu cầu {targetQuantity}."
+
+msgid "The jobs and parts that make up this run."
+msgstr "Các lệnh và chi tiết tạo thành lần chạy này."
+
+msgid "The jobs make different items — keep each job's parts apart."
+msgstr "Các lệnh sản xuất mặt hàng khác nhau — giữ chi tiết từng lệnh tách biệt."
+
+msgid "The lot will be marked Passed and {remaining} remaining unit(s) will be completed at this operation."
+msgstr "Lô được đánh dấu Đã đạt và {remaining} đơn vị còn lại sẽ hoàn thành tại công đoạn."
+
+msgid "The lot will still be dispositioned, but an NCR cannot be created until at least one Issue Type is configured."
+msgstr "Lô vẫn được xử lý nhưng không thể tạo NCR đến khi cấu hình ít nhất một Loại vấn đề."
+
+#. placeholder {0}: (batch.operations ?? []).length
+msgid "The timer and completion are shared by all {0} jobs. Steps, materials and files here are this job's own."
+msgstr "Bộ đếm giờ và việc hoàn thành dùng chung cho tất cả {0} lệnh. Các bước, vật tư và tệp ở đây thuộc riêng lệnh này."
+
+msgid "then"
+msgstr "sau đó"
+
+msgid "There are no available or consumed tracked parts for this material."
+msgstr "Không có chi tiết theo dõi khả dụng hoặc đã tiêu hao cho vật tư này."
+
+msgid "There are serial or batch tracked materials on the bill of material that have not been fully issued. Completing without issuing may result in incorrect traceability records."
+msgstr "Có vật tư theo dõi sê-ri hoặc mẻ trong định mức chưa xuất đầy đủ. Hoàn thành mà không xuất có thể làm sai hồ sơ truy xuất nguồn gốc."
+
+msgid "These items still have material to pick. Finishing now marks the list Partial."
+msgstr "Các mặt hàng này vẫn còn vật tư cần lấy. Hoàn tất ngay sẽ đánh dấu danh sách Một phần."
+
+msgid "This batch has no work instructions."
+msgstr "Mẻ này chưa có hướng dẫn công việc."
+
+msgid "This lot is expired and can't be picked."
+msgstr "Lô đã hết hạn, không thể lấy hàng."
+
+msgid "This part was made to order. Scrapping it can reopen its routing to make a replacement."
+msgstr "Chi tiết được sản xuất theo đơn. Ghi phế phẩm có thể mở lại quy trình công nghệ để sản xuất thay thế."
+
+msgid "This part will be scrapped from stock. Its requirement stays open so you can issue a replacement."
+msgstr "Chi tiết sẽ ghi phế phẩm khỏi tồn kho. Nhu cầu vẫn mở để xuất chi tiết thay thế."
+
+msgid "This unit will be permanently scrapped and a replacement serial number will be created."
+msgstr "Đơn vị sẽ ghi phế phẩm vĩnh viễn và tạo số sê-ri thay thế."
+
+msgid "Thumbnail"
+msgstr "Ảnh thu nhỏ"
+
+msgid "Tick the jobs this was done for."
+msgstr "Đánh dấu các lệnh đã thực hiện bước này."
+
+msgid "Time and cost split across jobs proportionally to quantity."
+msgstr "Thời gian và chi phí chia theo tỷ lệ số lượng giữa các lệnh."
+
+msgid "Time Entries"
+msgstr "Các bản ghi thời gian"
+
+#. placeholder {0}: formatDuration(totalDuration)
+msgid "Time Worked: {0}"
+msgstr "Thời gian làm việc: {0}"
+
+msgid "To pick"
+msgstr "Cần lấy"
+
+msgid "To run"
+msgstr "Cần chạy"
+
+msgid "Today"
+msgstr "Hôm nay"
+
+msgid "Toggle the sidebar"
+msgstr "Ẩn/hiện thanh bên"
+
+msgid "Tools"
+msgstr "Dụng cụ"
+
+msgid "Total"
+msgstr "Tổng cộng"
+
+msgid "Total Quantity"
+msgstr "Tổng số lượng"
+
+#. placeholder {0}: formatDuration(totalDuration)
+msgid "Total time: {0}"
+msgstr "Tổng thời gian: {0}"
+
+#. placeholder {0}: formatTotalHours(entries)
+msgid "Total: {0}"
+msgstr "Tổng: {0}"
+
+msgid "Tracked Entity"
+msgstr "Thực thể theo dõi"
+
+msgid "tracked lines"
+msgstr "dòng theo dõi"
+
+msgid "Tracking"
+msgstr "Theo dõi"
+
+msgid "Two-factor authentication"
+msgstr "Xác thực hai yếu tố"
+
+msgid "Two-factor authentication required"
+msgstr "Bắt buộc xác thực hai yếu tố"
+
+msgid "Type a message..."
+msgstr "Nhập tin nhắn..."
+
+msgid "Unable to unlock"
+msgstr "Không thể mở khóa"
+
+msgid "Unissued serial/batch materials"
+msgstr "Vật tư sê-ri/mẻ chưa xuất"
+
+msgid "Unknown"
+msgstr "Không xác định"
+
+msgid "Unknown gauge"
+msgstr "Dụng cụ đo không xác định"
+
+msgid "Unlock"
+msgstr "Mở khóa"
+
+msgid "Unlock with passkey"
+msgstr "Mở khóa bằng khóa truy cập"
+
+msgid "Unpick"
+msgstr "Hoàn tác lấy hàng"
+
+#. placeholder {0}: pickedLots[0].trackedEntity.readableId
+msgid "Unpick {0}"
+msgstr "Hoàn tác lấy {0}"
+
+msgid "Unplanned downtime"
+msgstr "Thời gian ngừng ngoài kế hoạch"
+
+#. placeholder {0}: board.unplannedCount.days
+msgid "Unplanned maintenance items, last {0} days"
+msgstr "Các mục bảo trì ngoài kế hoạch, {0} ngày qua"
+
+msgid "Unsaved changes"
+msgstr "Thay đổi chưa lưu"
+
+msgid "Up next"
+msgstr "Tiếp theo"
+
+msgid "Up to {maxAllocatable} unit(s) can be allocated; the rest is recorded without a posting."
+msgstr "Có thể phân bổ tối đa {maxAllocatable} đơn vị; phần còn lại được ghi nhận không kèm ghi sổ."
+
+msgid "Update"
+msgstr "Cập nhật"
+
+#. placeholder {0}: formatClock(lastUpdated)
+msgid "Updated {0}"
+msgstr "Đã cập nhật {0}"
+
+msgid "Updated successfully"
+msgstr "Đã cập nhật thành công"
+
+#. placeholder {0}: fileUpload.name
+msgid "Uploaded: {0}"
+msgstr "Đã tải lên: {0}"
+
+#. placeholder {0}: fileUpload.name
+msgid "Uploading {0}"
+msgstr "Đang tải lên {0}"
+
+msgid "Use a different account"
+msgstr "Dùng tài khoản khác"
+
+msgid "Used automatically at completion"
+msgstr "Tự sử dụng khi hoàn thành"
+
+#. placeholder {0}: subAssemblyNumber(headerId)
+#. placeholder {1}: subAssemblyTitle(headerId)
+msgid "Uses {0} · {1}"
+msgstr "Sử dụng {0} · {1}"
+
+msgid "Value"
+msgstr "Giá trị"
+
+msgid "Verify"
+msgstr "Xác minh"
+
+msgid "View maintenance dispatch"
+msgstr "Xem phiếu điều phối bảo trì"
+
+msgid "View or open"
+msgstr "Xem hoặc mở"
+
+msgid "We've sent you a magic link to sign in to your account."
+msgstr "Đã gửi liên kết để đăng nhập tài khoản."
+
+msgid "What is {translatedTerm}?"
+msgstr "{translatedTerm} là gì?"
+
+msgid "Whole batch"
+msgstr "Toàn bộ mẻ"
+
+msgid "WIP"
+msgstr "WIP"
+
+msgid "Work Center"
+msgstr "Trung tâm sản xuất"
+
+msgid "Work Center Displays"
+msgstr "Màn hình trung tâm sản xuất"
+
+msgid "Work instructions"
+msgstr "Hướng dẫn công việc"
+
+msgid "Yes"
+msgstr "Có"
+
+msgid "You've been clocked in for {hoursElapsed} hours. Did you forget to clock out?"
+msgstr "Bạn đã ghi giờ bắt đầu được {hoursElapsed} giờ. Bạn quên ghi giờ kết thúc?"
+
+msgid "Your account isn't part of a company yet. Complete onboarding in the Carbon ERP to continue."
+msgstr "Tài khoản chưa thuộc công ty nào. Hoàn thành thiết lập ban đầu trong Carbon ERP để tiếp tục."
+
+msgid "Your organization requires an authenticator app. Set it up in Carbon, then come back here."
+msgstr "Tổ chức yêu cầu dùng ứng dụng xác thực. Thiết lập trong Carbon rồi quay lại đây."
+
+msgid "Your session was locked after inactivity."
+msgstr "Phiên bị khóa sau thời gian không hoạt động."
+
+#. placeholder {0}: peopleStation.name
+msgid "Your station: {0}"
+msgstr "Trạm của bạn: {0}"

@@ -144,10 +144,25 @@ export const CLOSE_TASK_DEFINITION_NAMES = new Set<string>(
   periodCloseTaskDefinitions.map((d) => d.name)
 );
 
-/** USD is every seeded company's base currency. */
+/** Legacy fixtures use USD; new fixtures declare their company base currency. */
 export const USD_DECIMALS = currencies.find(
   (c) => c.code === "USD"
 )!.decimalPlaces;
+
+function baseCurrency(ctx: ValidationCtx): string {
+  return ctx.dataset.baseCurrencyCode ?? "USD";
+}
+
+function baseCurrencyDecimals(ctx: ValidationCtx): number {
+  const currency = currencies.find((c) => c.code === baseCurrency(ctx));
+  if (!currency) {
+    ctx.fail(
+      `dataset.baseCurrencyCode: unknown currency "${baseCurrency(ctx)}"`
+    );
+    return USD_DECIMALS;
+  }
+  return currency.decimalPlaces;
+}
 
 // Value sets every dataset must exhibit, so an edit can't silently drop a state
 // the docs screenshot. Enum-backed sets are the DB enum minus `except`, so a new
@@ -2702,7 +2717,9 @@ export function commercial(ctx: ValidationCtx): void {
         fail(`${where}: requested before the order was placed`);
       }
       if (po.foreign) {
-        fail(`${where}: the request amount is in base currency — keep it USD`);
+        fail(
+          `${where}: the request amount is in base currency — keep it ${baseCurrency(ctx)}`
+        );
       }
       if (po.total < lowestPoFloor) {
         fail(
@@ -3029,7 +3046,10 @@ export function purchasing(ctx: ValidationCtx): void {
 
     // FX discipline: EUR belongs to exactly one childless, unpaid order on
     // the EUR supplier; everything else stays in base currency.
-    if (po.currencyCode !== undefined && po.currencyCode !== "USD") {
+    if (
+      po.currencyCode !== undefined &&
+      po.currencyCode !== baseCurrency(ctx)
+    ) {
       if (po.currencyCode !== "EUR") {
         fail(`${where}: unsupported currencyCode "${po.currencyCode}"`);
       } else {
@@ -4859,7 +4879,7 @@ export function accounting(ctx: ValidationCtx): void {
       total: inv.lines.reduce((s, l) => s + l.quantity * l.unitPrice, 0),
       issued: inv.dateIssuedOffset,
       status: inv.status,
-      currencyCode: "USD"
+      currencyCode: baseCurrency(ctx)
     });
   }
   const purchaseInvoices = new Map<string, InvoiceFacts>();
@@ -5044,11 +5064,14 @@ export function accounting(ctx: ValidationCtx): void {
       fail(
         `${where}: party "${party}" does not match the invoice's "${invoice.party}"`
       );
-    if (invoice.currencyCode !== "USD")
-      fail(`${where}: memos settle base-currency (USD) invoices only`);
+    if (invoice.currencyCode !== baseCurrency(ctx))
+      fail(
+        `${where}: memos settle base-currency (${baseCurrency(ctx)}) invoices only`
+      );
     if (
       memo.amount <= 0 ||
-      round(memo.amount, USD_DECIMALS) > round(invoice.total, USD_DECIMALS)
+      round(memo.amount, baseCurrencyDecimals(ctx)) >
+        round(invoice.total, baseCurrencyDecimals(ctx))
     )
       fail(
         `${where}: amount ${memo.amount} outside (0, invoice total ${invoice.total}]`
@@ -5092,7 +5115,10 @@ export function accounting(ctx: ValidationCtx): void {
       fail(`${where}: unknown ${sales ? "customer" : "supplier"} "${party}"`);
     if (payment.amount < 0) fail(`${where}: negative amount`);
     const applied = payment.applies.reduce((s, x) => s + x.amount, 0);
-    if (round(applied, USD_DECIMALS) !== round(payment.amount, USD_DECIMALS)) {
+    if (
+      round(applied, baseCurrencyDecimals(ctx)) !==
+      round(payment.amount, baseCurrencyDecimals(ctx))
+    ) {
       fail(
         `${where}: applications total ${applied} but the payment is ${payment.amount}`
       );
@@ -5116,9 +5142,9 @@ export function accounting(ctx: ValidationCtx): void {
         fail(
           `${where}: party "${party}" does not match ${label}'s "${invoice.party}"`
         );
-      if (invoice.currencyCode !== "USD")
+      if (invoice.currencyCode !== baseCurrency(ctx))
         fail(
-          `${where}: ${label} is not base currency — seeded settlements are USD only`
+          `${where}: ${label} is not base currency — seeded settlements require ${baseCurrency(ctx)}`
         );
       if (amount <= 0) fail(`${where}: non-positive application to ${label}`);
       if (payment.dateOffset < invoice.issued) {
@@ -5159,7 +5185,8 @@ export function accounting(ctx: ValidationCtx): void {
     const memo = memos.get(key);
     if (
       memo &&
-      round(consumed, USD_DECIMALS) > round(memo.amount, USD_DECIMALS)
+      round(consumed, baseCurrencyDecimals(ctx)) >
+        round(memo.amount, baseCurrencyDecimals(ctx))
     ) {
       fail(
         `accounting.memos "${key}": applied ${consumed} exceeds its amount ${memo.amount}`
@@ -5171,8 +5198,8 @@ export function accounting(ctx: ValidationCtx): void {
   for (const sales of [true, false]) {
     for (const [key, invoice] of invoiceIn(sales)) {
       const label = invoiceLabel(sales, key);
-      const paid = round(settled.get(label) ?? 0, USD_DECIMALS);
-      const total = round(invoice.total, USD_DECIMALS);
+      const paid = round(settled.get(label) ?? 0, baseCurrencyDecimals(ctx));
+      const total = round(invoice.total, baseCurrencyDecimals(ctx));
       if (paid > total) {
         fail(
           `accounting: ${label} is over-settled (${paid} of ${invoice.total})`
@@ -5221,13 +5248,15 @@ export function accounting(ctx: ValidationCtx): void {
   const eurPo = dataset.purchasing.purchaseOrders.find(
     (p) => p.source === "direct" && p.currencyCode === "EUR"
   );
+  // This is the authored fixture conversion, not a current legal FX quote.
+  const fixtureBaseUnitsPerUsd = baseCurrency(ctx) === "VND" ? 25_000 : 1;
   const overrideCodes = new Set<string>();
   for (const override of a.exchangeRateOverrides) {
     const where = `accounting.exchangeRateOverrides "${override.currencyCode}"`;
     if (overrideCodes.has(override.currencyCode))
       fail(`${where}: duplicate (unique per company + currency)`);
     overrideCodes.add(override.currencyCode);
-    if (override.currencyCode === "USD")
+    if (override.currencyCode === baseCurrency(ctx))
       fail(`${where}: the base currency needs no rate`);
     if (!(override.rate > 0)) fail(`${where}: rate must be positive`);
     const poRate =
@@ -5241,25 +5270,30 @@ export function accounting(ctx: ValidationCtx): void {
         `${where}: rate ${override.rate} disagrees with the EUR order's ${poRate}`
       );
     }
-    // Rates are units of the foreign currency per 1 USD, and a euro is worth
-    // more than a dollar — so a EUR rate at or above 1 is the inverted
-    // (USD-per-EUR) quote, which halves-and-doubles every converted amount.
+    // Normalize the authored fixtures to EUR per one reference USD solely to
+    // detect inverted fixture rates. These are not current exchange-rate data.
     if (
       override.currencyCode === "EUR" &&
-      !(override.rate > 0.5 && override.rate < 1)
+      !(
+        override.rate * fixtureBaseUnitsPerUsd > 0.5 &&
+        override.rate * fixtureBaseUnitsPerUsd < 1
+      )
     ) {
       fail(
-        `${where}: rate ${override.rate} is not EUR per 1 USD (expected ~0.9 — is it inverted?)`
+        `${where}: rate ${override.rate} is not EUR per one ${baseCurrency(ctx)} (authored fixture conversion — is it inverted?)`
       );
     }
   }
   if (
     eurPo?.source === "direct" &&
     eurPo.exchangeRate !== undefined &&
-    !(eurPo.exchangeRate > 0.5 && eurPo.exchangeRate < 1)
+    !(
+      eurPo.exchangeRate * fixtureBaseUnitsPerUsd > 0.5 &&
+      eurPo.exchangeRate * fixtureBaseUnitsPerUsd < 1
+    )
   ) {
     fail(
-      `purchasing EUR order: exchangeRate ${eurPo.exchangeRate} is not EUR per 1 USD (expected ~0.9 — is it inverted?)`
+      `purchasing EUR order: exchangeRate ${eurPo.exchangeRate} is not EUR per one ${baseCurrency(ctx)} (authored fixture conversion — is it inverted?)`
     );
   }
   if (!overrideCodes.has("EUR")) {
@@ -5332,12 +5366,18 @@ export function accounting(ctx: ValidationCtx): void {
         ? Math.min(
             round(
               (base / asset.assetLifetimeUsage) * runLog.unitsProduced,
-              USD_DECIMALS
+              baseCurrencyDecimals(ctx)
             ),
-            round(base - asset.accumulatedDepreciation, USD_DECIMALS)
+            round(
+              base - asset.accumulatedDepreciation,
+              baseCurrencyDecimals(ctx)
+            )
           )
         : 0;
-      const charge = round(asset.depreciationCharge ?? 0, USD_DECIMALS);
+      const charge = round(
+        asset.depreciationCharge ?? 0,
+        baseCurrencyDecimals(ctx)
+      );
       if (charge !== expected) {
         fail(
           `${where}: depreciationCharge ${asset.depreciationCharge ?? 0} but the app computes ${expected}`
@@ -5539,9 +5579,9 @@ export function postings(ctx: ValidationCtx): void {
     if (!invoice || invoice.status === "Draft") continue;
     const where = `purchase invoice "${invoice.ref}"`;
     openPeriod(where, invoice.dateIssuedOffset);
-    if (invoice.currencyCode !== "USD") {
+    if (invoice.currencyCode !== baseCurrency(ctx)) {
       fail(
-        `${where}: a posted purchase invoice must be base currency (USD) — its journal is base-only`
+        `${where}: a posted purchase invoice must be base currency (${baseCurrency(ctx)}) — its journal is base-only`
       );
     }
     const journal = () =>

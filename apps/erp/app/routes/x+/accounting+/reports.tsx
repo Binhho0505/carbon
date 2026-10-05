@@ -146,6 +146,25 @@ export default function ReportsIndexRoute() {
   const reports = useMemo<ReportDefinition[]>(
     () => [
       {
+        key: "vietnamese-accounting-closing",
+        name: "Kế toán Việt Nam — Kết chuyển TT99",
+        description:
+          "Xem trước và ghi sổ kết chuyển 521, 911, 4212 trong kỳ mở",
+        to: "/x/accounting/vietnamese",
+        icon: LuScale,
+        category: t`Financial Statements`,
+        defaultPinned: false
+      },
+      {
+        key: "vietnamese-financial-statements",
+        name: "Báo cáo tài chính Việt Nam (Thông tư 99)",
+        description: "B01-DN, B02-DN, B03-DN và B09-DN từ sổ kế toán đã ghi",
+        to: "/x/reports/vietnamese",
+        icon: LuFileSpreadsheet,
+        category: t`Financial Statements`,
+        defaultPinned: false
+      },
+      {
         key: "income-statement",
         name: t`Income Statement`,
         description: t`Revenue and expenses over a period`,

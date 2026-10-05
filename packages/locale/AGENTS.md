@@ -37,7 +37,7 @@ pnpm lingui:check
 |---------|----------|
 | `.` | `LocaleProvider`, `SupportedLanguage`, `supportedLanguages`, `languageNativeLabels`, `defaultLanguage`, `localeCookieName`, `resolveLanguage`, `getSortedLanguageSelectOptions` |
 
-Supported runtime locales are `en`, `fr`, `de`, `es`, `it`, `ja`, `pl`, `pt`, `ru`, `zh`, `hi`, `tr`, and `ko`. Catalogs live at `packages/locale/locales/{locale}/{erp,mes}.po`.
+Supported runtime locales are `en`, `fr`, `de`, `es`, `it`, `ja`, `pl`, `pt`, `ru`, `zh`, `hi`, `tr`, `ko`, and `vi` (Tiếng Việt). Catalogs live at `packages/locale/locales/{locale}/{erp,mes}.po`.
 
 ## Catalog Workflow
 

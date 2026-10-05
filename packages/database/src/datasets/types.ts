@@ -2178,11 +2178,18 @@ export type PlanningData = {
 };
 
 // Must stay in step with DATASETS in index.ts — a key with no dataset is unusable.
-export type DatasetKey = "satellite" | "robotics" | "precision" | "motor";
+export type DatasetKey =
+  | "satellite"
+  | "robotics"
+  | "precision"
+  | "motor"
+  | "fmcg";
 
 // One industry story's worth of data. The tiers hold the insertion logic; a
 // Dataset holds everything that differs between stories.
 export type Dataset = {
+  /** Demo base currency; omitted preserves the legacy USD fixtures. */
+  baseCurrencyCode?: string;
   key: DatasetKey;
   label: string;
   /** industry.id this dataset backs, or null for dev-only datasets. */

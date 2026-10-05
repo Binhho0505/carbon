@@ -27,6 +27,7 @@ export type PurchasePostingAmounts = {
   totalBaseCost: number;
   inventoryUnitCost: number;
   intercompanyDocumentAmount: number;
+  recoverableTaxBase: number;
 };
 
 /** Both the PO counter and invoice quantity are in purchase units. */
@@ -41,6 +42,8 @@ export function calculatePurchasePostingAmounts(input: {
   lines: PurchasePostingLine[];
   exchangeRate: number;
   supplierShippingCost: number;
+  /** An Asset input-tax control opts into separately deductible VAT. */
+  recoverablePurchaseTax?: boolean;
 }): PurchasePostingAmounts[] {
   const lines = input.lines.filter(
     (line) => line.invoiceLineType !== "Comment"
@@ -57,7 +60,14 @@ export function calculatePurchasePostingAmounts(input: {
       );
     }
     const nominal = line.quantity * (line.unitPrice ?? 0);
-    const cost = nominal + (line.shippingCost ?? 0) + (line.taxAmount ?? 0);
+    const recoverableTaxBase = input.recoverablePurchaseTax
+      ? round(line.taxAmount ?? 0)
+      : 0;
+    const cost =
+      nominal +
+      (line.shippingCost ?? 0) +
+      (line.taxAmount ?? 0) -
+      recoverableTaxBase;
     const inventoryQuantity = line.quantity * factor;
     const intercompanyDocumentAmount =
       line.quantity * (line.supplierUnitPrice ?? 0) +
@@ -69,13 +79,24 @@ export function calculatePurchasePostingAmounts(input: {
     ) {
       throw new Error(`Purchase line ${line.id} amounts must be finite`);
     }
-    return { nominal, cost, inventoryQuantity, intercompanyDocumentAmount };
+    return {
+      nominal,
+      cost,
+      inventoryQuantity,
+      intercompanyDocumentAmount,
+      recoverableTaxBase
+    };
   });
   const totalLinesCost = costs.reduce((sum, row) => sum + row.cost, 0);
   let allocatedHeader = 0;
   return lines.map((line, index) => {
-    const { nominal, cost, inventoryQuantity, intercompanyDocumentAmount } =
-      costs[index]!;
+    const {
+      nominal,
+      cost,
+      inventoryQuantity,
+      intercompanyDocumentAmount,
+      recoverableTaxBase
+    } = costs[index]!;
     const weight =
       totalLinesCost === 0 ? 1 / lines.length : cost / totalLinesCost;
     // Reconcile the final share to the converted header, so all posted shares
@@ -97,7 +118,8 @@ export function calculatePurchasePostingAmounts(input: {
       totalBaseCost,
       inventoryUnitCost:
         inventoryQuantity === 0 ? 0 : totalBaseCost / inventoryQuantity,
-      intercompanyDocumentAmount
+      intercompanyDocumentAmount,
+      recoverableTaxBase
     };
   });
 }

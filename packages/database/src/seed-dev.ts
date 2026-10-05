@@ -48,6 +48,11 @@ async function main() {
   console.log(
     `\nSeeding development environment for: ${email} (${datasetKey})\n`
   );
+  if (datasetKey === "fmcg") {
+    throw new Error(
+      "Use src/seed-fmcg.ts for the non-destructive three-plant VND demo; generic dev seed cannot expand this dataset."
+    );
+  }
 
   const pool = getProcessPool();
   const client = await pool.connect();

@@ -1,0 +1,20 @@
+# Machine-installed Corepack shims and local verification output
+bin/
+AGENTS.before.txt
+*.log
+environment-verification.json
+login-check.html
+fmcg-*.json
+fmcg-*.html
+releases/
+tt99-demo-*.json
+fmcg-http-check.mjs
+tt99-official-*.pdf
+tt99-official-*.txt
+tt99-sources.json
+backups/
+build-fmcg.ts
+fmcg-numeric.ts
+tt99-chart-*.json
+read-typecheck.cjs
+tt99-git-publication.json

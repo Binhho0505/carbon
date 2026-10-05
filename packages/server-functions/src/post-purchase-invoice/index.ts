@@ -597,12 +597,73 @@ const postPurchaseInvoice = defineServerFn({
         if (dim.entityType) dimensionMap.set(dim.entityType, dim.id);
       }
 
+      const accountDefaults = accountingEnabled
+        ? await getDefaultPostingGroup(db, companyId)
+        : null;
+      if (
+        accountingEnabled &&
+        (accountDefaults?.error || !accountDefaults?.data)
+      ) {
+        throw new Error("Error getting account defaults");
+      }
+      const inputTaxAccount = accountDefaults?.data?.purchaseTaxPayableAccount
+        ? await db
+            .selectFrom("account")
+            .innerJoin(
+              "company",
+              "company.companyGroupId",
+              "account.companyGroupId"
+            )
+            .select([
+              "account.id",
+              "account.class",
+              "account.isGroup",
+              "account.active"
+            ])
+            .where(
+              "account.id",
+              "=",
+              accountDefaults.data.purchaseTaxPayableAccount
+            )
+            .where("company.id", "=", companyId)
+            .executeTakeFirst()
+        : undefined;
+      const recoverablePurchaseTax = inputTaxAccount?.class === "Asset";
+      if (
+        recoverablePurchaseTax &&
+        (!inputTaxAccount.active || inputTaxAccount.isGroup)
+      ) {
+        throw new Error(
+          "Recoverable input-tax account must be an active Asset posting leaf"
+        );
+      }
+      const fixedAssetInputTaxAccount =
+        recoverablePurchaseTax &&
+        purchaseInvoiceLines.data.some(
+          (line) => line.invoiceLineType === "Fixed Asset"
+        )
+          ? await db
+              .selectFrom("account")
+              .innerJoin(
+                "company",
+                "company.companyGroupId",
+                "account.companyGroupId"
+              )
+              .select(["account.id"])
+              .where("company.id", "=", companyId)
+              .where("account.number", "=", "1332")
+              .where("account.class", "=", "Asset")
+              .where("account.active", "=", true)
+              .where("account.isGroup", "=", false)
+              .executeTakeFirst()
+          : undefined;
       const amountsByLineId = new Map(
         calculatePurchasePostingAmounts({
           lines: purchaseInvoiceLines.data,
           exchangeRate: purchaseInvoice.data.exchangeRate ?? 1,
           supplierShippingCost:
-            purchaseInvoiceDelivery.data.supplierShippingCost ?? 0
+            purchaseInvoiceDelivery.data.supplierShippingCost ?? 0,
+          recoverablePurchaseTax
         }).map((amounts) => [amounts.id, amounts])
       );
 
@@ -830,15 +891,6 @@ const postPurchaseInvoice = defineServerFn({
       }, {});
 
       // Get account defaults (once for all lines)
-      const accountDefaults = accountingEnabled
-        ? await getDefaultPostingGroup(db, companyId)
-        : null;
-      if (
-        accountingEnabled &&
-        (accountDefaults?.error || !accountDefaults?.data)
-      ) {
-        throw new Error("Error getting account defaults");
-      }
 
       // For IC transactions, book the payable to Inter-Company Payables instead of
       // regular AP — the mirror of post-sales-invoice's IC Receivables swap. Resolve
@@ -1871,6 +1923,49 @@ const postPurchaseInvoice = defineServerFn({
           }
           default:
             throw new Error("Unsupported invoice line type");
+        }
+        if (recoverablePurchaseTax && postingAmounts.recoverableTaxBase !== 0) {
+          if (!inputTaxAccount || !payablesAccountId)
+            throw new Error("Missing input VAT or AP mapping");
+          const vatReference = nanoid();
+          const common = {
+            quantity: 1,
+            documentType: "Invoice" as const,
+            documentId: purchaseInvoice.data.id,
+            externalDocumentId: purchaseInvoice.data.supplierReference,
+            journalLineReference: vatReference,
+            companyId
+          };
+          journalLineInserts.push(
+            {
+              ...common,
+              accountId:
+                invoiceLine.invoiceLineType === "Fixed Asset"
+                  ? (fixedAssetInputTaxAccount?.id ?? inputTaxAccount.id)
+                  : inputTaxAccount.id,
+              description: "Recoverable input VAT",
+              amount: round(debit("asset", postingAmounts.recoverableTaxBase))
+            },
+            {
+              ...common,
+              accountId: payablesAccountId,
+              description: "Accounts Payable - input VAT",
+              amount: round(
+                credit("liability", postingAmounts.recoverableTaxBase)
+              )
+            }
+          );
+          const vatDimensions = {
+            supplierTypeId: null,
+            itemPostingGroupId: null,
+            itemId: null,
+            locationId: invoiceLine.locationId ?? null,
+            costCenterId: invoiceLine.costCenterId ?? null,
+            projectId: invoiceLine.projectId ?? null,
+            processId: null,
+            fixedAssetClassId: null
+          };
+          journalLineDimensionsMeta.push(vatDimensions, vatDimensions);
         }
       }
 

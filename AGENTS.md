@@ -234,3 +234,7 @@ Internal technical context for each subsystem lives in `.claude/rules/` (the sou
 ## Browser Automation
 
 With the user's permission, use the `/auth` and `/test` skill to verify fixes.
+
+
+<!-- CC1-AGENTIC-KIT -->
+For app coding/build tasks, use the CC1 kit workflow at `D:/Code/agent code pilot BMAD/CC1_Enterprise_Agentic_SDLC_Kit_v0_3_0/integration/skills/cc1-agentic-build/SKILL.md`. Read `.cc1-agentic/project.json`; preserve this repository's own instructions and stack. Test this app, not just the kit. Default scope: localhost; no GitHub push or production deployment without explicit authorization.

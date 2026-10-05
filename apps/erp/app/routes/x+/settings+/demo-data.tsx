@@ -6,7 +6,10 @@
 import { assertIsPost, error } from "@carbon/auth";
 import { requirePermissions } from "@carbon/auth/auth.server";
 import { flash } from "@carbon/auth/session.server";
-import { DATASETS, datasetKeys } from "@carbon/database/datasets";
+import {
+  companyTemplateDatasetKeys,
+  DATASETS
+} from "@carbon/database/datasets";
 import { Heading, toast, VStack } from "@carbon/react";
 import { msg } from "@lingui/core/macro";
 import { Trans } from "@lingui/react/macro";
@@ -42,7 +45,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   // Read from DATASETS rather than a hardcoded list, so a new dataset shows up
   // here without a second edit. The loader is server-only, so this import never
   // reaches the browser bundle.
-  const datasets = datasetKeys().map((key) => ({
+  const datasets = companyTemplateDatasetKeys().map((key) => ({
     key,
     label: DATASETS[key].label
   }));
@@ -65,7 +68,10 @@ export async function action({ request }: ActionFunctionArgs) {
     // so it can be reverted; the snapshot is also what makes the wipe safe.
     case "apply": {
       const datasetKey = String(formData.get("datasetKey") ?? "");
-      if (!datasetKey || !datasetKeys().includes(datasetKey as never)) {
+      if (
+        !datasetKey ||
+        !companyTemplateDatasetKeys().includes(datasetKey as never)
+      ) {
         return { success: false, message: "Choose a demo dataset" };
       }
 
@@ -152,7 +158,7 @@ export async function action({ request }: ActionFunctionArgs) {
         failed.status !== "failed" ||
         failed.reason !== "scope-violations" ||
         failed.datasetKey !== datasetKey ||
-        !datasetKeys().includes(datasetKey as never)
+        !companyTemplateDatasetKeys().includes(datasetKey as never)
       ) {
         return {
           success: false,

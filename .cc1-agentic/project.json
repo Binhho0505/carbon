@@ -1,0 +1,17 @@
+﻿{
+  "version": "0.1.0",
+  "status": "DRAFT",
+  "kit": "D:\\Code\\agent code pilot BMAD\\CC1_Enterprise_Agentic_SDLC_Kit_v0_3_0",
+  "kitVersion": "0.3.0",
+  "adapterVersion": "0.1.0",
+  "bmad": "6.12.0",
+  "tea": "1.27.2",
+  "scope": "localhost",
+  "productionEnabled": false,
+  "pushAuthorized": true,
+  "checks": ["test", "build"],
+  "stack": "node",
+  "createdAt": "2026-10-04T21:34:31.406Z",
+  "instructionsBackup": "AGENTS.before.txt",
+  "pushAuthorization": "User explicitly requested push on 2026-10-05; fork only; production remains disabled."
+}

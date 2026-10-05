@@ -23,7 +23,7 @@ its query; delete it once Lingui strips the query itself.
 ## Config & catalogs
 
 - Root `lingui.config.js`: `sourceLocale: "en"`, format `po` (the default; v6 removed the `format: "po"` string form), `fallbackLocales.default: "en"`.
-- Locales: `en, es, de, it, ja, zh, fr, pl, pt, ru, hi, tr, ko` (13). The runtime
+- Locales: `en, es, de, it, ja, zh, fr, pl, pt, ru, hi, tr, ko, vi` (14). The runtime
   list in `packages/locale/src/config.ts` (`supportedLanguages`) matches this set.
 - Two catalogs, each extracted from app + shared package sources:
   - `packages/locale/locales/{locale}/erp` ← `apps/erp/app`, `packages/react/src`, `packages/form/src`, `packages/printing/src/ui`
