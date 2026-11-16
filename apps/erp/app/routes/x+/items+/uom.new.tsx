@@ -6,19 +6,18 @@ import { assertIsPost, error, success } from "@carbon/auth";
 import { requirePermissions } from "@carbon/auth/auth.server";
 import { flash } from "@carbon/auth/session.server";
 import { validationError, validator } from "@carbon/form";
-import { useCloseRoute } from "@carbon/react";
-import { redirect } from "@carbon/utils";
-import type {
-  ActionFunctionArgs,
-  ClientActionFunctionArgs,
-  LoaderFunctionArgs
-} from "react-router";
+import { useRouteDialog } from "@carbon/react";
+import { isUniqueViolation, redirect } from "@carbon/utils";
+import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import { data } from "react-router";
-import { unitOfMeasureValidator, upsertUnitOfMeasure } from "~/modules/items";
+import {
+  UNIT_OF_MEASURE_TAKEN,
+  unitOfMeasureValidator
+} from "~/modules/items/items.models";
+import { upsertUnitOfMeasure } from "~/modules/items/items.service";
 import { UnitOfMeasureForm } from "~/modules/items/ui/UnitOfMeasure";
 import { setCustomFields } from "~/utils/form";
 import { getParams, path } from "~/utils/path";
-import { getCompanyId, uomsQuery } from "~/utils/react-query";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   await requirePermissions(request, {
@@ -57,7 +56,12 @@ export async function action({ request }: ActionFunctionArgs) {
       {},
       await flash(
         request,
-        error(insertUnitOfMeasure.error, "Failed to insert unit of measure")
+        error(
+          insertUnitOfMeasure.error,
+          isUniqueViolation(insertUnitOfMeasure.error)
+            ? UNIT_OF_MEASURE_TAKEN
+            : "Failed to insert unit of measure"
+        )
       )
     );
   }
@@ -70,22 +74,18 @@ export async function action({ request }: ActionFunctionArgs) {
       );
 }
 
-export async function clientAction({ serverAction }: ClientActionFunctionArgs) {
-  window?.clientCache?.setQueryData(uomsQuery(getCompanyId()).queryKey, null);
-
-  return await serverAction();
-}
-
 export default function NewUnitOfMeasuresRoute() {
-  const closeRoute = useCloseRoute();
+  const dialog = useRouteDialog();
   const initialValues = {
     name: "",
-    code: ""
+    code: "",
+    active: true
   };
 
   return (
     <UnitOfMeasureForm
-      onClose={() => closeRoute()}
+      open={dialog.open}
+      onClose={dialog.close}
       initialValues={initialValues}
     />
   );

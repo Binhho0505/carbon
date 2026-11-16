@@ -4,6 +4,7 @@
 
 import { getBrowserEnv } from "@carbon/auth";
 import { DateTimePicker, ValidatedForm } from "@carbon/form";
+import { useAction } from "@carbon/query";
 import {
   Alert,
   AlertTitle,
@@ -30,9 +31,8 @@ import {
 import { Trans, useLingui } from "@lingui/react/macro";
 import { useEffect, useMemo, useState } from "react";
 import { LuCheck, LuClipboard, LuLock } from "react-icons/lu";
-import { useFetcher } from "react-router";
 import type { z } from "zod";
-import { Hidden, Input, Submit } from "~/components/Form";
+import { Hidden, Input, Number, Submit } from "~/components/Form";
 import PermissionMatrix from "~/components/PermissionMatrix";
 import { usePermissions } from "~/hooks";
 import {
@@ -44,7 +44,7 @@ import {
   apiKeyOptInPermissionKeys,
   apiKeyPermissionModules,
   apiKeyValidator
-} from "~/modules/settings";
+} from "~/modules/settings/settings.models";
 import { path } from "~/utils/path";
 import { copyToClipboard } from "~/utils/string";
 
@@ -52,6 +52,9 @@ type ApiKeyFormProps = {
   initialValues: z.infer<typeof apiKeyValidator>;
   companyId?: string;
   existingScopes?: Record<string, string[]> | null;
+  /** A single-tenant deployment's admins set the limit; Carbon Cloud sets it. */
+  canSetRateLimit?: boolean;
+  open?: boolean;
   onClose: () => void;
 };
 
@@ -59,11 +62,17 @@ const ApiKeyForm = ({
   initialValues,
   companyId,
   existingScopes,
+  canSetRateLimit,
+  open = true,
   onClose
 }: ApiKeyFormProps) => {
   const { t } = useLingui();
   const permissions = usePermissions();
-  const fetcher = useFetcher<{ key: string }>();
+  const fetcher = useAction({
+    onSuccess: ({ data }) => {
+      if (data?.key) setKey(data.key);
+    }
+  });
 
   const isEditing = initialValues.id !== undefined;
   const isDisabled = !permissions.can("update", "users");
@@ -85,12 +94,6 @@ const ApiKeyForm = ({
     bulkExcludedKeys: apiKeyOptInPermissionKeys
   });
 
-  useEffect(() => {
-    if (fetcher.data?.key) {
-      setKey(fetcher.data.key);
-    }
-  }, [fetcher.data]);
-
   // Serialize scopes to JSONB format for form submission
   const scopesJsonb = companyId
     ? JSON.stringify(toApiKeyScopes(matrix.permissions, companyId))
@@ -99,7 +102,7 @@ const ApiKeyForm = ({
   return (
     <>
       <Modal
-        open
+        open={open}
         onOpenChange={(open) => {
           if (!open) onClose?.();
         }}
@@ -135,6 +138,15 @@ const ApiKeyForm = ({
                   minValue={toCalendarDateTime(today(getLocalTimeZone()))}
                 />
 
+                {canSetRateLimit && (
+                  <Number
+                    name="rateLimit"
+                    label={t`Requests per minute`}
+                    minValue={1}
+                    maxValue={1_000_000}
+                  />
+                )}
+
                 <PermissionMatrix matrix={matrix} isDisabled={isDisabled} />
               </VStack>
             </ModalBody>
@@ -151,7 +163,7 @@ const ApiKeyForm = ({
           </ValidatedForm>
         </ModalContent>
       </Modal>
-      {key && <ApiKeyView apiKey={key} onClose={onClose} />}
+      {key && <ApiKeyView apiKey={key} open={open} onClose={onClose} />}
     </>
   );
 };
@@ -160,10 +172,11 @@ export default ApiKeyForm;
 
 type ApiKeyViewProps = {
   apiKey: string;
+  open?: boolean;
   onClose: () => void;
 };
 
-function ApiKeyView({ apiKey, onClose }: ApiKeyViewProps) {
+function ApiKeyView({ apiKey, open = true, onClose }: ApiKeyViewProps) {
   const { t } = useLingui();
   const [copied, setCopied] = useState<"key" | "mcp" | null>(null);
   useEffect(() => {
@@ -179,7 +192,7 @@ function ApiKeyView({ apiKey, onClose }: ApiKeyViewProps) {
 
   return (
     <Modal
-      open
+      open={open}
       onOpenChange={(open) => {
         if (!open) onClose();
       }}

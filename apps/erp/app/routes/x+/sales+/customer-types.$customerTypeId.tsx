@@ -6,23 +6,18 @@ import { assertIsPost, error, notFound, success } from "@carbon/auth";
 import { requirePermissions } from "@carbon/auth/auth.server";
 import { flash } from "@carbon/auth/session.server";
 import { validationError, validator } from "@carbon/form";
-import { useCloseRoute } from "@carbon/react";
+import { useRouteDialog } from "@carbon/react";
 import { redirect } from "@carbon/utils";
-import type {
-  ActionFunctionArgs,
-  ClientActionFunctionArgs,
-  LoaderFunctionArgs
-} from "react-router";
+import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import { data, useLoaderData } from "react-router";
+import { customerTypeValidator } from "~/modules/sales/sales.models";
 import {
-  customerTypeValidator,
   getCustomerType,
   upsertCustomerType
-} from "~/modules/sales";
+} from "~/modules/sales/sales.service";
 import { CustomerTypeForm } from "~/modules/sales/ui/CustomerTypes";
 import { getCustomFields, setCustomFields } from "~/utils/form";
 import { getParams, path } from "~/utils/path";
-import { customerTypesQuery, getCompanyId } from "~/utils/react-query";
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const { client } = await requirePermissions(request, {
@@ -86,17 +81,9 @@ export async function action({ request }: ActionFunctionArgs) {
   );
 }
 
-export async function clientAction({ serverAction }: ClientActionFunctionArgs) {
-  window.clientCache?.setQueryData(
-    customerTypesQuery(getCompanyId()).queryKey,
-    null
-  );
-  return await serverAction();
-}
-
 export default function EditCustomerTypesRoute() {
   const { customerType } = useLoaderData<typeof loader>();
-  const closeRoute = useCloseRoute();
+  const dialog = useRouteDialog();
 
   const initialValues = {
     id: customerType?.id ?? undefined,
@@ -108,7 +95,8 @@ export default function EditCustomerTypesRoute() {
     <CustomerTypeForm
       key={initialValues.id}
       initialValues={initialValues}
-      onClose={() => closeRoute()}
+      open={dialog.open}
+      onClose={dialog.close}
     />
   );
 }

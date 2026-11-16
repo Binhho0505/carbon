@@ -4,11 +4,11 @@
 
 import type { ComboboxProps } from "@carbon/form";
 import { CreatableCombobox } from "@carbon/form";
-import { useDisclosure, useMount } from "@carbon/react";
-import { useMemo, useRef, useState } from "react";
-import { useFetcher } from "react-router";
+import { useLoaderQuery } from "@carbon/query";
+import { useMemo, useRef } from "react";
 import { Enumerable } from "~/components/Enumerable";
-import type { getCustomerTypesList } from "~/modules/sales";
+import { useDrawerItem } from "~/hooks";
+import type { getCustomerTypesList } from "~/modules/sales/sales.service";
 import { CustomerTypeForm } from "~/modules/sales/ui/CustomerTypes";
 import { path } from "~/utils/path";
 import { useEmptyState } from "./emptyStates";
@@ -18,14 +18,13 @@ type CustomerTypeSelectProps = Omit<ComboboxProps, "options"> & {
 };
 
 const CustomerType = (props: CustomerTypeSelectProps) => {
-  const newCustomerTypeModal = useDisclosure();
-  const [created, setCreated] = useState<string>("");
+  const create = useDrawerItem<string>();
   const triggerRef = useRef<HTMLButtonElement>(null);
 
   const options = useCustomerTypes();
 
   const emptyMessage = useEmptyState("customerType", {
-    onCreate: () => newCustomerTypeModal.onOpen()
+    onCreate: () => create.open("")
   });
 
   return (
@@ -43,20 +42,20 @@ const CustomerType = (props: CustomerTypeSelectProps) => {
         {...props}
         label={props?.label ?? "CustomerType"}
         onCreateOption={(option) => {
-          newCustomerTypeModal.onOpen();
-          setCreated(option);
+          create.open(option);
         }}
       />
-      {newCustomerTypeModal.isOpen && (
+      {create.item !== null && (
         <CustomerTypeForm
+          key={create.key}
+          open={create.isOpen}
           type="modal"
           onClose={() => {
-            setCreated("");
-            newCustomerTypeModal.onClose();
-            triggerRef.current?.click();
+            create.close();
+            create.afterClose(() => triggerRef.current?.click());
           }}
           initialValues={{
-            name: created
+            name: create.item
           }}
         />
       )}
@@ -69,12 +68,9 @@ CustomerType.displayName = "CustomerType";
 export default CustomerType;
 
 export const useCustomerTypes = (enabled = true) => {
-  const customerTypeFetcher =
-    useFetcher<Awaited<ReturnType<typeof getCustomerTypesList>>>();
-
-  useMount(() => {
-    if (enabled) customerTypeFetcher.load(path.to.api.customerTypes);
-  });
+  const customerTypeFetcher = useLoaderQuery<
+    Awaited<ReturnType<typeof getCustomerTypesList>>
+  >(enabled ? path.to.api.customerTypes : null);
 
   const options = useMemo(() => {
     const dataSource = customerTypeFetcher.data?.data ?? [];

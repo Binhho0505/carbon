@@ -4,15 +4,13 @@
 
 import type { CreatableComboboxProps } from "@carbon/form";
 import { CreatableCombobox } from "@carbon/form";
-import { useDisclosure } from "@carbon/react";
+import { useLoaderQuery } from "@carbon/query";
 import { formatAddress } from "@carbon/utils";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useFetcher } from "react-router";
-import type {
-  getSupplierLocations,
-  SupplierLocation as SupplierLocationType
-} from "~/modules/purchasing";
-import { SupplierLocationForm } from "~/modules/purchasing/ui/Supplier";
+import { useMemo, useRef } from "react";
+import { useDrawerItem } from "~/hooks";
+import type { getSupplierLocations } from "~/modules/purchasing/purchasing.service";
+import type { SupplierLocation as SupplierLocationType } from "~/modules/purchasing/types";
+import SupplierLocationForm from "~/modules/purchasing/ui/Supplier/SupplierLocationForm";
 import { useSuppliers } from "~/stores";
 import { path } from "~/utils/path";
 import { useEmptyState } from "./emptyStates";
@@ -41,21 +39,14 @@ const SupplierLocation = ({
   supplier,
   ...props
 }: SupplierLocationSelectProps) => {
-  const newLocationModal = useDisclosure();
-  const [created, setCreated] = useState<string>("");
+  const create = useDrawerItem<string>();
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const supplierLocationsFetcher =
-    useFetcher<Awaited<ReturnType<typeof getSupplierLocations>>>();
+  const supplierLocationsFetcher = useLoaderQuery<
+    Awaited<ReturnType<typeof getSupplierLocations>>
+  >(supplier ? path.to.api.supplierLocations(supplier) : null);
   const [suppliers] = useSuppliers();
   const supplierName =
     suppliers.find((s) => s.id === supplier)?.name ?? "Main Location";
-
-  // biome-ignore lint/correctness/useExhaustiveDependencies: suppressed due to migration
-  useEffect(() => {
-    if (supplier) {
-      supplierLocationsFetcher.load(path.to.api.supplierLocations(supplier));
-    }
-  }, [supplier]);
 
   const options = useMemo(
     () =>
@@ -85,7 +76,7 @@ const SupplierLocation = ({
 
   const emptyMessage = useEmptyState(
     "supplierLocation",
-    supplier ? { onCreate: () => newLocationModal.onOpen() } : undefined
+    supplier ? { onCreate: () => create.open("") } : undefined
   );
 
   return (
@@ -99,28 +90,22 @@ const SupplierLocation = ({
         emptyMessage={emptyMessage}
         onChange={onChange}
         onCreateOption={(option) => {
-          newLocationModal.onOpen();
-          setCreated(option);
+          create.open(option);
         }}
       />
-      {newLocationModal.isOpen && (
+      {create.item !== null && (
         <SupplierLocationForm
+          key={create.key}
+          open={create.isOpen}
           supplierId={supplier!}
           type="modal"
           onClose={() => {
-            setCreated("");
-            newLocationModal.onClose();
-            // Reload the per-supplier fetcher so a just-created location appears.
-            if (supplier) {
-              supplierLocationsFetcher.load(
-                path.to.api.supplierLocations(supplier)
-              );
-            }
-            triggerRef.current?.click();
+            create.close();
+            create.afterClose(() => triggerRef.current?.click());
           }}
           initialValues={{
             name: supplierName,
-            addressLine1: created || "",
+            addressLine1: create.item || "",
             addressLine2: "",
             city: "",
             stateProvince: "",

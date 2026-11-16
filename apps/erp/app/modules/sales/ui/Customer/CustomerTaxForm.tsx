@@ -13,19 +13,20 @@ import {
   CardHeader,
   CardTitle,
   HStack,
-  toast
+  toast,
+  toastError
 } from "@carbon/react";
 import { isEoriCountry } from "@carbon/utils";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { nanoid } from "nanoid";
 import { useCallback, useState } from "react";
-import { LuPaperclip } from "react-icons/lu";
+import { LuPaperclip, LuTrash2 } from "react-icons/lu";
 import type { z } from "zod";
 import { FileDropzone } from "~/components";
 import { Enumerable } from "~/components/Enumerable";
 import { Boolean, Hidden, Input, Select, Submit } from "~/components/Form";
 import { usePermissions, useUser } from "~/hooks";
-import { taxExemptionReasons } from "~/modules/shared";
+import { taxExemptionReasons } from "~/modules/shared/shared.models";
 import { customerTaxValidator } from "../../sales.models";
 
 type CustomerTaxFormProps = {
@@ -64,7 +65,7 @@ const CustomerTaxForm = ({ initialValues }: CustomerTaxFormProps) => {
         .upload(fileName, file);
 
       if (result.error) {
-        toast.error(t`Failed to upload certificate`);
+        toastError(t`Failed to upload certificate`, result.error);
       } else {
         setCertificatePath(result.data.path);
         toast.success(t`Certificate uploaded`);
@@ -100,7 +101,7 @@ const CustomerTaxForm = ({ initialValues }: CustomerTaxFormProps) => {
             ) : (
               <div />
             )}
-            <div className="col-span-3">
+            <div className="col-span-3 max-md:col-span-full">
               <Boolean
                 name="taxExempt"
                 label={t`Tax Exempt`}
@@ -147,6 +148,17 @@ const CustomerTaxForm = ({ initialValues }: CustomerTaxFormProps) => {
                     </a>
                   </Button>
                 )}
+                {certificatePath && (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    leftIcon={<LuTrash2 />}
+                    isDisabled={isDisabled}
+                    onClick={() => setCertificatePath("")}
+                  >
+                    <Trans>Remove</Trans>
+                  </Button>
+                )}
               </div>
               <FileDropzone
                 onDrop={onDrop}
@@ -159,7 +171,7 @@ const CustomerTaxForm = ({ initialValues }: CustomerTaxFormProps) => {
             </div>
           )}
         </CardContent>
-        <CardFooter>
+        <CardFooter className="max-md:[&>*]:flex-1 max-md:[&>div>*]:flex-1 max-md:[&_button]:h-11">
           <HStack>
             <Submit isDisabled={isDisabled}>
               <Trans>Save</Trans>

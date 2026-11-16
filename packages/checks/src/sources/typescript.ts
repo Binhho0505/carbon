@@ -16,7 +16,6 @@ const TYPESCRIPT_ROOTS = [
   "apps/mes/app",
   "packages/database/supabase/functions",
   "packages/database/src",
-  "packages/server-functions/src",
   "packages/ee/src",
   "packages/jobs/src",
   "packages/documents/src/pdf",
@@ -28,6 +27,7 @@ const TYPESCRIPT_ROOTS = [
   "packages/files/src",
   "packages/form/src",
   "packages/react/src",
+  "packages/query/src",
   "packages/printing/src"
   // (workflows source now lives under packages/ee/src, already scanned above)
 ];
@@ -73,7 +73,6 @@ export const REQUEST_HANDLING_ROOTS = [
   "apps/starter/app",
   "packages/auth/src",
   "packages/database/supabase/functions",
-  "packages/server-functions/src",
   "packages/ee/src",
   "packages/jobs/src",
   "packages/lib/src",

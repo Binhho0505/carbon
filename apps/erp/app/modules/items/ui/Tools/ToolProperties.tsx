@@ -4,6 +4,7 @@
 
 import type { Json } from "@carbon/database";
 import { InputControlled, Select, ValidatedForm } from "@carbon/form";
+import { toastServiceError, useAction } from "@carbon/query";
 import {
   Badge,
   Button,
@@ -13,14 +14,13 @@ import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-  toast,
   VStack
 } from "@carbon/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { PostgrestResponse } from "@supabase/supabase-js";
-import { Suspense, useCallback, useEffect } from "react";
+import { Suspense, useCallback, useState } from "react";
 import { LuCopy, LuKeySquare, LuLink } from "react-icons/lu";
-import { Await, Link, useFetcher, useParams } from "react-router";
+import { Await, Link, useParams } from "react-router";
 import { z } from "zod";
 import { zfd } from "zod-form-data";
 import {
@@ -40,7 +40,7 @@ import { ReplenishmentSystemIcon } from "~/components/Icons";
 import { ItemThumbnailUpload } from "~/components/ItemThumnailUpload";
 import { useCompanySettings, useRouteData } from "~/hooks";
 import { useResolved } from "~/hooks/useResolved";
-import { methodType } from "~/modules/shared";
+import { methodType } from "~/modules/shared/shared.models";
 import type { action } from "~/routes/x+/items+/update";
 import { useSuppliers } from "~/stores";
 import type { ListItem } from "~/types";
@@ -50,7 +50,10 @@ import {
   itemReplenishmentSystems,
   itemTrackingTypes
 } from "../../items.models";
-import type { UnreleasedChangeOrderItem } from "../../items.server";
+import type {
+  ItemUsedIn,
+  UnreleasedChangeOrderItem
+} from "../../items.service";
 import type {
   ItemFile,
   MakeMethod,
@@ -59,7 +62,12 @@ import type {
   Tool
 } from "../../types";
 import { ItemChangeNoticeLock } from "../ChangeNotice/ItemChangeNoticeLock";
-import { FileBadge, ItemDescription, SourcingTypeProperty } from "../Item";
+import {
+  FileBadge,
+  ItemDescription,
+  SourcingTypeProperty,
+  useIsComponentOfBuyAndMake
+} from "../Item";
 
 type ToolPropertiesProps = {
   data?: {
@@ -71,6 +79,8 @@ type ToolPropertiesProps = {
     pickMethods: PickMethod[];
     makeMethods: Promise<PostgrestResponse<MakeMethod>>;
     tags: { name: string }[];
+    // Set by the bill of material tree, which knows the selected line's parent.
+    isComponentOfBuyAndMake?: boolean;
     // Set while the change notice that minted this item is still open.
     unreleasedChangeOrder?: UnreleasedChangeOrderItem | null;
   };
@@ -114,6 +124,7 @@ const ToolProperties = ({ data }: ToolPropertiesProps) => {
         } | null;
       }>
     >;
+    usedIn?: Promise<ItemUsedIn>;
     // Set while the change notice that minted this item is still open.
     unreleasedChangeOrder?: UnreleasedChangeOrderItem | null;
   }>(path.to.tool(itemId));
@@ -126,6 +137,11 @@ const ToolProperties = ({ data }: ToolPropertiesProps) => {
     routeDataFromRoute?.supersededBy,
     null,
     itemId
+  );
+  const isComponentOfBuyAndMake = useIsComponentOfBuyAndMake(
+    routeDataFromRoute?.usedIn,
+    itemId,
+    data?.isComponentOfBuyAndMake
   );
   const routeData = data ?? routeDataFromRoute;
 
@@ -142,13 +158,21 @@ const ToolProperties = ({ data }: ToolPropertiesProps) => {
   //     ? optimisticAssignment
   //     : routeData?.toolSummary?.assignee;
 
-  const fetcher = useFetcher<typeof action>();
-  useEffect(() => {
-    if (fetcher.data?.error) {
-      toast.error(fetcher.data.error.message);
+  const fetcher = useAction<typeof action>({
+    onError: (data) => {
+      toastServiceError(data);
     }
-  }, [fetcher.data]);
-
+  });
+  // A refused change leaves the tracking type select showing the refused
+  // value; a new key remounts it on the stored value. It has its own fetcher,
+  // so a refusal of another field never resets it.
+  const [trackingRefusals, setTrackingRefusals] = useState(0);
+  const trackingFetcher = useAction<typeof action>({
+    onError: (data) => {
+      toastServiceError(data);
+      setTrackingRefusals((count) => count + 1);
+    }
+  });
   // biome-ignore lint/correctness/useExhaustiveDependencies: suppressed due to migration
   const onUpdate = useCallback(
     (
@@ -171,10 +195,13 @@ const ToolProperties = ({ data }: ToolPropertiesProps) => {
       formData.append("items", itemId);
       formData.append("field", field);
       formData.append("value", value?.toString() ?? "");
-      fetcher.submit(formData, {
-        method: "post",
-        action: path.to.bulkUpdateItems
-      });
+      (field === "itemTrackingType" ? trackingFetcher : fetcher).submit(
+        formData,
+        {
+          method: "post",
+          action: path.to.bulkUpdateItems
+        }
+      );
     },
 
     [itemId]
@@ -416,6 +443,7 @@ const ToolProperties = ({ data }: ToolPropertiesProps) => {
       </ValidatedForm>
 
       <ValidatedForm
+        key={`itemTrackingType-${trackingRefusals}`}
         defaultValues={{
           itemTrackingType:
             routeData?.toolSummary?.itemTrackingType ?? undefined
@@ -517,6 +545,7 @@ const ToolProperties = ({ data }: ToolPropertiesProps) => {
       </ValidatedForm>
 
       <SourcingTypeProperty
+        isComponentOfBuyAndMake={isComponentOfBuyAndMake}
         replenishmentSystem={routeData?.toolSummary?.replenishmentSystem}
         value={routeData?.toolSummary?.sourcingType}
         onChange={(value) => onUpdate("sourcingType", value)}

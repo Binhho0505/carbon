@@ -3,22 +3,19 @@
 // including ports, remain AGPLv3; serving them over a network requires releasing their source.
 
 import { useCarbon } from "@carbon/auth";
-import {
-  toast,
-  useDisclosure,
-  useInterval,
-  useRealtimeChannel
-} from "@carbon/react";
+import { useChangedRows } from "@carbon/query";
+import { toast, useDisclosure, useInterval, useViewport } from "@carbon/react";
 import {
   getLocalTimeZone,
   now,
   parseAbsolute,
+  parseDate,
+  today,
   toZoned
 } from "@internationalized/date";
-import type { RealtimeChannel } from "@supabase/supabase-js";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router";
-import { useRealtimeRevalidator, useUrlParams, useUser } from "~/hooks";
+import { useRealtime, useUrlParams, useUser } from "~/hooks";
 import { isSerialEntityIncompleteForOperation } from "~/services/operations.service";
 import { shouldAdvanceToNextSerialUnit } from "~/services/serial-advancement";
 import type {
@@ -71,10 +68,6 @@ export function useOperation({
   const { carbon, accessToken } = useCarbon();
   const user = useUser();
 
-  const revalidate = useRealtimeRevalidator();
-  // biome-ignore lint/correctness/noUnusedVariables: suppressed due to migration
-  const channelRef = useRef<RealtimeChannel | null>(null);
-
   const actionsSheet = useDisclosure();
   const scrapModal = useDisclosure();
   const reworkModal = useDisclosure();
@@ -99,7 +92,23 @@ export function useOperation({
   );
 
   const [activeTab, setActiveTab] = useState("details");
-  const [eventType, setEventType] = useState(() => {
+  const { isPhone } = useViewport();
+  // Phones open on the timer that runs, so Pause shows for it. A Setup or
+  // Labor timer counts only when it is this user's; Machine counts for anyone
+  // (the same rule as `activeEvents` below). Else: Setup, Machine, Labor.
+  const [eventType, setEventType] = useState<string>(() => {
+    const isRunning = (type: string) =>
+      events.some(
+        (e) =>
+          e.type === type &&
+          e.endTime === null &&
+          (type === "Machine" || e.employeeId === user.id)
+      );
+    const running =
+      isPhone && (["Setup", "Machine", "Labor"] as const).find(isRunning);
+    if (running) {
+      return running;
+    }
     if (operation.setupDuration > 0) {
       return "Setup";
     }
@@ -121,91 +130,62 @@ export function useOperation({
     setOperationState(operation);
   }, [operation]);
 
-  useRealtimeChannel({
-    topic: `job-operations:${operation.id}`,
-    dependencies: [operation.jobId, batchId],
-    setup(channel) {
-      return channel
-        .on(
-          "postgres_changes",
-          {
-            event: "*",
-            schema: "public",
-            table: "job",
-            filter: `id=eq.${operation.jobId}`
-          },
-          (payload) => {
-            if (payload.eventType === "UPDATE") {
-              revalidate();
-            }
-          }
-        )
-        .on(
-          "postgres_changes",
-          {
-            event: "*",
-            schema: "public",
-            table: "productionEvent",
-            filter: batchId
-              ? `jobOperationBatchId=eq.${batchId}`
-              : `jobOperationId=eq.${operation.id}`
-          },
-          (payload) => {
-            switch (payload.eventType) {
-              case "INSERT":
-                const { new: inserted } = payload;
-                setEventState((prevEvents) => [
-                  ...prevEvents,
-                  inserted as ProductionEvent
-                ]);
-                break;
-              case "UPDATE":
-                const { new: updated } = payload;
+  useRealtime("job", `id=eq.${operation.jobId}`);
 
-                setEventState((prevEvents) =>
-                  prevEvents.map((event) =>
-                    event.id === updated.id
-                      ? ({
-                          ...event,
-                          ...updated
-                        } as ProductionEvent)
-                      : event
-                  )
-                );
-                break;
-              case "DELETE":
-                const { old: deleted } = payload;
-                setEventState((prevEvents) =>
-                  prevEvents.filter((event) => event.id !== deleted.id)
-                );
-                break;
-              default:
-                break;
-            }
-          }
-        )
-        .on(
-          "postgres_changes",
-          {
-            event: "*",
-            schema: "public",
-            table: "jobOperation",
-            filter: `id=eq.${operation.id}`
-          },
-          (payload) => {
-            if (payload.eventType === "UPDATE") {
-              const updated = payload.new;
-              setOperationState((prev) => ({
-                ...prev,
-                ...updated,
-                operationStatus: updated.status ?? prev.operationStatus
-              }));
-            } else if (payload.eventType === "DELETE") {
-              toast.error("This operation has been deleted");
-              window.location.href = path.to.operations;
-            }
-          }
+  useChangedRows<ProductionEvent>({
+    companyId: user.company.id,
+    table: "productionEvent",
+    filter: batchId
+      ? `jobOperationBatchId=eq.${batchId}`
+      : `jobOperationId=eq.${operation.id}`,
+    onChange: ({ op, ids, rows }) => {
+      if (op === "DELETE") {
+        setEventState((prevEvents) =>
+          prevEvents.filter((event) => !ids.includes(event.id))
         );
+        return;
+      }
+      const mine = rows.filter((row) =>
+        batchId
+          ? row.jobOperationBatchId === batchId
+          : row.jobOperationId === operation.id
+      );
+      setEventState((prevEvents) => {
+        let next = prevEvents;
+        for (const row of mine) {
+          next = next.some((event) => event.id === row.id)
+            ? next.map((event) =>
+                event.id === row.id ? { ...event, ...row } : event
+              )
+            : [...next, row];
+        }
+        return next;
+      });
+    }
+  });
+
+  useChangedRows<{
+    id: string;
+    status?: OperationWithDetails["operationStatus"];
+  }>({
+    companyId: user.company.id,
+    table: "jobOperation",
+    filter: `id=eq.${operation.id}`,
+    onChange: ({ op, ids, rows }) => {
+      if (op === "DELETE") {
+        if (ids.includes(operation.id)) {
+          toast.error("This operation has been deleted");
+          window.location.href = path.to.operations;
+        }
+        return;
+      }
+      const updated = rows.find((row) => row.id === operation.id);
+      if (!updated) return;
+      setOperationState((prev) => ({
+        ...prev,
+        ...updated,
+        operationStatus: updated.status ?? prev.operationStatus
+      }));
     }
   });
 
@@ -336,6 +316,17 @@ export function useOperation({
       return;
     }
 
+    // Exactly one unit can be worked here (one left, or the only unit a
+    // correction or rework operation was scoped to): there is nothing to
+    // choose, so select it instead of asking for a scan.
+    if (uncompletedEntities.length === 1) {
+      const onlyUnit = uncompletedEntities[0]!;
+      arrivalPromptedRef.current = true;
+      heldEntityRef.current = onlyUnit.id;
+      if (trackedEntityParam !== onlyUnit.id) onAdvanceToUnit?.(onlyUnit);
+      return;
+    }
+
     // Prompt scan/select once on arrival — even when a stale/auto-seeded
     // ?trackedEntityId is present, which would otherwise read as "already working
     // a unit".
@@ -385,8 +376,12 @@ export function useOperation({
     finishModal,
     issueModal,
     serialModal,
-    isOverdue: operation.operationDueDate
-      ? new Date(operation.operationDueDate) < new Date()
+    // The JOB's deadline. The operation's own `operationDueDate` is the
+    // scheduler's need-by target for this step, shown separately.
+    isOverdue: operation.jobDueDate
+      ? parseDate(operation.jobDueDate.slice(0, 10)).compare(
+          today(getLocalTimeZone())
+        ) < 0
       : false,
     selectedMaterial,
     setSelectedMaterial,

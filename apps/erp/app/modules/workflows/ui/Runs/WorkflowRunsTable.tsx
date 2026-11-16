@@ -2,7 +2,6 @@
 // Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
 // including ports, remain AGPLv3; serving them over a network requires releasing their source.
 
-import { getTableLabel } from "@carbon/database/audit.config";
 import { HStack } from "@carbon/react";
 import { formatDateTime, formatDurationMilliseconds } from "@carbon/utils";
 import { useLingui } from "@lingui/react/macro";
@@ -17,24 +16,26 @@ import {
   LuZap
 } from "react-icons/lu";
 import { EmployeeAvatar, Hyperlink, Table } from "~/components";
-import { useUser } from "~/hooks";
+import type { InfiniteOptions } from "~/components/Table";
 import { path } from "~/utils/path";
 import type { WorkflowRun } from "../../workflows.service";
 import { useWorkflowEventLabel } from "../Builder/catalog";
 import { EntityRecordLink } from "./EntityRecordLink";
 import { RunsLiveUpdates } from "./RunLiveUpdates";
 import { RunStatus, TestRunBadge } from "./RunStatus";
+import { WORKFLOW_RUN_LIST_EXPORT_VALUES } from "./workflow-run-list-export";
 
 export type WorkflowRunListItem = WorkflowRun & { recordName?: string };
 
 type WorkflowRunsTableProps = {
   data: WorkflowRunListItem[];
   count: number;
+  infinite: InfiniteOptions;
 };
 
-const WorkflowRunsTable = memo(({ data, count }: WorkflowRunsTableProps) => {
+const WorkflowRunsTable = memo((props: WorkflowRunsTableProps) => {
+  const { data, count, infinite } = props;
   const { t } = useLingui();
-  const { company } = useUser();
   // A fresh closure each render, so the columns memo reads it through a ref rather than
   // rebuilding every column on every render.
   const eventLabel = useWorkflowEventLabel();
@@ -58,7 +59,7 @@ const WorkflowRunsTable = memo(({ data, count }: WorkflowRunsTableProps) => {
             </HStack>
           </Hyperlink>
         ),
-        meta: { icon: <LuHash /> }
+        meta: { mobile: "P1", icon: <LuHash /> }
       },
       {
         accessorKey: "workflowId",
@@ -70,10 +71,10 @@ const WorkflowRunsTable = memo(({ data, count }: WorkflowRunsTableProps) => {
           </Hyperlink>
         ),
         meta: {
+          mobile: "P3",
           icon: <LuLink />,
           filterHeader: t`Workflow`,
-          exportValue: (row: WorkflowRunListItem) =>
-            (row.workflow as { name?: string } | null)?.name ?? row.workflowId
+          exportValue: WORKFLOW_RUN_LIST_EXPORT_VALUES.workflowId
         }
       },
       {
@@ -103,10 +104,7 @@ const WorkflowRunsTable = memo(({ data, count }: WorkflowRunsTableProps) => {
         meta: {
           icon: <LuLink />,
           filterHeader: t`Record`,
-          exportValue: (row: WorkflowRunListItem) =>
-            row.triggerTable && row.triggerRecordId
-              ? `${getTableLabel(row.triggerTable)} ${row.recordName ?? row.triggerRecordId}`
-              : ""
+          exportValue: WORKFLOW_RUN_LIST_EXPORT_VALUES.triggerRecordId
         }
       },
       {
@@ -125,7 +123,7 @@ const WorkflowRunsTable = memo(({ data, count }: WorkflowRunsTableProps) => {
           const ms = row.original.durationMs;
           return ms != null ? formatDurationMilliseconds(ms) : "—";
         },
-        meta: { icon: <LuClock /> }
+        meta: { mobile: "P2", icon: <LuClock /> }
       },
       {
         accessorKey: "ownerId",
@@ -161,9 +159,10 @@ const WorkflowRunsTable = memo(({ data, count }: WorkflowRunsTableProps) => {
 
   return (
     <>
-      {hasInFlight && <RunsLiveUpdates companyId={company.id} />}
+      {hasInFlight && <RunsLiveUpdates />}
       <Table<WorkflowRunListItem>
         data={data}
+        infinite={infinite}
         columns={columns}
         count={count}
         title={t`Runs`}

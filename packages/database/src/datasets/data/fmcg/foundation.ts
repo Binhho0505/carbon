@@ -874,7 +874,10 @@ export const fmcgFoundation: FoundationData = {
       requiresBin: true
     }
   ],
-  storageTypes: ["Shelf", "Bin", "Rack", "Cabinet"],
+  storageTypes: ["Shelf", "Bin", "Rack", "Cabinet", "Quarantine"],
+  nonNettableStorageTypes: ["Quarantine"],
+  inspectionShelf: "QC-Inspection",
+  rejectedShelf: "MRB-Hold",
   shelves: [
     {
       name: "Aisle-A",
@@ -944,7 +947,9 @@ export const fmcgFoundation: FoundationData = {
       name: "Chiết rót-Crib",
       warehouse: "Main",
       storageType: "Shelf"
-    }
+    },
+    { name: "MRB-Hold", warehouse: "Main", storageType: "Quarantine" },
+    { name: "QC-Inspection", warehouse: "QC", storageType: "Quarantine" }
   ],
   printerRoute: {
     name: "FMCG Nameplate Printer",

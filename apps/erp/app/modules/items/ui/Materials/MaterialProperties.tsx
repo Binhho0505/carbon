@@ -4,6 +4,7 @@
 
 import type { Json } from "@carbon/database";
 import { InputControlled, Select, ValidatedForm } from "@carbon/form";
+import { toastServiceError, useAction } from "@carbon/query";
 import {
   Alert,
   AlertTitle,
@@ -21,14 +22,13 @@ import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-  toast,
   useDisclosure,
   VStack
 } from "@carbon/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { LuCopy, LuKeySquare, LuLink, LuTriangleAlert } from "react-icons/lu";
-import { Await, Link, useFetcher, useParams } from "react-router";
+import { Await, Link, useParams } from "react-router";
 import { z } from "zod";
 import { zfd } from "zod-form-data";
 import {
@@ -54,20 +54,26 @@ import { ItemThumbnailUpload } from "~/components/ItemThumnailUpload";
 import { useRouteData } from "~/hooks";
 import { useResolved } from "~/hooks/useResolved";
 import { useSettings } from "~/hooks/useSettings";
-import { methodType } from "~/modules/shared";
+import { methodType } from "~/modules/shared/shared.models";
 import type { action } from "~/routes/x+/items+/update";
 import { useSuppliers } from "~/stores";
 import type { ListItem } from "~/types";
 import { path } from "~/utils/path";
 import { copyToClipboard } from "~/utils/string";
 import { itemTrackingTypes } from "../../items.models";
+import type { ItemUsedIn } from "../../items.service";
 import type {
   ItemFile,
   MaterialSummary,
   PickMethod,
   SupplierPart
 } from "../../types";
-import { FileBadge, ItemDescription } from "../Item";
+import {
+  FileBadge,
+  ItemDescription,
+  SourcingTypeProperty,
+  useIsComponentOfBuyAndMake
+} from "../Item";
 
 type MaterialPropertiesProps = {
   data?: {
@@ -78,6 +84,8 @@ type MaterialPropertiesProps = {
     supplierParts: SupplierPart[];
     pickMethods: PickMethod[];
     tags: { name: string }[];
+    // Set by the bill of material tree, which knows the selected line's parent.
+    isComponentOfBuyAndMake?: boolean;
   };
 };
 
@@ -133,6 +141,7 @@ const MaterialProperties = ({ data }: MaterialPropertiesProps) => {
         } | null;
       }>
     >;
+    usedIn?: Promise<Pick<ItemUsedIn, "methodMaterials">>;
   }>(path.to.material(itemId));
   const supersession = useResolved(
     routeDataFromRoute?.supersession,
@@ -143,6 +152,11 @@ const MaterialProperties = ({ data }: MaterialPropertiesProps) => {
     routeDataFromRoute?.supersededBy,
     null,
     itemId
+  );
+  const isComponentOfBuyAndMake = useIsComponentOfBuyAndMake(
+    routeDataFromRoute?.usedIn,
+    itemId,
+    data?.isComponentOfBuyAndMake
   );
   const routeData = data ?? routeDataFromRoute;
 
@@ -159,13 +173,21 @@ const MaterialProperties = ({ data }: MaterialPropertiesProps) => {
   //     ? optimisticAssignment
   //     : routeData?.materialSummary?.assignee;
 
-  const fetcher = useFetcher<typeof action>();
-  useEffect(() => {
-    if (fetcher.data?.error) {
-      toast.error(fetcher.data.error.message);
+  const fetcher = useAction<typeof action>({
+    onError: (data) => {
+      toastServiceError(data);
     }
-  }, [fetcher.data]);
-
+  });
+  // A refused change leaves the tracking type select showing the refused
+  // value; a new key remounts it on the stored value. It has its own fetcher,
+  // so a refusal of another field never resets it.
+  const [trackingRefusals, setTrackingRefusals] = useState(0);
+  const trackingFetcher = useAction<typeof action>({
+    onError: (data) => {
+      toastServiceError(data);
+      setTrackingRefusals((count) => count + 1);
+    }
+  });
   const confirmDisclosure = useDisclosure();
   const [materialPropertyUpdate, setMaterialPropertyUpdate] = useState<{
     field:
@@ -189,6 +211,7 @@ const MaterialProperties = ({ data }: MaterialPropertiesProps) => {
         | "description"
         | "replenishmentSystem"
         | "defaultMethodType"
+        | "sourcingType"
         | "itemTrackingType"
         | "itemPostingGroupId"
         | "active"
@@ -208,10 +231,13 @@ const MaterialProperties = ({ data }: MaterialPropertiesProps) => {
       formData.append("items", itemId);
       formData.append("field", field);
       formData.append("value", value?.toString() ?? "");
-      fetcher.submit(formData, {
-        method: "post",
-        action: path.to.bulkUpdateItems
-      });
+      (field === "itemTrackingType" ? trackingFetcher : fetcher).submit(
+        formData,
+        {
+          method: "post",
+          action: path.to.bulkUpdateItems
+        }
+      );
     },
 
     [itemId]
@@ -470,6 +496,7 @@ const MaterialProperties = ({ data }: MaterialPropertiesProps) => {
         </ValidatedForm>
 
         <ValidatedForm
+          key={`itemTrackingType-${trackingRefusals}`}
           defaultValues={{
             itemTrackingType:
               routeData?.materialSummary?.itemTrackingType ?? undefined
@@ -540,6 +567,13 @@ const MaterialProperties = ({ data }: MaterialPropertiesProps) => {
             }}
           />
         </ValidatedForm>
+
+        <SourcingTypeProperty
+          isComponentOfBuyAndMake={isComponentOfBuyAndMake}
+          replenishmentSystem={routeData?.materialSummary?.replenishmentSystem}
+          value={routeData?.materialSummary?.sourcingType}
+          onChange={(value) => onUpdate("sourcingType", value)}
+        />
 
         <ValidatedForm
           defaultValues={{
@@ -858,24 +892,22 @@ const MaterialProperties = ({ data }: MaterialPropertiesProps) => {
           </Suspense>
         </VStack>
       </VStack>
-      {confirmDisclosure.isOpen && (
-        <ConfirmMaterialIdChange
-          materialPropertyUpdate={materialPropertyUpdate}
-          onClose={() => {
-            // this is hacky but the value is already changed in the UI
-            window.location.reload();
-          }}
-          onConfirm={() => {
-            onUpdate(
-              // @ts-expect-error
-              materialPropertyUpdate?.field,
-              materialPropertyUpdate?.value
-            );
-            confirmDisclosure.onClose();
-            setMaterialPropertyUpdate(null);
-          }}
-        />
-      )}
+      <ConfirmMaterialIdChange
+        open={confirmDisclosure.isOpen}
+        materialPropertyUpdate={materialPropertyUpdate}
+        onClose={() => {
+          // this is hacky but the value is already changed in the UI
+          window.location.reload();
+        }}
+        onConfirm={() => {
+          onUpdate(
+            // @ts-expect-error
+            materialPropertyUpdate?.field,
+            materialPropertyUpdate?.value
+          );
+          confirmDisclosure.onClose();
+        }}
+      />
     </>
   );
 };
@@ -883,10 +915,12 @@ const MaterialProperties = ({ data }: MaterialPropertiesProps) => {
 export default MaterialProperties;
 
 function ConfirmMaterialIdChange({
+  open = true,
   materialPropertyUpdate,
   onClose,
   onConfirm
 }: {
+  open?: boolean;
   materialPropertyUpdate: {
     field:
       | "materialFormId"
@@ -904,7 +938,7 @@ function ConfirmMaterialIdChange({
 
   return (
     <Modal
-      open
+      open={open}
       onOpenChange={(open) => {
         if (!open) {
           onClose();

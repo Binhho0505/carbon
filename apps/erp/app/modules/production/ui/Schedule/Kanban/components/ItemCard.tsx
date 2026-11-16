@@ -27,19 +27,21 @@ import { formatDate } from "@carbon/utils";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { parseDate } from "@internationalized/date";
-import { useLingui } from "@lingui/react/macro";
+import { Plural, useLingui } from "@lingui/react/macro";
 import { cva } from "class-variance-authority";
+import { memo } from "react";
 import {
-  LuCalendarClock,
   LuCircleCheck,
   LuCirclePlay,
   LuClipboardCheck,
   LuEllipsisVertical,
   LuFlashlight,
   LuFlashlightOff,
+  LuFolderKanban,
   LuGripVertical,
   LuPencil,
   LuPlay,
+  LuSquareChartGantt,
   LuSquareUser,
   LuTimer,
   LuTrash,
@@ -51,15 +53,16 @@ import { Link } from "react-router";
 import { z } from "zod";
 import { Assignee, CustomerAvatar, EmployeeAvatarGroup } from "~/components";
 import { Tags } from "~/components/Form";
+import { MoveToSubmenu } from "~/components/MoveToSubmenu";
 import { useDateFormatter } from "~/hooks";
 import { useTags } from "~/hooks/useTags";
 import { JobOperationStatus } from "~/modules/production/ui/Jobs/JobOperationStatus";
 import { getPrivateUrl, path } from "~/utils/path";
 import { KANBAN_CARD_SHELL } from "../cardShell";
 import { useKanban } from "../context/KanbanContext";
+import { DUE_URGENCY_BORDER, getDueUrgency } from "../dueUrgency";
 import type { Item, OperationItem } from "../types";
 import { isBatchItem } from "../types";
-import { useScheduleToday } from "../useScheduleToday";
 import { CardMaterialChips, CardSummaryRows } from "./CardSummaryRows";
 
 interface Progress {
@@ -117,10 +120,7 @@ function OperationCard({
   isOverlay?: boolean;
   progressByItemId: Record<string, Progress>;
 }) {
-  const { t } = useLingui();
-  const { formatRelativeTime } = useDateFormatter();
-  const { displaySettings, selectedGroup, setSelectedGroup, tags } =
-    useKanban();
+  const { selectedGroup, scheduleToday } = useKanban();
   const {
     setNodeRef,
     attributes,
@@ -140,17 +140,67 @@ function OperationCard({
   });
 
   const isHighlighted = selectedGroup === item.jobReadableId;
-  const scheduleToday = useScheduleToday();
+  const itemProgress = progressByItemId[item.id];
+  const status = itemProgress?.active ? "In Progress" : item.status;
 
   const style = {
     transition,
     transform: CSS.Translate.toString(transform)
   };
+  const urgency = getDueUrgency({ ...item, status }, scheduleToday);
+
+  // This shell re-renders whenever the drop target changes; the body does
+  // not. It is the expensive part (a form, avatars and menus per card), and
+  // rendering every card's body on each change made a drag stutter.
+  return (
+    <Card
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        "group/card max-w-[330px]",
+        cardVariants({
+          dragging: isOverlay ? "overlay" : isDragging ? "over" : undefined,
+          // @ts-expect-error TS2322 - TODO: fix type
+          status: status,
+          highlighted: isHighlighted
+        }),
+        urgency && DUE_URGENCY_BORDER[urgency]
+      )}
+    >
+      <OperationCardBody
+        item={item}
+        itemProgress={itemProgress}
+        isHighlighted={isHighlighted}
+        attributes={attributes}
+        listeners={listeners}
+      />
+    </Card>
+  );
+}
+
+const OperationCardBody = memo(function OperationCardBody({
+  item,
+  itemProgress,
+  isHighlighted,
+  attributes,
+  listeners
+}: {
+  item: Exclude<Item, { batchId: string }>;
+  itemProgress: Progress | undefined;
+  isHighlighted: boolean;
+  attributes: ReturnType<typeof useSortable>["attributes"];
+  listeners: ReturnType<typeof useSortable>["listeners"];
+}) {
+  const { t } = useLingui();
+  const { formatRelativeTime } = useDateFormatter();
+  const { displaySettings, setSelectedGroup, tags, scheduleToday, moveTo } =
+    useKanban();
 
   const isOverdue =
-    item.deadlineType !== "No Deadline" && item.dueDate
-      ? item.dueDate < scheduleToday
-      : false;
+    item.deadlineType !== "ASAP" &&
+    item.deadlineType !== "No Deadline" &&
+    !!item.dueDate &&
+    item.dueDate < scheduleToday;
 
   const projectedCompletionDate = item.projectedCompletionAt
     ? item.projectedCompletionAt.slice(0, 10)
@@ -163,29 +213,14 @@ function OperationCard({
       : 0;
   const isBehindTarget = daysBehindTarget > 0;
 
-  const progress = progressByItemId[item.id]?.progress ?? 0;
-  const status = progressByItemId[item.id]?.active
-    ? "In Progress"
-    : item.status;
-  const employeeIds = progressByItemId[item.id]?.employees
-    ? Array.from(progressByItemId[item.id].employees!)
+  const progress = itemProgress?.progress ?? 0;
+  const status = itemProgress?.active ? "In Progress" : item.status;
+  const employeeIds = itemProgress?.employees
+    ? Array.from(itemProgress.employees)
     : undefined;
 
   return (
-    <Card
-      ref={setNodeRef}
-      style={style}
-      className={cn(
-        "group/card max-w-[330px]",
-        item.hasConflict && "border-red-500 border-2",
-        cardVariants({
-          dragging: isOverlay ? "overlay" : isDragging ? "over" : undefined,
-          // @ts-expect-error TS2322 - TODO: fix type
-          status: status,
-          highlighted: isHighlighted
-        })
-      )}
-    >
+    <>
       <CardHeader className="flex flex-col justify-between relative gap-2">
         <div className="flex w-full max-w-full justify-between items-start gap-0">
           <div className="flex flex-col space-y-0 min-w-0">
@@ -204,8 +239,18 @@ function OperationCard({
           <HStack spacing={1} className="flex-shrink-0 -mr-2">
             {item.hasConflict && (
               <Tooltip>
-                <TooltipTrigger>
-                  <LuTriangleAlert className="h-4 w-4 text-red-500 flex-shrink-0" />
+                <TooltipTrigger asChild>
+                  <span className="inline-flex">
+                    <LuTriangleAlert
+                      aria-hidden
+                      className="h-4 w-4 text-red-500 flex-shrink-0"
+                    />
+                    {/* The tooltip is pointer-only; this reads the warning
+                        as part of the card for keyboard and screen readers. */}
+                    <span className="sr-only">
+                      {item.conflictReason ?? t`Scheduling conflict`}
+                    </span>
+                  </span>
                 </TooltipTrigger>
                 <TooltipContent>
                   {item.conflictReason ?? t`Scheduling conflict`}
@@ -258,6 +303,12 @@ function OperationCard({
                     Open in MES
                   </a>
                 </DropdownMenuItem>
+                {moveTo && (
+                  <MoveToSubmenu
+                    getTargets={() => moveTo.targetsFor(item.id)}
+                    onMove={(columnId) => moveTo.onMove(item.id, columnId)}
+                  />
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </HStack>
@@ -371,21 +422,25 @@ function OperationCard({
         />
         {displaySettings.showDueDate && projectedCompletionDate && (
           <HStack className="justify-start space-x-2">
-            <LuCalendarClock className="text-muted-foreground" />
+            <LuSquareChartGantt className="text-muted-foreground" />
             {isBehindTarget ? (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Badge variant="red">
-                    {t`Proj. ${formatDate(projectedCompletionDate)}`}
+                    {formatDate(projectedCompletionDate)}
                   </Badge>
                 </TooltipTrigger>
                 <TooltipContent side="right">
-                  {t`Behind target by ${daysBehindTarget} day(s)`}
+                  <Plural
+                    value={daysBehindTarget}
+                    one="Behind target by # day"
+                    other="Behind target by # days"
+                  />
                 </TooltipContent>
               </Tooltip>
             ) : (
               <span className="text-sm text-muted-foreground">
-                {t`Proj. ${formatDate(projectedCompletionDate)}`}
+                {formatDate(projectedCompletionDate)}
               </span>
             )}
           </HStack>
@@ -405,6 +460,33 @@ function OperationCard({
                 className="text-sm"
               >
                 {item.salesOrderReadableId}
+              </Link>
+            </HStack>
+          )}
+
+        {displaySettings.showProject &&
+          item.projectId &&
+          item.projectReadableId && (
+            <HStack className="justify-start space-x-2 min-w-0">
+              <LuFolderKanban className="text-muted-foreground shrink-0" />
+              <Link
+                to={
+                  item.projectElementId
+                    ? path.to.projectElement(
+                        item.projectId,
+                        item.projectElementId
+                      )
+                    : path.to.project(item.projectId)
+                }
+                className="text-sm truncate"
+              >
+                {item.projectReadableId}
+                {item.projectName && (
+                  <span className="text-muted-foreground">
+                    {" "}
+                    {item.projectName}
+                  </span>
+                )}
               </Link>
             </HStack>
           )}
@@ -443,9 +525,9 @@ function OperationCard({
           <JobOperationTags operation={item} availableTags={tags} />
         </HStack>
       </CardFooter>
-    </Card>
+    </>
   );
-}
+});
 
 function JobOperationTags({
   operation,

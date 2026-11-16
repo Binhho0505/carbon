@@ -3,6 +3,7 @@
 // including ports, remain AGPLv3; serving them over a network requires releasing their source.
 
 import { ValidatedForm } from "@carbon/form";
+import { useLoaderQuery } from "@carbon/query";
 import {
   HStack,
   Modal,
@@ -12,8 +13,7 @@ import {
   ModalHeader,
   ModalOverlay,
   ModalTitle,
-  useCloseRoute,
-  useMount,
+  useRouteDialog,
   VStack
 } from "@carbon/react";
 import { Trans, useLingui } from "@lingui/react/macro";
@@ -28,8 +28,11 @@ import {
 } from "~/components/Form";
 import { useFlags, useUser } from "~/hooks";
 import { usePlanGate } from "~/hooks/usePlanGate";
-import type { getEmployeeTypes, getInvitable } from "~/modules/users";
-import { createEmployeeValidator } from "~/modules/users";
+import { createEmployeeValidator } from "~/modules/users/users.models";
+import type {
+  getEmployeeTypes,
+  getInvitable
+} from "~/modules/users/users.service";
 import type { Result } from "~/types";
 import { path } from "~/utils/path";
 
@@ -45,14 +48,11 @@ const CreateEmployeeModal = ({ invitable }: CreateEmployeeModalProps) => {
   // plan. When gated (Community / Starter), every invite defaults to the seeded
   // Admin type — "everyone is an admin".
   const { isGated: permissionsGated } = usePlanGate({ feature: "PERMISSIONS" });
-  const closeRoute = useCloseRoute();
+  const dialog = useRouteDialog();
   const formFetcher = useFetcher<Result>();
-  const employeeTypeFetcher =
-    useFetcher<Awaited<ReturnType<typeof getEmployeeTypes>>>();
-
-  useMount(() => {
-    employeeTypeFetcher.load(path.to.api.employeeTypes);
-  });
+  const employeeTypeFetcher = useLoaderQuery<
+    Awaited<ReturnType<typeof getEmployeeTypes>>
+  >(path.to.api.employeeTypes);
 
   const employeeTypes = employeeTypeFetcher.data?.data ?? [];
   const employeeTypeOptions = employeeTypes.map((et) => ({
@@ -69,9 +69,9 @@ const CreateEmployeeModal = ({ invitable }: CreateEmployeeModalProps) => {
 
   return (
     <Modal
-      open
+      open={dialog.open}
       onOpenChange={(open) => {
-        if (!open) closeRoute();
+        if (!open) dialog.close();
       }}
     >
       <ModalOverlay />

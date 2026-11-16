@@ -4,11 +4,10 @@
 
 import type { ComboboxProps } from "@carbon/form";
 import { Combobox, CreatableCombobox } from "@carbon/form";
-import { useDisclosure, useMount } from "@carbon/react";
-import { useMemo, useRef, useState } from "react";
-import { useFetcher } from "react-router";
-import { usePermissions } from "~/hooks";
-import type { getMaterialSubstancesList } from "~/modules/items";
+import { useLoaderQuery } from "@carbon/query";
+import { useMemo, useRef } from "react";
+import { useDrawerItem, usePermissions } from "~/hooks";
+import type { getMaterialSubstancesList } from "~/modules/items/items.service";
 import { MaterialSubstanceForm } from "~/modules/items/ui/MaterialSubstances";
 import { path } from "~/utils/path";
 import { Enumerable } from "../Enumerable";
@@ -31,12 +30,11 @@ const Substance = (props: SubstanceSelectProps) => {
   const options = useSubstance();
   const permissions = usePermissions();
 
-  const newSubstanceModal = useDisclosure();
-  const [created, setCreated] = useState<string>("");
+  const create = useDrawerItem<string>();
   const triggerRef = useRef<HTMLButtonElement>(null);
 
   const emptyMessage = useEmptyState("materialSubstance", {
-    onCreate: () => newSubstanceModal.onOpen()
+    onCreate: () => create.open("")
   });
 
   return permissions.can("create", "parts") ? (
@@ -49,21 +47,21 @@ const Substance = (props: SubstanceSelectProps) => {
         label={props?.label ?? "Substance"}
         emptyMessage={emptyMessage}
         onCreateOption={(option) => {
-          newSubstanceModal.onOpen();
-          setCreated(option);
+          create.open(option);
         }}
       />
-      {newSubstanceModal.isOpen && (
+      {create.item !== null && (
         <MaterialSubstanceForm
+          key={create.key}
+          open={create.isOpen}
           type="modal"
           onClose={() => {
-            setCreated("");
-            newSubstanceModal.onClose();
-            triggerRef.current?.click();
+            create.close();
+            create.afterClose(() => triggerRef.current?.click());
           }}
           initialValues={{
-            name: created,
-            code: created.slice(0, 3).toUpperCase()
+            name: create.item,
+            code: create.item.slice(0, 3).toUpperCase()
           }}
         />
       )}
@@ -83,12 +81,9 @@ Substance.displayName = "Substance";
 export default Substance;
 
 export const useSubstance = () => {
-  const materialSubstances =
-    useFetcher<Awaited<ReturnType<typeof getMaterialSubstancesList>>>();
-
-  useMount(() => {
-    materialSubstances.load(path.to.api.materialSubstances);
-  });
+  const materialSubstances = useLoaderQuery<
+    Awaited<ReturnType<typeof getMaterialSubstancesList>>
+  >(path.to.api.materialSubstances);
 
   const options = useMemo(() => {
     return (materialSubstances.data?.data ?? []).map((c) => ({

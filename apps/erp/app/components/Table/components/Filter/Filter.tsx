@@ -20,10 +20,18 @@ import {
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { PostgrestResponse } from "@supabase/supabase-js";
 import type { ComponentPropsWithoutRef } from "react";
-import { forwardRef, useCallback, useEffect, useMemo, useState } from "react";
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState
+} from "react";
 import { IoMdAdd } from "react-icons/io";
 import { LuListFilter, LuX } from "react-icons/lu";
 import { useFetcher } from "react-router";
+import DateRangeFilter from "./DateRangeFilter";
 import type { ColumnFilter, Option } from "./types";
 import { useFilters } from "./useFilters";
 
@@ -49,6 +57,20 @@ const Filter = forwardRef<HTMLButtonElement, FilterProps>(
     } = useFilters();
 
     const [open, setOpen] = useState(false);
+    // The button in place when the popover closes: its trigger, or "Clear
+    // Filters" once a filter is set, which replaces the trigger.
+    const buttonRef = useRef<HTMLButtonElement | null>(null);
+    // Set when the popover closes from a click or focus outside it: focus then
+    // stays where the user put it.
+    const closedFromOutside = useRef(false);
+    const setButtonRef = useCallback(
+      (node: HTMLButtonElement | null) => {
+        buttonRef.current = node;
+        if (typeof ref === "function") ref(node);
+        else if (ref) ref.current = node;
+      },
+      [ref]
+    );
     const [input, setInput] = useState("");
     const [loading, setLoading] = useState(false);
     const [activeFilter, setActiveFilter] = useState<ColumnFilter | null>(null);
@@ -110,7 +132,7 @@ const Filter = forwardRef<HTMLButtonElement, FilterProps>(
       } else if (filter.filter.type === "fetcher") {
         setLoading(true);
         fetcher.load(filter.filter.endpoint);
-      } else if (filter.filter.type === "custom") {
+      } else {
         setActiveOptions([]);
       }
     }, []);
@@ -138,11 +160,13 @@ const Filter = forwardRef<HTMLButtonElement, FilterProps>(
       if (filter) activate(filter);
     }, [open, activeFilter, availableFilters, filters, activate]);
 
+    const activeFilterName = activeFilter?.header;
+
     return hasFilters && !open && trigger !== "icon" ? (
       <HStack>
         <Button
           rightIcon={<LuX />}
-          ref={ref}
+          ref={setButtonRef}
           variant="secondary"
           onClick={clearFilters}
           className={"!border-dashed border-border"}
@@ -156,7 +180,8 @@ const Filter = forwardRef<HTMLButtonElement, FilterProps>(
         <PopoverTrigger asChild>
           {trigger === "icon" ? (
             <Button
-              aria-label={t`Remove filter`}
+              ref={setButtonRef}
+              aria-label={t`Add filter`}
               className="px-1 w-6"
               variant="secondary"
               size="sm"
@@ -170,7 +195,7 @@ const Filter = forwardRef<HTMLButtonElement, FilterProps>(
             <Button
               rightIcon={<LuListFilter />}
               role="combobox"
-              ref={ref}
+              ref={setButtonRef}
               variant="secondary"
               onClick={() => {
                 setOpen(true);
@@ -185,6 +210,19 @@ const Filter = forwardRef<HTMLButtonElement, FilterProps>(
         <PopoverContent
           align="start"
           className="min-w-[var(--radix-popover-trigger-width)] p-0"
+          onInteractOutside={() => {
+            closedFromOutside.current = true;
+          }}
+          onCloseAutoFocus={(event) => {
+            const fromOutside = closedFromOutside.current;
+            closedFromOutside.current = false;
+            const focused = document.activeElement;
+            if (fromOutside && focused && focused !== document.body) return;
+            // Radix returns focus to the trigger it opened from, which may
+            // have been replaced by "Clear Filters" meanwhile.
+            event.preventDefault();
+            buttonRef.current?.focus();
+          }}
         >
           {activeFilter?.filter.type === "custom" ? (
             <div className="w-auto min-w-[280px] p-2">
@@ -201,12 +239,21 @@ const Filter = forwardRef<HTMLButtonElement, FilterProps>(
                 close: () => setOpen(false)
               })}
             </div>
+          ) : activeFilter?.filter.type === "dateRange" ? (
+            <div className="w-auto min-w-[280px] p-2">
+              <DateRangeFilter accessorKey={activeFilter.accessorKey} />
+            </div>
           ) : (
             <Command>
               <CommandInput
                 value={input}
                 onValueChange={setInput}
                 placeholder={t`Search...`}
+                aria-label={
+                  activeFilterName
+                    ? t`Search ${activeFilterName} values`
+                    : t`Search filters`
+                }
                 className="h-9"
               />
               <CommandEmpty>
@@ -267,7 +314,11 @@ const Filter = forwardRef<HTMLButtonElement, FilterProps>(
                           }}
                         >
                           <HStack spacing={2}>
-                            <Checkbox isChecked={isChecked} tabIndex={-1} />
+                            <Checkbox
+                              aria-hidden
+                              isChecked={isChecked}
+                              tabIndex={-1}
+                            />
                             <VStack spacing={0}>
                               <span>{option.label}</span>
                               {option.helperText && (

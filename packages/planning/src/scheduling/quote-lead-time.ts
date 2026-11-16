@@ -4,6 +4,7 @@
 
 import type { Database } from "@carbon/database";
 import type { DB } from "@carbon/database/client";
+import { getLogger } from "@carbon/logger";
 import {
   fromAbsolute,
   parseDate,
@@ -44,6 +45,8 @@ import {
   type FiniteSchedulingContext,
   WorkCenterSelector
 } from "./work-center-selector.ts";
+
+const log = getLogger("planning", "quote-lead-time");
 
 const DAY_MS = 24 * 3_600_000;
 /** Same fallback MRP uses when an item has no itemReplenishment.leadTime. */
@@ -88,7 +91,7 @@ export type QuoteOperationRow = {
 export type MaterialAvailability = {
   /** itemReplenishment.leadTime, default 7 */
   leadTimeDaysByItem: Map<string, number>;
-  /** itemStockQuantities at the location */
+  /** Nettable on-hand at the location (itemStockQuantities) */
   onHandByItem: Map<string, number>;
 };
 
@@ -563,7 +566,7 @@ async function loadQuoteLineRouting(
 
 /**
  * Item lead times (itemReplenishment.leadTime, default 7) and location on-hand
- * (itemStockQuantities, the aggregate runMrp reads) for the material floors.
+ * (nettable itemStockQuantities, as runMrp reads it) for the material floors.
  */
 async function loadMaterialAvailability(
   db: Kysely<DB>,
@@ -584,10 +587,17 @@ async function loadMaterialAvailability(
       .execute(),
     db
       .selectFrom("itemStockQuantities")
-      .select(["itemId", "quantityOnHand"])
+      .select((eb) => [
+        "itemId",
+        eb("quantityOnHand", "-", eb.ref("quantityNonNettable")).as(
+          "quantityNettable"
+        )
+      ])
       .where("itemId", "in", itemIds)
       .where("locationId", "=", locationId)
       .where("companyId", "=", companyId)
+      // Common stock only, as runMrp reads it, until Phase 2b.
+      .where("projectId", "=", "")
       .execute()
   ]);
   for (const r of replenishmentRows) {
@@ -600,7 +610,7 @@ async function loadMaterialAvailability(
   }
   for (const r of stockRows) {
     if (r.itemId != null) {
-      onHandByItem.set(r.itemId, Number(r.quantityOnHand) || 0);
+      onHandByItem.set(r.itemId, Number(r.quantityNettable) || 0);
     }
   }
   return { leadTimeDaysByItem, onHandByItem };
@@ -678,8 +688,13 @@ export async function runQuoteLeadTimeWhatIf(params: {
       horizonEnd: now + (SCHEDULING_HORIZON_DAYS + 7) * 24 * 3_600_000,
       persist: false
     });
-  } catch {
+  } catch (err) {
     // fall through — the sim runs with per-member placement
+    log.warning("Batch pre-pass failed; members place individually", {
+      locationId,
+      companyId,
+      error: err
+    });
   }
 
   const selector = new WorkCenterSelector(provider, locationId);

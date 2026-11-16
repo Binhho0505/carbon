@@ -14,7 +14,7 @@ is the plugin's own native one: `lingui({ macroTransform: true })` from
 `@lingui/vite-plugin` in each app's `vite.config.ts` — no Babel, no
 `vite-plugin-babel-macros`. It only touches files that import a macro.
 
-Every app wraps the plugin in `linguiWithoutIdQuery` (`@carbon/dev/vite`). Lingui
+Every app gets the plugin from `carbon()` (`@carbon/dev/vite`), which wraps it in `linguiWithoutIdQuery`. Lingui
 6.9.0 picks its parser from `path.basename(id)`, so a React Router route module
 (`route.tsx?__react-router-build-client-route`) is parsed as plain JS and the build
 fails on its first `import type`. The wrapper hands the transform the id without
@@ -96,6 +96,17 @@ its query; delete it once Lingui strips the query itself.
   (e.g. `assignments.tsx` columns memo, dep `[t]`).
 - **Never `import { t }` from `@lingui/core/macro`** in app code (currently zero such
   imports — only `{ msg }` is imported from `core/macro`).
+- **Plurals:** `<Plural value={n} one="# day" other="# days" />` from
+  `@lingui/react/macro` in JSX. `plural()` from `@lingui/core/macro` nested in
+  `useLingui().t` is folded into the `t` message only when the component or hook is a
+  function declaration or a plain `const X = () => …`. Inside a component passed inline
+  to a call — `memo((props) => …)`, which is most ERP tables — Lingui 6.9.0 expands it
+  into a call on the global `@lingui/core` instance instead, which throws at runtime
+  for the reason above. Extract, typecheck and Biome do not catch it. There, build the
+  string in a function-declaration hook (`useReleasedJobsMessage` in `JobsTable.tsx`,
+  `useBatchCountMessages` in `BatchesTable.tsx`) and call the hook from the component.
+  Verify a new one by compiling the file (Vite `transformRequest`) and checking that no
+  `@lingui/core` import appears.
 
 ## Adding strings / locales
 

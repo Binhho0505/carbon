@@ -10,6 +10,7 @@ import {
   Submit,
   ValidatedForm
 } from "@carbon/form";
+import { useAction } from "@carbon/query";
 import {
   Button,
   ClientOnly,
@@ -27,7 +28,7 @@ import {
   ModalCardHeader,
   ModalCardProvider,
   ModalCardTitle,
-  toast,
+  toastError,
   useDisclosure,
   VStack
 } from "@carbon/react";
@@ -44,14 +45,14 @@ import {
 import { SortableContext, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   LuCirclePlus,
   LuEllipsisVertical,
   LuGripVertical
 } from "react-icons/lu";
-import { useFetcher, useFetchers, useSubmit } from "react-router";
+import { useFetchers, useSubmit } from "react-router";
 import { DateTime, EmployeeAvatar } from "~/components";
 import { ConfiguratorDataTypeIcon } from "~/components/Configurator/Icons";
 import { ConfirmDelete } from "~/components/Modals";
@@ -67,25 +68,24 @@ export default function BatchPropertiesConfig({
   properties: initialProperties,
   type = "card",
   isReadOnly = false,
+  open = true,
   onClose
 }: {
   itemId: string;
   properties: BatchProperty[];
   type?: "card" | "modal";
   isReadOnly?: boolean;
+  open?: boolean;
   onClose?: () => void;
 }) {
   const { isList, onChangeCheckForListType, setIsList } = useBatchProperties();
   const { t } = useLingui();
 
   const submit = useSubmit();
-  const fetcher = useFetcher<typeof batchPropertyAction>();
-
-  useEffect(() => {
-    if (fetcher.data?.success === false) {
-      toast.error(t`Failed to update batch property`);
-    }
-  }, [fetcher.data, t]);
+  const fetcher = useAction<typeof batchPropertyAction>({
+    onError: (data) =>
+      toastError(t`Failed to update batch property`, data.error)
+  });
 
   const propertiesById = new Map<string, BatchProperty>(
     initialProperties.map((property) => [property.id, property])
@@ -119,7 +119,7 @@ export default function BatchPropertiesConfig({
 
   return (
     <ModalCardProvider type={type}>
-      <ModalCard onClose={onClose}>
+      <ModalCard open={open} onClose={onClose}>
         <ModalCardContent>
           <ModalCardHeader>
             <ModalCardTitle>
@@ -309,7 +309,14 @@ function BatchPropertyComponent({
   const disclosure = useDisclosure();
   const deletePropertyDisclosure = useDisclosure();
   const submitted = useRef(false);
-  const fetcher = useFetcher<typeof batchPropertyAction>();
+  const fetcher = useAction<typeof batchPropertyAction>({
+    onSettled: () => {
+      if (submitted.current) {
+        disclosure.onClose();
+        submitted.current = false;
+      }
+    }
+  });
 
   const {
     attributes,
@@ -326,13 +333,6 @@ function BatchPropertyComponent({
     transform: CSS.Transform.toString(transform),
     transition
   };
-
-  useEffect(() => {
-    if (submitted.current && fetcher.state === "idle") {
-      disclosure.onClose();
-      submitted.current = false;
-    }
-  }, [disclosure, fetcher.state]);
 
   const isUpdated = property.updatedBy !== null;
   const person = isUpdated ? property.updatedBy : property.createdBy;
@@ -464,20 +464,18 @@ function BatchPropertyComponent({
           </div>
         </div>
       )}
-      {deletePropertyDisclosure.isOpen && (
-        <ConfirmDelete
-          action={path.to.deleteBatchProperty(property.itemId, property.id)}
-          isOpen={deletePropertyDisclosure.isOpen}
-          name={property.label}
-          text={`Are you sure you want to delete the ${property.label} property?`}
-          onCancel={() => {
-            deletePropertyDisclosure.onClose();
-          }}
-          onSubmit={() => {
-            deletePropertyDisclosure.onClose();
-          }}
-        />
-      )}
+      <ConfirmDelete
+        action={path.to.deleteBatchProperty(property.itemId, property.id)}
+        isOpen={deletePropertyDisclosure.isOpen}
+        name={property.label}
+        text={`Are you sure you want to delete the ${property.label} property?`}
+        onCancel={() => {
+          deletePropertyDisclosure.onClose();
+        }}
+        onSubmit={() => {
+          deletePropertyDisclosure.onClose();
+        }}
+      />
     </div>
   );
 }

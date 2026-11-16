@@ -13,6 +13,7 @@ import {
   CardTitle,
   cn,
   toast,
+  toastError,
   VStack
 } from "@carbon/react";
 import { Trans, useLingui } from "@lingui/react/macro";
@@ -34,7 +35,7 @@ import {
 } from "~/components/Form";
 import PaymentTerm from "~/components/Form/PaymentTerm";
 import { usePermissions, useRouteData } from "~/hooks";
-import { salesInvoiceValidator } from "~/modules/invoicing";
+import { salesInvoiceValidator } from "~/modules/invoicing/invoicing.models";
 import { path } from "~/utils/path";
 import { isSalesInvoiceLocked } from "../../invoicing.models";
 
@@ -70,18 +71,11 @@ const SalesInvoiceForm = ({ initialValues }: SalesInvoiceFormProps) => {
     paymentTermId: initialValues.paymentTermId
   });
 
-  const [customer, setCustomer] = useState<{
-    id: string | undefined;
-  }>({
-    id: initialValues.customerId
-  });
-
   const onCustomerChange = async (
     newValue: {
       value: string | undefined;
     } | null
   ) => {
-    setCustomer({ id: newValue?.value });
     if (newValue?.value !== invoiceCustomer.id) {
       onInvoiceCustomerChange(newValue);
     }
@@ -112,9 +106,8 @@ const SalesInvoiceForm = ({ initialValues }: SalesInvoiceFormProps) => {
       const [customerData, paymentTermData] = await Promise.all([
         // instantiation-depth cliff — the cliff shifts as unrelated modules
         // join the program (same class as the purchasing.service
-        // suppression). ts-ignore (not ts-expect-error) is used so it
-        // satisfies both checkers — tsgo would flag an unused expect-error
-        // directive in CI — and it survives the cliff receding.
+        // suppression). ts-ignore, not ts-expect-error: an unused
+        // expect-error directive fails the typecheck when the cliff recedes.
         carbon
           ?.from("customer")
           .select(
@@ -130,7 +123,10 @@ const SalesInvoiceForm = ({ initialValues }: SalesInvoiceFormProps) => {
       ]);
 
       if (customerData.error || paymentTermData.error) {
-        toast.error(t`Error fetching customer data`);
+        toastError(
+          t`Error fetching customer data`,
+          customerData.error ?? paymentTermData.error
+        );
       } else {
         setInvoiceCustomer((prev) => ({
           ...prev,
@@ -168,7 +164,7 @@ const SalesInvoiceForm = ({ initialValues }: SalesInvoiceFormProps) => {
     >
       <Card>
         <CardHeader>
-          <CardTitle>
+          <CardTitle aria-level={isEditing ? undefined : 1}>
             {isEditing ? (
               <Trans>Sales Invoice</Trans>
             ) : (
@@ -223,7 +219,7 @@ const SalesInvoiceForm = ({ initialValues }: SalesInvoiceFormProps) => {
               <CustomerLocation
                 name="invoiceCustomerLocationId"
                 label={t`Invoice Customer Location`}
-                customer={customer.id}
+                customer={invoiceCustomer.id}
                 value={invoiceCustomer.invoiceCustomerLocationId}
                 onChange={(newValue) => {
                   if (newValue?.id) {
@@ -237,7 +233,7 @@ const SalesInvoiceForm = ({ initialValues }: SalesInvoiceFormProps) => {
               <CustomerContact
                 name="invoiceCustomerContactId"
                 label={t`Invoice Customer Contact`}
-                customer={customer.id}
+                customer={invoiceCustomer.id}
                 value={invoiceCustomer.invoiceCustomerContactId}
                 onChange={(newValue) => {
                   if (newValue?.id) {
@@ -283,7 +279,7 @@ const SalesInvoiceForm = ({ initialValues }: SalesInvoiceFormProps) => {
             </div>
           </VStack>
         </CardContent>
-        <CardFooter>
+        <CardFooter sticky={!isEditing}>
           <Submit
             isDisabled={
               isEditing

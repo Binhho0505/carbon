@@ -18,7 +18,7 @@
 
 import type { PoolClient } from "pg";
 import { seedCompanyReferenceData } from "./bootstrap.ts";
-import { COVERAGE_FLOORS, COVERAGE_SCOPES } from "./coverage.ts";
+import { COVERAGE_SCOPES, coverageFloorsFor } from "./coverage.ts";
 import { FMCG_COVERAGE_EXCLUSIONS } from "./fmcg-verify.ts";
 import { applyDatasetTiers } from "./index.ts";
 import { quote } from "./sql.ts";
@@ -64,13 +64,19 @@ export async function resolveCheckUserId(
   }
 }
 
-/** A tier that inserts nothing raises no error on its own. */
+/**
+ * A tier that inserts nothing raises no error on its own. The floors come from
+ * `coverageFloorsFor`, so a walkthrough dataset has none.
+ */
 export async function findCoverageShortfalls(
   client: PoolClient,
   companyId: string,
+  dataset: Dataset,
   exclusions: Readonly<Record<string, string>> = {}
 ): Promise<string[]> {
-  const tables = Object.keys(COVERAGE_FLOORS);
+  const floors = coverageFloorsFor(dataset);
+  const tables = Object.keys(floors);
+  if (tables.length === 0) return [];
   const union = tables
     .map(
       (t) =>
@@ -86,7 +92,7 @@ export async function findCoverageShortfalls(
   const shortfalls: string[] = [];
   for (const table of tables) {
     if (exclusions[table]) continue;
-    const floor = COVERAGE_FLOORS[table]!;
+    const floor = floors[table]!;
     const count = counts.get(table) ?? 0;
     if (count < floor) {
       shortfalls.push(`${table}: expected ≥ ${floor}, got ${count}`);
@@ -118,10 +124,11 @@ export async function verifyDataset(
     // dispatch events (pg_net calls would not roll back).
     await client.query(`SET LOCAL "app.sync_in_progress" = 'true'`);
 
-    const { companyId } = await seedCompanyReferenceData(client, {
-      userId,
-      companyName: SCRATCH_COMPANY_NAME
-    });
+    const { companyId, locationId: bootstrapLocationId } =
+      await seedCompanyReferenceData(client, {
+        userId,
+        companyName: SCRATCH_COMPANY_NAME
+      });
     if (dataset.baseCurrencyCode) {
       await client.query(
         `UPDATE company SET "baseCurrencyCode"=$2 WHERE id=$1`,
@@ -141,6 +148,7 @@ export async function verifyDataset(
     const shortfalls = await findCoverageShortfalls(
       client,
       companyId,
+      dataset,
       dataset.key === "fmcg" ? FMCG_COVERAGE_EXCLUSIONS : {}
     );
     if (shortfalls.length > 0) {
@@ -148,6 +156,40 @@ export async function verifyDataset(
         key,
         ok: false,
         error: `${shortfalls.length} table(s) below their row-count floor (datasets/coverage.ts):\n      ${shortfalls.join("\n      ")}`,
+        durationMs: performance.now() - startedAt
+      };
+    }
+
+    // Apply it again over itself, as Settings → Demo Data does on a company
+    // that already has data: the wipe nulls every nullable FK into a table it
+    // clears, which trips any CHECK that needs one of them. Only a seeded
+    // company has those rows, so a first apply never reaches that code.
+    //
+    // The wipe keeps the bootstrap location, which `buildCtx` finds as the
+    // oldest. In this one transaction NOW() gave every location the same
+    // `createdAt`; in real use the dataset runs after onboarding committed,
+    // so date the seeded ones after the bootstrap one as they would be.
+    await client.query(
+      `UPDATE location SET "createdAt" = "createdAt" + interval '1 second'
+       WHERE "companyId" = $1 AND id <> $2`,
+      [companyId, bootstrapLocationId]
+    );
+    try {
+      await applyDatasetTiers(client, {
+        companyId,
+        userId,
+        dataset,
+        timeZone,
+        log,
+        wipeFirst: true
+      });
+    } catch (err) {
+      return {
+        key,
+        ok: false,
+        error: `re-applying over the seeded company failed (datasets/wipe.ts): ${
+          err instanceof Error ? err.message : String(err)
+        }`,
         durationMs: performance.now() - startedAt
       };
     }

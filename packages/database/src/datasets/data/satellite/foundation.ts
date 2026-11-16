@@ -190,7 +190,7 @@ export const WAREHOUSES: WarehouseSpec[] = [
   { key: "QC", name: "QC Hold", requiresBin: true }
 ];
 
-export const STORAGE_TYPES = ["Shelf", "Bin", "Rack"];
+export const STORAGE_TYPES = ["Shelf", "Bin", "Rack", "Quarantine"];
 
 // Names here are the contract for OPENING_STOCK[].shelf — a mismatch is a hard
 // error, so the racking rows are listed rather than generated.
@@ -205,7 +205,12 @@ export const SHELVES: ShelfSpec[] = [
   { name: "A3-L1", warehouse: "Main", storageType: "Bin", parent: "Aisle-A" },
   { name: "A3-L2", warehouse: "Main", storageType: "Bin", parent: "Aisle-A" },
   { name: "A3-L3", warehouse: "Main", storageType: "Bin", parent: "Aisle-A" },
-  { name: "CleanRoom", warehouse: "Main", storageType: "Shelf" }
+  { name: "CleanRoom", warehouse: "Main", storageType: "Shelf" },
+  // Non-nettable (its storage type is): stock held here pending a quality
+  // decision is not planned against or picked.
+  { name: "MRB-Hold", warehouse: "Main", storageType: "Quarantine" },
+  // Non-nettable: inspected goods-in receipts wait here for their lot's decision.
+  { name: "QC-Inspection", warehouse: "QC", storageType: "Quarantine" }
 ];
 
 export const PRINTER_ROUTE: PrinterRouteSpec = {
@@ -297,42 +302,56 @@ export const CUSTOMER_CONTACTS = [
     lastName: "Lindqvist",
     email: "sofia@polarview.io",
     title: "CTO"
+  },
+  {
+    customer: "Apex Space Research",
+    firstName: "Lena",
+    lastName: "Marsh",
+    email: "lmarsh@apexresearch.edu",
+    title: "Integration Lab Manager",
+    sharesLocation: true as const
   }
 ];
 
 export const SUPPLIERS = [
   {
     name: "CelestialElex",
+    stage: "Production" as const,
     type: "Electronics",
     phone: "+1-408-555-0500",
     website: "https://celestialex.com"
   },
   {
     name: "SpaceGrade Fasteners",
+    stage: "Production" as const,
     type: "Hardware",
     phone: "+1-206-555-0600",
     website: "https://sgfasteners.com"
   },
   {
     name: "Orbital Composites",
+    stage: "Qualified" as const,
     type: "Materials",
     phone: "+1-714-555-0700",
     website: "https://orbcomp.com"
   },
   {
     name: "PropTech Solutions",
+    stage: "Production" as const,
     type: "Propulsion",
     phone: "+1-310-555-0800",
     website: "https://proptech.space"
   },
   {
     name: "Deep Space RF",
+    stage: "Production" as const,
     type: "Electronics",
     phone: "+1-303-555-0900",
     website: "https://dsrf.com"
   },
   {
     name: "AstroMill Machining",
+    stage: "Qualified" as const,
     type: "Contract Manufacturer",
     phone: "+1-972-555-1000",
     website: "https://astromill.com"
@@ -348,6 +367,7 @@ export const SUPPLIERS = [
   },
   {
     name: "Ionix Thrusters",
+    stage: "Sampling" as const,
     type: "Propulsion",
     phone: "+1-425-555-1300",
     website: "https://ionixthrusters.com",
@@ -355,6 +375,7 @@ export const SUPPLIERS = [
   },
   {
     name: "BargainSat Components",
+    stage: "Prospect" as const,
     type: "Electronics",
     phone: "+1-702-555-1400",
     website: "https://bargainsat.com",
@@ -362,6 +383,7 @@ export const SUPPLIERS = [
   },
   {
     name: "Rheinland Precision Bearings GmbH",
+    stage: "Production" as const,
     type: "Hardware",
     phone: "+49-711-555-1500",
     website: "https://rheinland-bearings.de",
@@ -798,7 +820,10 @@ export const satelliteFoundation: FoundationData = {
   employeeJob: EMPLOYEE_JOB,
   warehouses: WAREHOUSES,
   storageTypes: STORAGE_TYPES,
+  nonNettableStorageTypes: ["Quarantine"],
   shelves: SHELVES,
+  inspectionShelf: "QC-Inspection",
+  rejectedShelf: "MRB-Hold",
   printerRoute: PRINTER_ROUTE,
   holidays: HOLIDAYS,
   tags: TAGS,

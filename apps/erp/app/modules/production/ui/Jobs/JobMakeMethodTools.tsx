@@ -4,6 +4,7 @@
 
 import { useCarbon } from "@carbon/auth";
 import { ValidatedForm } from "@carbon/form";
+import { useAction, useLoaderQuery } from "@carbon/query";
 import {
   Alert,
   AlertTitle,
@@ -47,7 +48,7 @@ import {
   LuTriangleAlert
 } from "react-icons/lu";
 import { RiProgress4Line } from "react-icons/ri";
-import { useFetcher, useLocation, useParams } from "react-router";
+import { useLocation, useParams } from "react-router";
 import { PrintButton } from "~/components";
 import { ConfiguratorModal } from "~/components/Configurator/ConfiguratorForm";
 import {
@@ -58,13 +59,14 @@ import {
   Submit,
   useConfigurableItems
 } from "~/components/Form";
+import { RecordAction } from "~/components/Layout/RecordHeader";
 import type { Tree } from "~/components/TreeView";
 import { usePermissions, useRouteData, useUser } from "~/hooks";
-import {
-  type ConfigurationParameter,
-  type ConfigurationParameterGroup,
-  getConfigurationParameters
-} from "~/modules/items";
+import { getConfigurationParameters } from "~/modules/items/items.utils";
+import type {
+  ConfigurationParameter,
+  ConfigurationParameterGroup
+} from "~/modules/items/types";
 import { getLinkToItemDetails } from "~/modules/items/ui/Item/ItemForm";
 import MakeMethodVersionStatus from "~/modules/items/ui/Item/MakeMethodVersionStatus";
 import { QuoteLineMethodForm } from "~/modules/sales/ui/Quotes/QuoteLineMethodForm";
@@ -79,7 +81,14 @@ const JobMakeMethodTools = ({ makeMethod }: { makeMethod?: JobMakeMethod }) => {
   const { jobId, methodId } = useParams();
   if (!jobId) throw new Error("jobId not found");
 
-  const fetcher = useFetcher<{ error: string | null }>();
+  // Get Method and Save Method. Save still answers `{ error }` itself.
+  const fetcher = useAction<{ error: string | { message: string } | null }>({
+    onError: (data) => {
+      const message =
+        typeof data?.error === "string" ? data.error : data?.error?.message;
+      if (message) toast.error(message);
+    }
+  });
   const routeData = useRouteData<{
     job: Job;
     method: Tree<JobMethod>;
@@ -118,12 +127,6 @@ const JobMakeMethodTools = ({ makeMethod }: { makeMethod?: JobMakeMethod }) => {
     !!fetcher.formData?.get("configuration");
   const isSaveMethodLoading =
     fetcher.state !== "idle" && fetcher.formAction === path.to.jobMethodSave;
-
-  useEffect(() => {
-    if (fetcher.data?.error) {
-      toast.error(fetcher.data.error);
-    }
-  }, [fetcher.data?.error]);
 
   const [includeInactive, setIncludeInactive] = useState<
     boolean | "indeterminate"
@@ -171,7 +174,6 @@ const JobMakeMethodTools = ({ makeMethod }: { makeMethod?: JobMakeMethod }) => {
     configuratorModal.onClose();
     const sourceId = selectedConfigureItemId;
     setSelectedConfigureItemId(null);
-    setConfigurationParameters({ groups: [], parameters: [] });
     fetcher.submit(
       {
         type: "item",
@@ -305,28 +307,45 @@ const JobMakeMethodTools = ({ makeMethod }: { makeMethod?: JobMakeMethod }) => {
     }
   });
 
+  const canUseTools =
+    permissions.can("update", "production") && (isJobMethod || isJobMakeMethod);
+  const hasPrintLabel = Boolean(
+    makeMethod &&
+      (makeMethod.requiresSerialTracking || makeMethod.requiresBatchTracking)
+  );
+  const openGetMethod = () => {
+    // The modal's Item picker opens empty — clear any versions loaded on a
+    // previous open so the two can't disagree.
+    setSourceMakeMethods([]);
+    setSelectedSourceVersion(null);
+    getMethodModal.onOpen();
+  };
+  const openConfigure = () => {
+    setSelectedConfigureItemId(routeData?.job?.itemId ?? null);
+    configureSelectModal.onOpen();
+  };
+  const canConfigure = configurableItemIds.length > 0 && isJobMethod;
+
   return (
     <Fragment key={jobId}>
-      {permissions.can("update", "production") &&
-        (isJobMethod || isJobMakeMethod) && (
-          <Menubar>
-            <HStack className="w-full justify-start">
-              <HStack spacing={0}>
+      {canUseTools && (
+        <Menubar className={cn(!hasPrintLabel && "max-md:hidden")}>
+          <HStack className="w-full justify-start">
+            <HStack spacing={0}>
+              <RecordAction slot="overflow">
                 <MenubarItem
+                  className="rounded-md"
                   isLoading={isGetMethodLoading}
                   isDisabled={isDisabled || isGetMethodLoading}
                   leftIcon={<LuGitBranch />}
-                  onClick={() => {
-                    // The modal's Item picker opens empty — clear any versions
-                    // loaded on a previous open so the two can't disagree.
-                    setSourceMakeMethods([]);
-                    setSelectedSourceVersion(null);
-                    getMethodModal.onOpen();
-                  }}
+                  onClick={openGetMethod}
                 >
                   <Trans>Get Method</Trans>
                 </MenubarItem>
+              </RecordAction>
+              <RecordAction slot="overflow">
                 <MenubarItem
+                  className="rounded-md"
                   isDisabled={
                     !permissions.can("update", "parts") || isSaveMethodLoading
                   }
@@ -336,9 +355,12 @@ const JobMakeMethodTools = ({ makeMethod }: { makeMethod?: JobMakeMethod }) => {
                 >
                   <Trans>Save Method</Trans>
                 </MenubarItem>
+              </RecordAction>
 
-                {configurableItemIds.length > 0 && isJobMethod && (
+              {canConfigure && (
+                <RecordAction slot="overflow">
                   <MenubarItem
+                    className="rounded-md"
                     leftIcon={<LuSettings />}
                     isDisabled={
                       isDisabled ||
@@ -346,42 +368,42 @@ const JobMakeMethodTools = ({ makeMethod }: { makeMethod?: JobMakeMethod }) => {
                       isConfigureLoading
                     }
                     isLoading={isConfigureLoading}
-                    onClick={() => {
-                      setSelectedConfigureItemId(
-                        routeData?.job?.itemId ?? null
-                      );
-                      configureSelectModal.onOpen();
-                    }}
+                    onClick={openConfigure}
                   >
                     <Trans>Configure</Trans>
                   </MenubarItem>
-                )}
-                {itemLink && (
-                  <MenubarItem leftIcon={<LuGitFork />} asChild>
+                </RecordAction>
+              )}
+              {itemLink && (
+                <RecordAction slot="overflow">
+                  <MenubarItem
+                    className="rounded-md"
+                    leftIcon={<LuGitFork />}
+                    asChild
+                  >
                     <PrefetchLink to={itemLink}>
                       <Trans>Item Master</Trans>
                     </PrefetchLink>
                   </MenubarItem>
-                )}
-                {makeMethod &&
-                  (makeMethod.requiresSerialTracking ||
-                    makeMethod.requiresBatchTracking) && (
-                    <PrintButton
-                      sourceDocument="Operation"
-                      sourceDocumentId={makeMethod.id}
-                      locationId={routeData?.job?.locationId ?? undefined}
-                      context="workCenter"
-                      variant="ghost"
-                      fileRoutes={{
-                        pdf: path.to.file.operationLabelsPdf,
-                        zpl: path.to.file.operationLabelsZpl
-                      }}
-                    />
-                  )}
-              </HStack>
+                </RecordAction>
+              )}
+              {hasPrintLabel && makeMethod && (
+                <PrintButton
+                  sourceDocument="Operation"
+                  sourceDocumentId={makeMethod.id}
+                  locationId={routeData?.job?.locationId ?? undefined}
+                  context="workCenter"
+                  variant="ghost"
+                  fileRoutes={{
+                    pdf: path.to.file.operationLabelsPdf,
+                    zpl: path.to.file.operationLabelsZpl
+                  }}
+                />
+              )}
             </HStack>
-          </Menubar>
-        )}
+          </HStack>
+        </Menubar>
+      )}
       <Modal
         open={getMethodModal.isOpen}
         onOpenChange={(open) => {
@@ -703,40 +725,33 @@ const JobMakeMethodTools = ({ makeMethod }: { makeMethod?: JobMakeMethod }) => {
           </ValidatedForm>
         </ModalContent>
       </Modal>
-      {configuratorModal.isOpen && (
-        <ConfiguratorModal
-          open
-          destructive
-          initialValues={
-            routeData?.job?.configuration
-              ? (routeData.job.configuration as Record<string, any>)
-              : {}
-          }
-          groups={configurationParameters.groups}
-          parameters={configurationParameters.parameters}
-          onClose={() => {
-            configuratorModal.onClose();
-            setSelectedConfigureItemId(null);
-            setConfigurationParameters({ groups: [], parameters: [] });
-          }}
-          onSubmit={(config: Record<string, any>) => {
-            saveConfiguration(config);
-          }}
-        />
-      )}
+      <ConfiguratorModal
+        open={configuratorModal.isOpen}
+        destructive
+        initialValues={
+          routeData?.job?.configuration
+            ? (routeData.job.configuration as Record<string, any>)
+            : {}
+        }
+        groups={configurationParameters.groups}
+        parameters={configurationParameters.parameters}
+        onClose={() => {
+          configuratorModal.onClose();
+          setSelectedConfigureItemId(null);
+        }}
+        onSubmit={(config: Record<string, any>) => {
+          saveConfiguration(config);
+        }}
+      />
     </Fragment>
   );
 };
 
 function CompletedJobMethodForm({ currentJobId }: { currentJobId: string }) {
   const { t } = useLingui();
-  const jobsFetcher = useFetcher<{
+  const jobsFetcher = useLoaderQuery<{
     data: { id: string; jobId: string }[] | null;
-  }>();
-
-  useMount(() => {
-    jobsFetcher.load(`${path.to.api.jobs}?status=Completed&status=Closed`);
-  });
+  }>(`${path.to.api.jobs}?status=Completed&status=Closed`);
 
   const jobOptions = useMemo(
     () =>

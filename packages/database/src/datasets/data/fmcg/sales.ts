@@ -1072,6 +1072,323 @@ export const fmcgSales: SalesData = {
           unitPrice: 300
         }
       ]
+    },
+    {
+      // A unit back for service: FG-BEV-TEA-500-S013, the "expired" customer
+      // asset. Received, so its service job ("service-return") is open and the
+      // RMA is In Progress.
+      key: "service-return",
+      status: "In Progress",
+      customer: "Đại lý Miền Trung Demo",
+      returnReason: "Defective",
+      dateOffset: -3,
+      lines: [
+        {
+          item: "FG-BEV-TEA-500",
+          quantity: 1,
+          unitPrice: 242500,
+          returnType: "Return for Service",
+          asset: "expired",
+          problem: "Lô hàng bị phồng nắp sau 3 tháng lưu kho tại đại lý."
+        }
+      ]
+    }
+  ],
+  // One Active contract: a one-time setup fee and two subscriptions on Service
+  // items, two months in. Every invoice dated up to today is Billed Externally.
+  contracts: [
+    {
+      key: "anviet-merchandising",
+      name: "Dịch vụ trưng bày An Việt",
+      customer: "Siêu thị An Việt Demo",
+      startOffset: -60,
+      termMonths: 12,
+      renewal: "Renew",
+      renewalUpliftPercent: 5,
+      billingFrequency: "Month",
+      billingAlignment: "Calendar",
+      billingTiming: "Advance",
+      lines: [
+        {
+          revenueType: "One-time",
+          item: "Lắp đặt quầy trưng bày",
+          description: "Lắp đặt quầy trưng bày cho chương trình trà xanh 500 ml",
+          quantity: 1,
+          rate: 390000,
+          startOffset: -60,
+          endOffset: -31,
+          revenueMethod: "Daily"
+        },
+        {
+          revenueType: "Recurring",
+          item: "Giám sát trưng bày điểm bán",
+          description: "Giám sát trưng bày theo từng điểm bán",
+          quantity: 12,
+          rate: 3250,
+          rateUnit: "Month",
+          startOffset: -60,
+          revenueMethod: "Even Period"
+        },
+        {
+          revenueType: "Recurring",
+          item: "Dịch vụ kiểm nghiệm sản phẩm",
+          description: "Kiểm nghiệm định kỳ hằng năm",
+          quantity: 1,
+          rate: 120000,
+          rateUnit: "Year",
+          discountPercent: 10,
+          startOffset: -60,
+          revenueMethod: "Even Period"
+        }
+      ]
+    }
+  ],
+  // Field service: three units at customers (one in warranty, one whose labor
+  // warranty has ended, one expired).
+  customerAssets: [
+    {
+      key: "in-warranty",
+      item: "FG-BEV-TEA-500",
+      serial: "FG-BEV-TEA-500-S011",
+      customer: "Siêu thị An Việt Demo",
+      shippedOffset: -120,
+      laborWarrantyEndOffset: 245,
+      partsWarrantyEndOffset: 610
+    },
+    {
+      key: "labor-ended",
+      item: "FG-BEV-TEA-500",
+      serial: "FG-BEV-TEA-500-S012",
+      customer: "Nhà phân phối Miền Nam Demo",
+      shippedOffset: -500,
+      laborWarrantyEndOffset: -135,
+      partsWarrantyEndOffset: 230
+    },
+    {
+      key: "expired",
+      item: "FG-BEV-TEA-500",
+      serial: "FG-BEV-TEA-500-S013",
+      customer: "Đại lý Miền Trung Demo",
+      shippedOffset: -900,
+      laborWarrantyEndOffset: -535,
+      partsWarrantyEndOffset: -170
+    }
+  ],
+  // VND per hour, on the same scale as the work-center labor rates.
+  serviceLaborRates: { cost: 2900, bill: 6750 },
+  // One service job per status. The Open job is the one the "service-return"
+  // RMA receipt created.
+  serviceJobs: [
+    {
+      key: "service-return",
+      status: "Open",
+      coverage: "Billable",
+      workSite: "Depot",
+      priority: "High",
+      asset: "expired",
+      salesReturnLine: { salesReturn: "service-return", line: 1 },
+      problem: "Lô hàng bị phồng nắp sau 3 tháng lưu kho tại đại lý.",
+      time: [],
+      charges: [],
+      assignments: [
+        { weekday: 2, plannedHours: 3 },
+        { weekday: 3, plannedHours: 2 }
+      ]
+    },
+    {
+      key: "estimate",
+      status: "Awaiting Approval",
+      coverage: "Billable",
+      workSite: "Customer Site",
+      priority: "Medium",
+      asset: "labor-ended",
+      openedWorkdaysBack: 6,
+      dueOffset: 10,
+      problem: "Khách hàng phản ánh vị trà thay đổi trong lô hàng tồn kho.",
+      findings:
+        "Kho đại lý vượt nhiệt độ bảo quản. Bao bì và nắp chai còn nguyên vẹn.",
+      repairable: true,
+      estimate: {
+        status: "Sent",
+        sentWorkdaysBack: 3,
+        lines: [
+          { quantity: 6, unitPrice: 6750 },
+          {
+            item: "Dịch vụ kiểm nghiệm sản phẩm",
+            description: "Kiểm nghiệm mẫu và cấp phiếu kết quả",
+            quantity: 1,
+            unitPrice: 92500
+          }
+        ]
+      },
+      time: [
+        {
+          workdaysBack: 4,
+          hours: 3,
+          note: "Khảo sát điều kiện bảo quản tại kho đại lý"
+        }
+      ],
+      charges: []
+    },
+    {
+      key: "on-site",
+      status: "In Progress",
+      coverage: "Warranty",
+      workSite: "Customer Site",
+      priority: "High",
+      asset: "in-warranty",
+      openedWorkdaysBack: 3,
+      dueOffset: 4,
+      problem: "Tem truy xuất nguồn gốc không quét được tại quầy thu ngân.",
+      findings: "Tem bị trầy do va chạm khi xếp hàng lên kệ.",
+      repairable: true,
+      time: [
+        {
+          workdaysBack: 2,
+          hours: 3.5,
+          clock: { start: "08:00:00", end: "11:30:00" },
+          note: "Kiểm tra mã truy xuất trên toàn bộ lô tại điểm bán"
+        },
+        {
+          workdaysBack: 1,
+          hours: 4,
+          note: "Dán lại tem truy xuất cho các thùng bị lỗi"
+        }
+      ],
+      charges: [],
+      assignments: [
+        {
+          weekday: 0,
+          plannedHours: 4,
+          note: "Mang theo tem truy xuất dự phòng"
+        },
+        { weekday: 1, plannedHours: 3 }
+      ]
+    },
+    {
+      key: "warranty-repair",
+      status: "Completed",
+      coverage: "Warranty",
+      workSite: "Depot",
+      priority: "Medium",
+      asset: "in-warranty",
+      openedWorkdaysBack: 30,
+      problem: "Màng co lốc chai bị bong sau khi giao hàng.",
+      findings: "Nhiệt độ hầm co màng thấp hơn tiêu chuẩn.",
+      resolution:
+        "Đóng lại màng co cho lô hàng và hiệu chỉnh nhiệt độ hầm co màng.",
+      repairable: true,
+      time: [
+        { workdaysBack: 28, hours: 5 },
+        { workdaysBack: 27, hours: 3.5 }
+      ],
+      charges: [],
+      completedWorkdaysBack: 27
+    },
+    {
+      key: "invoiced",
+      status: "Invoiced",
+      coverage: "Billable",
+      workSite: "Customer Site",
+      priority: "Medium",
+      asset: "labor-ended",
+      openedWorkdaysBack: 18,
+      problem: "Thùng hàng bị móp do xếp chồng sai quy cách tại kho.",
+      findings: "Kho đại lý xếp quá số tầng cho phép.",
+      resolution:
+        "Đóng gói lại các thùng bị móp và hướng dẫn quy cách xếp chồng.",
+      repairable: true,
+      estimate: {
+        status: "Accepted",
+        sentWorkdaysBack: 16,
+        respondedWorkdaysBack: 15,
+        respondedBy: "Wes Talbot",
+        lines: [
+          { quantity: 8, unitPrice: 6750 },
+          {
+            item: "Dịch vụ kiểm nghiệm sản phẩm",
+            description: "Kiểm nghiệm mẫu và cấp phiếu kết quả",
+            quantity: 1,
+            unitPrice: 92500
+          }
+        ]
+      },
+      time: [
+        { workdaysBack: 14, hours: 4 },
+        { workdaysBack: 13, hours: 3.5 },
+        {
+          workdaysBack: 13,
+          hours: 1,
+          billable: false,
+          note: "Di chuyển đến kho khách hàng, không tính phí"
+        }
+      ],
+      charges: [
+        {
+          item: "Dịch vụ kiểm nghiệm sản phẩm",
+          description: "Kiểm nghiệm mẫu và cấp phiếu kết quả",
+          quantity: 1,
+          unitPrice: 92500
+        }
+      ],
+      completedWorkdaysBack: 12,
+      invoiceWorkdaysBack: 11
+    }
+  ],
+  // Rental agreements over the fleet units (accounting fixedAssets "fleet-*").
+  rentalAgreements: [
+    {
+      key: "active",
+      customer: "Đại lý Miền Trung Demo",
+      primaryContact: "Boone",
+      status: "Active",
+      startOffset: -45,
+      billingCycle: "Calendar Month",
+      billingTiming: "Advance",
+      lines: [
+        {
+          fixedAsset: "fleet-1",
+          rateUnit: "Month",
+          rate: 10500,
+          fairValue: 133500,
+          economicLifeMonths: 60,
+          deliveredOffset: -40
+        },
+        {
+          fixedAsset: "fleet-2",
+          rateUnit: "Month",
+          rate: 10500,
+          fairValue: 133500,
+          economicLifeMonths: 60
+        }
+      ],
+      charges: [
+        {
+          line: 1,
+          description: "Phí vận chuyển và kiểm tra",
+          amount: 9000,
+          dateOffset: -40
+        }
+      ]
+    },
+    {
+      key: "draft",
+      customer: "Siêu thị An Việt Demo",
+      primaryContact: "Raghavan",
+      status: "Draft",
+      startOffset: 14,
+      endOffset: 379,
+      billingCycle: "Calendar Month",
+      billingTiming: "Advance",
+      lines: [
+        {
+          fixedAsset: "fleet-3",
+          rateUnit: "Month",
+          rate: 6750,
+          fairValue: 81000,
+          economicLifeMonths: 60
+        }
+      ]
     }
   ],
   customerPortals: ["Siêu thị An Việt Demo", "Nhà phân phối Miền Nam Demo"],

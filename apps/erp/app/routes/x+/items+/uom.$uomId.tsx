@@ -6,23 +6,21 @@ import { assertIsPost, error, notFound, success } from "@carbon/auth";
 import { requirePermissions } from "@carbon/auth/auth.server";
 import { flash } from "@carbon/auth/session.server";
 import { validationError, validator } from "@carbon/form";
-import { useCloseRoute } from "@carbon/react";
-import { redirect } from "@carbon/utils";
-import type {
-  ActionFunctionArgs,
-  ClientActionFunctionArgs,
-  LoaderFunctionArgs
-} from "react-router";
+import { useRouteDialog } from "@carbon/react";
+import { isUniqueViolation, redirect } from "@carbon/utils";
+import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import { data, useLoaderData } from "react-router";
 import {
+  UNIT_OF_MEASURE_TAKEN,
+  unitOfMeasureValidator
+} from "~/modules/items/items.models";
+import {
   getUnitOfMeasure,
-  unitOfMeasureValidator,
   upsertUnitOfMeasure
-} from "~/modules/items";
+} from "~/modules/items/items.service";
 import { UnitOfMeasureForm } from "~/modules/items/ui/UnitOfMeasure";
 import { getCustomFields, setCustomFields } from "~/utils/form";
 import { getParams, path } from "~/utils/path";
-import { getCompanyId, uomsQuery } from "~/utils/react-query";
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const { client, companyId } = await requirePermissions(request, {
@@ -68,7 +66,12 @@ export async function action({ request }: ActionFunctionArgs) {
       {},
       await flash(
         request,
-        error(updateUnitOfMeasure.error, "Failed to update unit of measure")
+        error(
+          updateUnitOfMeasure.error,
+          isUniqueViolation(updateUnitOfMeasure.error)
+            ? UNIT_OF_MEASURE_TAKEN
+            : "Failed to update unit of measure"
+        )
       )
     );
   }
@@ -79,19 +82,15 @@ export async function action({ request }: ActionFunctionArgs) {
   );
 }
 
-export async function clientAction({ serverAction }: ClientActionFunctionArgs) {
-  window.clientCache?.setQueryData(uomsQuery(getCompanyId()).queryKey, null);
-  return await serverAction();
-}
-
 export default function EditUnitOfMeasuresRoute() {
   const { unitOfMeasure } = useLoaderData<typeof loader>();
-  const closeRoute = useCloseRoute();
+  const dialog = useRouteDialog();
 
   const initialValues = {
     id: unitOfMeasure?.id ?? undefined,
     name: unitOfMeasure?.name ?? "",
     code: unitOfMeasure?.code ?? "",
+    active: unitOfMeasure?.active ?? true,
     ...getCustomFields(unitOfMeasure?.customFields)
   };
 
@@ -99,7 +98,8 @@ export default function EditUnitOfMeasuresRoute() {
     <UnitOfMeasureForm
       key={initialValues.id}
       initialValues={initialValues}
-      onClose={() => closeRoute()}
+      open={dialog.open}
+      onClose={dialog.close}
     />
   );
 }

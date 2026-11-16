@@ -8,20 +8,19 @@ import { flash } from "@carbon/auth/session.server";
 import { useMount, VStack } from "@carbon/react";
 import { datetime, redirect } from "@carbon/utils";
 import type { LoaderFunctionArgs } from "react-router";
-import { useLoaderData, useParams } from "react-router";
+import { useLoaderData } from "react-router";
 import { usePanels } from "~/components/Layout";
-import { useRealtime } from "~/hooks";
-import { getPicksByJobMaterial } from "~/modules/inventory";
-import { getItemSupersessionsForItems } from "~/modules/items";
+import { getPicksByJobMaterial } from "~/modules/inventory/inventory.service";
+import { getItemSupersessionsForItems } from "~/modules/items/items.service";
 import {
   getJob,
   getJobMaterialItemIds,
   getJobMaterialsWithQuantityOnHand,
   getJobOrderStatusMap
-} from "~/modules/production";
+} from "~/modules/production/production.service";
 import { JobMaterialsTable } from "~/modules/production/ui/Jobs";
-import { getCompanySettings } from "~/modules/settings";
-import { getLocationTimeZone } from "~/modules/shared/timezone.server";
+import { getCompanySettings } from "~/modules/settings/settings.service";
+import { getLocationTimeZone } from "~/modules/shared/shared.service";
 import { path } from "~/utils/path";
 import { getGenericQueryFilters } from "~/utils/query";
 
@@ -37,7 +36,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   const url = new URL(request.url);
   const searchParams = new URLSearchParams(url.search);
   const search = searchParams.get("search");
-  const { limit, offset, sorts, filters } =
+  const { limit, cursor, sorts, filters } =
     getGenericQueryFilters(searchParams);
 
   const job = await getJob(client, jobId);
@@ -55,7 +54,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     getJobMaterialsWithQuantityOnHand(client, jobId, companyId, locationId, {
       search,
       limit,
-      offset,
+      cursor,
       sorts,
       // orderStatus is filtered client-side — not a column the RPC can filter on.
       // readableIdWithRevision was the Item filter's column before it moved to
@@ -227,10 +226,7 @@ export default function JobMaterialsRoute() {
     picksByMaterialId,
     consumeFirstByItemId
   } = useLoaderData<typeof loader>();
-  const { jobId } = useParams();
   const { setIsExplorerCollapsed } = usePanels();
-
-  useRealtime("pickingListLine", `jobId=eq.${jobId}`);
 
   useMount(() => {
     setIsExplorerCollapsed(true);

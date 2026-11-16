@@ -173,7 +173,7 @@ export const fmcgItems: ItemsData = {
       name: "Axit citric thực phẩm",
       type: "Material",
       standardCost: 4200,
-      unitOfMeasureCode: "LT",
+      unitOfMeasureCode: "L",
       leadTime: 14
     },
     {
@@ -245,12 +245,33 @@ export const fmcgItems: ItemsData = {
   ],
   services: [
     {
-      readableId: "SVC-LAB-TEST",
+      // A service's readableId is its name.
+      readableId: "Dịch vụ kiểm nghiệm sản phẩm",
       name: "Dịch vụ kiểm nghiệm sản phẩm",
       type: "Service",
       replenishment: "Buy",
       standardCost: 72500,
       leadTime: 21
+    },
+    {
+      // Sold on the demo customer contract (sales.contracts).
+      readableId: "Lắp đặt quầy trưng bày",
+      name: "Lắp đặt quầy trưng bày",
+      type: "Service",
+      replenishment: "Buy",
+      description:
+        "Thiết kế, lắp đặt quầy kệ và tủ mát trưng bày sản phẩm tại điểm bán.",
+      standardCost: 260000
+    },
+    {
+      // Sold on the demo customer contract (sales.contracts).
+      readableId: "Giám sát trưng bày điểm bán",
+      name: "Giám sát trưng bày điểm bán",
+      type: "Service",
+      replenishment: "Buy",
+      description:
+        "Kiểm tra định kỳ tồn kho, hạn sử dụng và tiêu chuẩn trưng bày tại điểm bán.",
+      standardCost: 24000
     }
   ],
   makeParts: [
@@ -1237,15 +1258,14 @@ export const fmcgItems: ItemsData = {
     {
       item: "PKG-BEV-CASE",
       obsoleteRevision: "A",
-      nextRevision: "B",
-      nextStatus: "Prototype"
+      nextRevision: "B"
     }
   ],
   inspectionPlans: [
     {
       key: "WIP-FOOD-DOUGH-JOURNAL",
       item: "WIP-FOOD-DOUGH",
-      drawingNumber: "FMCG-BEV-500-SH Rev E",
+      name: "FMCG-BEV-500-SH Rev E",
       aql: 1,
       features: [
         {
@@ -1269,7 +1289,7 @@ export const fmcgItems: ItemsData = {
     {
       key: "CARE-SHAMPOO-PH",
       item: "WIP-CARE-SHAMPOO",
-      drawingNumber: "QC-CARE-PH-001",
+      name: "QC-CARE-PH-001",
       aql: 1,
       features: [
         {

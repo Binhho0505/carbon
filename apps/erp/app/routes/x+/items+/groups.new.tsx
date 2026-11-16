@@ -6,22 +6,15 @@ import { assertIsPost, error, success } from "@carbon/auth";
 import { requirePermissions } from "@carbon/auth/auth.server";
 import { flash } from "@carbon/auth/session.server";
 import { validationError, validator } from "@carbon/form";
-import { useCloseRoute } from "@carbon/react";
+import { useRouteDialog } from "@carbon/react";
 import { redirect } from "@carbon/utils";
-import type {
-  ActionFunctionArgs,
-  ClientActionFunctionArgs,
-  LoaderFunctionArgs
-} from "react-router";
+import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import { data } from "react-router";
-import {
-  itemPostingGroupValidator,
-  upsertItemPostingGroup
-} from "~/modules/items";
+import { itemPostingGroupValidator } from "~/modules/items/items.models";
+import { upsertItemPostingGroup } from "~/modules/items/items.service";
 import { ItemPostingGroupForm } from "~/modules/items/ui/ItemPostingGroups";
 import { setCustomFields } from "~/utils/form";
 import { getParams, path } from "~/utils/path";
-import { getCompanyId, itemPostingGroupsQuery } from "~/utils/react-query";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   await requirePermissions(request, {
@@ -71,10 +64,7 @@ export async function action({ request }: ActionFunctionArgs) {
   if (!itemPostingGroupId) {
     return data(
       {},
-      await flash(
-        request,
-        error(insertItemPostingGroup, "Failed to insert item group")
-      )
+      await flash(request, error(null, "Failed to insert item group"))
     );
   }
 
@@ -86,16 +76,8 @@ export async function action({ request }: ActionFunctionArgs) {
       );
 }
 
-export async function clientAction({ serverAction }: ClientActionFunctionArgs) {
-  window.clientCache?.setQueryData(
-    itemPostingGroupsQuery(getCompanyId()).queryKey,
-    null
-  );
-  return await serverAction();
-}
-
 export default function NewItemPostingGroupsRoute() {
-  const closeRoute = useCloseRoute();
+  const dialog = useRouteDialog();
   const initialValues = {
     name: "",
     description: ""
@@ -103,7 +85,8 @@ export default function NewItemPostingGroupsRoute() {
 
   return (
     <ItemPostingGroupForm
-      onClose={() => closeRoute()}
+      open={dialog.open}
+      onClose={dialog.close}
       initialValues={initialValues}
     />
   );

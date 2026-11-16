@@ -2,7 +2,9 @@
 // Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
 // including ports, remain AGPLv3; serving them over a network requires releasing their source.
 
-import { useEffect, useState } from "react";
+import { useLoaderQuery } from "@carbon/query";
+import { useLingui } from "@lingui/react/macro";
+import { useState } from "react";
 import { LuTrash2 } from "react-icons/lu";
 import { useFetcher } from "react-router";
 import { DateTime } from "~/components";
@@ -21,16 +23,13 @@ export function AgentThreadList({
   onSelect: (id: string) => void;
   onDelete?: (id: string) => void;
 }) {
-  const fetcher = useFetcher<{ threads: Thread[] }>();
+  const { t } = useLingui();
+  const fetcher = useLoaderQuery<{ threads: Thread[] }>(
+    path.to.api.agentThreads
+  );
   const deleteFetcher = useFetcher();
   const [query, setQuery] = useState("");
   const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set());
-
-  useEffect(() => {
-    if (fetcher.state === "idle" && !fetcher.data) {
-      fetcher.load(path.to.api.agentThreads);
-    }
-  }, [fetcher]);
 
   const threads = (fetcher.data?.threads ?? []).filter(
     (t) => !deletedIds.has(t.id)
@@ -55,10 +54,11 @@ export function AgentThreadList({
     <div className="flex flex-col max-h-[60vh]">
       <div className="p-2 border-b shrink-0">
         <input
+          aria-label={t`Search chats`}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search chats…"
-          className="w-full rounded-md border bg-background px-2 py-1.5 text-sm outline-none placeholder:text-muted-foreground"
+          className="w-full rounded-md border bg-card px-2 py-1.5 text-sm outline-none placeholder:text-muted-foreground"
         />
       </div>
       <div className="overflow-y-auto p-1">
@@ -85,7 +85,7 @@ export function AgentThreadList({
                 <button
                   type="button"
                   aria-label="Delete chat"
-                  className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:text-destructive hover:bg-muted transition-opacity"
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground md:opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:text-destructive hover:bg-muted transition-opacity"
                   onClick={(e) => {
                     e.stopPropagation();
                     handleDelete(t.id);

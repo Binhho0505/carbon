@@ -1,7 +1,9 @@
+---
 paths:
   - "apps/erp/app/modules/workflows/ui/Runs/**"
   - "packages/jobs/src/inngest/functions/scheduled/workflow-run-retention.ts"
   - "packages/jobs/src/workflows/retention.ts"
+---
 
 # Workflow Run History
 
@@ -142,5 +144,6 @@ information the tool exists to show.
 
 `RunLiveUpdates` / `RunsLiveUpdates` in `ui/Runs/RunLiveUpdates.tsx` use `useDebouncedRealtime`
 to revalidate the loader after 1.5 s of quiet. They mount only while at least one row is
-non-terminal — an unfiltered subscription on `workflowStepRun` would fire on every company's
-every step. Caller supplies the filter; the hook does not add `companyId` itself.
+non-terminal. The broadcast topic is per company, so the runs list follows `workflowRun`
+with no filter; the run drawer filters `workflowStepRun` on `runId` and `workflowRun` on
+`id` (see `realtime-system.md`).

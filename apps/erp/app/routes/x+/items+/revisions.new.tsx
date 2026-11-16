@@ -9,8 +9,11 @@ import { validator } from "@carbon/form";
 import { getLogger } from "@carbon/logger";
 import type { ActionFunctionArgs } from "react-router";
 import { revisionValidator } from "~/modules/items/items.models";
-import { requireItemChangeNoticeUnlocked } from "~/modules/items/items.server";
-import { createRevision, getItem } from "~/modules/items/items.service";
+import {
+  createRevision,
+  getItem,
+  requireItemChangeNoticeUnlocked
+} from "~/modules/items/items.service";
 import { getDatabaseClient } from "~/services/database.server";
 import { path } from "~/utils/path";
 
@@ -26,13 +29,13 @@ export async function action({ request }: ActionFunctionArgs) {
   const validation = await validator(revisionValidator).validate(formData);
 
   if (validation.error) {
-    return { success: false, error: "Invalid form data" };
+    return { success: false, message: "Invalid form data" };
   }
 
   if (!validation.data.copyFromId) {
     return {
       success: false,
-      error: "Copy from ID is required for a new revision"
+      message: "Copy from ID is required for a new revision"
     };
   }
 
@@ -42,13 +45,13 @@ export async function action({ request }: ActionFunctionArgs) {
   });
 
   if (changeNoticeLock) {
-    return { success: false, error: changeNoticeLock.error.message };
+    return { success: false, message: changeNoticeLock.error.message };
   }
 
   const currentItem = await getItem(client, validation.data.copyFromId);
 
   if (currentItem.error) {
-    return { success: false, error: "Failed to get current item" };
+    return { success: false, message: "Failed to get current item" };
   }
 
   // createRevision writes through the service role with the SOURCE item's
@@ -58,7 +61,7 @@ export async function action({ request }: ActionFunctionArgs) {
       companyId,
       itemId: validation.data.copyFromId
     });
-    return { success: false, error: "Failed to get current item" };
+    return { success: false, message: "Failed to get current item" };
   }
 
   const result = await createRevision(
@@ -72,7 +75,7 @@ export async function action({ request }: ActionFunctionArgs) {
   );
 
   if (result.error) {
-    return { success: false, error: "Failed to create revision" };
+    return { success: false, message: "Failed to create revision" };
   }
 
   const link = (() => {

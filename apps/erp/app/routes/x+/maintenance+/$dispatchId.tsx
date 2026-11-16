@@ -7,14 +7,12 @@ import { requirePermissions } from "@carbon/auth/auth.server";
 import { flash } from "@carbon/auth/session.server";
 import { storage } from "@carbon/files";
 import type { JSONContent } from "@carbon/react";
-import { VStack } from "@carbon/react";
-import { isUnaffectedByNavigation, redirect } from "@carbon/utils";
+import { RecordOutlet, VStack } from "@carbon/react";
+import { redirect } from "@carbon/utils";
 import { msg } from "@lingui/core/macro";
-import type {
-  LoaderFunctionArgs,
-  ShouldRevalidateFunction
-} from "react-router";
-import { Outlet, useLoaderData, useParams } from "react-router";
+import { useLingui } from "@lingui/react/macro";
+import type { LoaderFunctionArgs, MetaFunction } from "react-router";
+import { useLoaderData, useParams } from "react-router";
 import { PanelProvider, ResizablePanels } from "~/components/Layout/Panels";
 import RiskRegisterCard from "~/modules/quality/ui/RiskRegister/RiskRegisterCard";
 import {
@@ -23,7 +21,7 @@ import {
   getMaintenanceDispatchComments,
   getMaintenanceDispatchEvents,
   getMaintenanceDispatchItems
-} from "~/modules/resources";
+} from "~/modules/resources/resources.service";
 import { MaintenanceDispatchExplorer } from "~/modules/resources/ui/Maintenance/MaintenanceDispatchExplorer";
 import MaintenanceDispatchHeader from "~/modules/resources/ui/Maintenance/MaintenanceDispatchHeader";
 import {
@@ -32,9 +30,13 @@ import {
 } from "~/modules/resources/ui/Maintenance/MaintenanceDispatchNotes";
 import MaintenanceDispatchProperties from "~/modules/resources/ui/Maintenance/MaintenanceDispatchProperties";
 import { detailBreadcrumb, type Handle } from "~/utils/handle";
+import { recordMeta } from "~/utils/meta";
 import { path } from "~/utils/path";
 
 export const handle: Handle = {
+  realtime: [
+    { table: "maintenanceDispatch", column: "id", param: "dispatchId" }
+  ],
   breadcrumb: detailBreadcrumb(
     { breadcrumb: msg`Maintenance`, to: path.to.maintenanceDispatches },
     (data) => data?.dispatch?.maintenanceDispatchId
@@ -53,10 +55,8 @@ async function getMaintenanceDispatchFiles(
   return result.data ?? [];
 }
 
-export const shouldRevalidate: ShouldRevalidateFunction = (args) =>
-  isUnaffectedByNavigation(args, { params: ["dispatchId"] })
-    ? false
-    : args.defaultShouldRevalidate;
+export const meta: MetaFunction<typeof loader> = ({ data }) =>
+  recordMeta(data?.dispatch?.maintenanceDispatchId, "Maintenance Dispatch");
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const { client, companyId } = await requirePermissions(request, {
@@ -95,6 +95,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 }
 
 export default function MaintenanceDispatchRoute() {
+  const { t } = useLingui();
   const { dispatchId } = useParams();
   const { dispatch, events, items, files } = useLoaderData<typeof loader>();
 
@@ -109,6 +110,7 @@ export default function MaintenanceDispatchRoute() {
         <div className="flex h-[calc(100dvh-var(--topbar-height)-var(--header-height)-var(--content-inset))] overflow-hidden w-full">
           <div className="flex flex-grow overflow-hidden">
             <ResizablePanels
+              explorerLabel={t`Items`}
               explorer={
                 <MaintenanceDispatchExplorer items={items} events={events} />
               }
@@ -131,7 +133,7 @@ export default function MaintenanceDispatchRoute() {
                         source="Work Center"
                       />
                     )}
-                    <Outlet />
+                    <RecordOutlet />
                   </VStack>
                 </div>
               }

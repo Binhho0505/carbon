@@ -4,25 +4,28 @@
 
 import { error } from "@carbon/auth";
 import { requirePermissions } from "@carbon/auth/auth.server";
+import { getCarbonServiceRole } from "@carbon/auth/client.server";
 import { flash } from "@carbon/auth/session.server";
-import { VStack } from "@carbon/react";
-import { isUnaffectedByNavigation, redirect } from "@carbon/utils";
+import { RecordOutlet, VStack } from "@carbon/react";
+import { redirect } from "@carbon/utils";
 import { msg } from "@lingui/core/macro";
 import type {
   ActionFunctionArgs,
   LoaderFunctionArgs,
-  ShouldRevalidateFunction
+  MetaFunction
 } from "react-router";
-import { Outlet, useParams } from "react-router";
+import { useLoaderData, useParams } from "react-router";
+import { DocumentForceDeleteBanner } from "~/components/ForceDelete/DocumentForceDelete";
 import { PanelProvider, ResizablePanels } from "~/components/Layout";
-import { getCurrencyByCode } from "~/modules/accounting";
+import { getCurrencyByCode } from "~/modules/accounting/accounting.service";
 import {
   getCompanyHasOpenCredits,
+  getDocumentForceDeleteData,
   getPurchaseInvoice,
   getPurchaseInvoiceDelivery,
-  getPurchaseInvoiceLines,
-  PurchaseInvoiceHeader
-} from "~/modules/invoicing";
+  getPurchaseInvoiceLines
+} from "~/modules/invoicing/invoicing.service";
+import { PurchaseInvoiceHeader } from "~/modules/invoicing/ui";
 import PurchaseInvoiceExplorer from "~/modules/invoicing/ui/PurchaseInvoice/PurchaseInvoiceExplorer";
 import PurchaseInvoiceProperties from "~/modules/invoicing/ui/PurchaseInvoice/PurchaseInvoiceProperties";
 import {
@@ -30,10 +33,24 @@ import {
   getSupplierInteraction,
   getSupplierInteractionDocuments
 } from "~/modules/purchasing/purchasing.service";
+import { getDatabaseClient } from "~/services/database.server";
 import { detailBreadcrumb, type Handle } from "~/utils/handle";
+import { recordMeta } from "~/utils/meta";
 import { path, requestReferrer } from "~/utils/path";
 
 export const handle: Handle = {
+  realtime: [
+    { table: "purchaseInvoice", column: "id", param: "invoiceId" },
+    { table: "purchaseInvoiceLine", column: "invoiceId", param: "invoiceId" },
+    // What is applied to this invoice, and the payments behind it: voiding a
+    // payment changes the payment row only.
+    {
+      table: "invoiceSettlement",
+      column: "targetPurchaseInvoiceId",
+      param: "invoiceId"
+    },
+    { table: "payment", column: "targetPurchaseInvoiceId", param: "invoiceId" }
+  ],
   breadcrumb: detailBreadcrumb(
     { breadcrumb: msg`Purchasing Invoices`, to: path.to.invoicingPurchasing },
     (data) => data?.purchaseInvoice?.invoiceId
@@ -41,18 +58,14 @@ export const handle: Handle = {
   module: "invoicing"
 };
 
-export const shouldRevalidate: ShouldRevalidateFunction = (args) =>
-  isUnaffectedByNavigation(args, { params: ["invoiceId"] })
-    ? false
-    : args.defaultShouldRevalidate;
+export const meta: MetaFunction<typeof loader> = ({ data }) =>
+  recordMeta(data?.purchaseInvoice?.invoiceId, "Purchase Invoice");
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
-  const { client, companyId, companyGroupId } = await requirePermissions(
-    request,
-    {
+  const { client, companyId, companyGroupId, userId } =
+    await requirePermissions(request, {
       view: "invoicing"
-    }
-  );
+    });
 
   const { invoiceId } = params;
   if (!invoiceId) throw new Error("Could not find invoiceId");
@@ -74,34 +87,44 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     );
   }
 
-  const [supplier, interaction, orgHasCredits, currency, rampMapping] =
-    await Promise.all([
-      purchaseInvoice.data?.supplierId
-        ? getSupplier(client, purchaseInvoice.data.supplierId)
-        : null,
-      getSupplierInteraction(
-        client,
-        purchaseInvoice.data.supplierInteractionId!
-      ),
-      getCompanyHasOpenCredits(client, companyId, "purchase"),
-      purchaseInvoice.data?.currencyCode
-        ? getCurrencyByCode(
-            client,
-            companyGroupId,
-            purchaseInvoice.data.currencyCode
-          )
-        : null,
-      // Ramp origin/sync badge. Read via the user-scoped client — if RLS denies
-      // (or there is no mapping), fall back to null silently.
-      client
-        .from("externalIntegrationMapping")
-        .select("id, externalId, metadata")
-        .eq("companyId", companyId)
-        .eq("integration", "ramp")
-        .eq("entityType", "bill")
-        .eq("entityId", invoiceId)
-        .maybeSingle()
-    ]);
+  const [
+    supplier,
+    interaction,
+    orgHasCredits,
+    currency,
+    rampMapping,
+    forceDelete
+  ] = await Promise.all([
+    purchaseInvoice.data?.supplierId
+      ? getSupplier(client, purchaseInvoice.data.supplierId)
+      : null,
+    getSupplierInteraction(client, purchaseInvoice.data.supplierInteractionId!),
+    getCompanyHasOpenCredits(client, companyId, "purchase"),
+    purchaseInvoice.data?.currencyCode
+      ? getCurrencyByCode(
+          client,
+          companyGroupId,
+          purchaseInvoice.data.currencyCode
+        )
+      : null,
+    // Ramp origin/sync badge. Read via the user-scoped client — if RLS denies
+    // (or there is no mapping), fall back to null silently.
+    client
+      .from("externalIntegrationMapping")
+      .select("id, externalId, metadata")
+      .eq("companyId", companyId)
+      .eq("integration", "ramp")
+      .eq("entityType", "bill")
+      .eq("entityId", invoiceId)
+      .maybeSingle(),
+    // The Admin force-delete override (`force-delete+`).
+    getDocumentForceDeleteData(getCarbonServiceRole(), getDatabaseClient(), {
+      companyId,
+      userId,
+      documentType: "purchaseInvoice",
+      documentId: invoiceId
+    })
+  ]);
 
   return {
     purchaseInvoice: purchaseInvoice.data,
@@ -116,7 +139,8 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     interaction: interaction.data,
     supplier: supplier?.data ?? null,
     orgHasCredits,
-    rampMapping: rampMapping?.data ?? null
+    rampMapping: rampMapping?.data ?? null,
+    ...forceDelete
   };
 }
 
@@ -128,6 +152,7 @@ export default function PurchaseInvoiceRoute() {
   const params = useParams();
   const { invoiceId } = params;
   if (!invoiceId) throw new Error("Could not find invoiceId");
+  const data = useLoaderData<typeof loader>();
 
   return (
     <PanelProvider>
@@ -140,7 +165,14 @@ export default function PurchaseInvoiceRoute() {
               content={
                 <div className="bg-card h-[calc(100dvh-var(--topbar-height)-var(--header-height)-var(--content-inset))] overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-accent w-full">
                   <VStack spacing={4} className="p-4">
-                    <Outlet />
+                    <DocumentForceDeleteBanner
+                      documentType="purchaseInvoice"
+                      documentId={invoiceId}
+                      readableId={data.purchaseInvoice.invoiceId ?? invoiceId}
+                      status={data.purchaseInvoice.status ?? "Draft"}
+                      forceDelete={data}
+                    />
+                    <RecordOutlet />
                   </VStack>
                 </div>
               }

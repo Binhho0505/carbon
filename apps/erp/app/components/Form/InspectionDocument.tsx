@@ -4,10 +4,11 @@
 
 import type { ComboboxProps } from "@carbon/form";
 import { Combobox } from "@carbon/form";
+import { useLoaderQuery } from "@carbon/query";
 import { HStack } from "@carbon/react";
-import { useEffect, useMemo } from "react";
-import { useFetcher } from "react-router";
+import { useMemo } from "react";
 import type { getInspectionDocumentsForItem } from "~/modules/quality/quality.service";
+import QualityDocumentStatus from "~/modules/quality/ui/Documents/QualityDocumentStatus";
 import { path } from "~/utils/path";
 
 type InspectionDocumentSelectProps = Omit<ComboboxProps, "options"> & {
@@ -37,17 +38,11 @@ export default InspectionDocument;
 
 export const useInspectionDocuments = (args: { itemId?: string }) => {
   const { itemId } = args;
-  const inspectionDocumentFetcher =
-    useFetcher<Awaited<ReturnType<typeof getInspectionDocumentsForItem>>>();
+  const inspectionDocumentFetcher = useLoaderQuery<
+    Awaited<ReturnType<typeof getInspectionDocumentsForItem>>
+  >(itemId ? path.to.api.inspectionDocuments(itemId) : null);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: fetcher.load is not referentially stable; reload only when itemId changes
-  useEffect(() => {
-    if (itemId) {
-      inspectionDocumentFetcher.load(path.to.api.inspectionDocuments(itemId));
-    }
-  }, [itemId]);
-
-  const loading = inspectionDocumentFetcher.state !== "idle";
+  const loading = inspectionDocumentFetcher.isFetching;
 
   const options = useMemo(
     () =>
@@ -58,12 +53,13 @@ export const useInspectionDocuments = (args: { itemId?: string }) => {
               <div className="flex justify-between items-center gap-1 w-full">
                 <HStack className="items-end">
                   <span className="text-sm truncate">
-                    {c.drawingNumber ?? c.fileName ?? c.id}{" "}
+                    {c.name ?? c.fileName ?? c.id}{" "}
                   </span>
                   <span className="text-xs text-muted-foreground">
                     v{c.version}
                   </span>
                 </HStack>
+                <QualityDocumentStatus status={c.status} />
               </div>
             )
           }))

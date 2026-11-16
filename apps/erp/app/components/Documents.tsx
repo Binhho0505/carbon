@@ -3,14 +3,21 @@
 // including ports, remain AGPLv3; serving them over a network requires releasing their source.
 
 import { useCarbon } from "@carbon/auth";
-import { convertKbToString, downloadUrl, storage } from "@carbon/files";
+import {
+  convertKbToString,
+  downloadUrl,
+  getDocumentType,
+  storage
+} from "@carbon/files";
 import { getLogger } from "@carbon/logger";
+import { useRevalidator } from "@carbon/query";
 import {
   Card,
   CardAction,
   CardContent,
   CardHeader,
   CardTitle,
+  cn,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -25,14 +32,15 @@ import {
   Th,
   Thead,
   Tr,
-  toast
+  toast,
+  toastError
 } from "@carbon/react";
-import { MODEL_RAW_KEEP_MAX_BYTES } from "@carbon/utils";
+import { MODEL_RAW_KEEP_MAX_BYTES, requireAffected } from "@carbon/utils";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { ChangeEvent } from "react";
 import { useCallback } from "react";
 import { LuAxis3D, LuEllipsisVertical, LuUpload } from "react-icons/lu";
-import { Link, useFetchers, useRevalidator, useSubmit } from "react-router";
+import { Link, useFetchers, useSubmit } from "react-router";
 import {
   DocumentPreview,
   FileDropzone,
@@ -41,8 +49,7 @@ import {
 } from "~/components";
 import DocumentIcon from "~/components/DocumentIcon";
 import { useFileUpload, usePermissions, useUser } from "~/hooks";
-import type { OptimisticFileObject } from "~/modules/shared";
-import { getDocumentType } from "~/modules/shared";
+import type { OptimisticFileObject } from "~/modules/shared/types";
 import type { ModelUpload, StorageItem } from "~/types";
 import { downloadModelFile } from "~/utils/download";
 import { path } from "~/utils/path";
@@ -123,7 +130,7 @@ const Documents = ({
         .remove([getReadPath(file)]);
 
       if (error) {
-        toast.error(error.message || t`Error deleting file`);
+        toastError(t`Error deleting file`, error);
         return;
       }
 
@@ -150,13 +157,19 @@ const Documents = ({
     if (!carbon || !sourceDocumentId) return;
 
     if (sourceDocument === "Job") {
-      const result = await carbon
-        .from("job")
-        .update({ modelUploadId: null })
-        .eq("id", sourceDocumentId);
+      const result = await requireAffected(
+        carbon
+          .from("job")
+          .update({ modelUploadId: null })
+          .eq("id", sourceDocumentId)
+          .select("id")
+      );
 
       if (result.error) {
-        toast.error(t`Error removing model from ${sourceDocument}`);
+        toastError(
+          t`Error removing model from ${sourceDocument}`,
+          result.error
+        );
         return;
       }
     } else if (sourceDocument === "Issue") {
@@ -176,7 +189,7 @@ const Documents = ({
       try {
         await downloadUrl(url, file.name);
       } catch (error) {
-        toast.error(t`Error downloading file`);
+        toastError(t`Error downloading file`, error);
         logger.error("Error", { error: error });
       }
     },
@@ -234,7 +247,7 @@ const Documents = ({
             <Trans>Files</Trans>
           </CardTitle>
         </CardHeader>
-        <CardAction>
+        <CardAction className="max-md:hidden">
           <File
             isDisabled={!canUpdate}
             leftIcon={<LuUpload />}
@@ -251,7 +264,11 @@ const Documents = ({
       </HStack>
       <CardContent>
         <Table>
-          <Thead>
+          <Thead
+            className={cn(
+              allFiles.length === 0 && !modelUpload && "max-md:hidden"
+            )}
+          >
             <Tr>
               <Th>
                 <Trans>Name</Trans>
@@ -345,23 +362,32 @@ const Documents = ({
             {allFiles.map((file) => {
               const type = getDocumentType(file.name);
               const isPreviewable = ["PDF", "Image"].includes(type);
+              const openFile = () => {
+                if (["PDF", "Image"].includes(type)) {
+                  window.open(
+                    path.to.file.previewFile(
+                      `${"private"}/${getReadPath(file)}`
+                    ),
+                    "_blank"
+                  );
+                } else {
+                  download(file);
+                }
+              };
               return (
                 <Tr key={file.id}>
                   <Td>
                     <HStack>
                       <DocumentIcon type={type} />
                       <span
+                        role="button"
+                        tabIndex={0}
                         className="font-medium"
-                        onClick={() => {
-                          if (["PDF", "Image"].includes(type)) {
-                            window.open(
-                              path.to.file.previewFile(
-                                `${"private"}/${getReadPath(file)}`
-                              ),
-                              "_blank"
-                            );
-                          } else {
-                            download(file);
+                        onClick={openFile}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            openFile();
                           }
                         }}
                       >

@@ -3,13 +3,10 @@
 // including ports, remain AGPLv3; serving them over a network requires releasing their source.
 
 import { requirePermissions } from "@carbon/auth/auth.server";
-import type {
-  ClientLoaderFunctionArgs,
-  LoaderFunctionArgs
-} from "react-router";
-import { getStorageUnitsListForLocation } from "~/modules/inventory";
-import { getItemStorageUnitQuantities } from "~/modules/items/items.service";
-import { getCompanyId, storageUnitsQuery } from "~/utils/react-query";
+import { cachedClientLoader } from "@carbon/query/cache";
+import type { LoaderFunctionArgs } from "react-router";
+import { getStorageUnitsListForLocation } from "~/modules/inventory/inventory.service";
+import { getItemStorageUnitQuantities } from "~/modules/items/items.utils";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const { client, companyId } = await requirePermissions(request, {
@@ -41,10 +38,15 @@ export async function loader({ request }: LoaderFunctionArgs) {
       };
     }
 
-    // Filter storageUnits to only include those with quantities > 0
-    const quantitiesMap = new Map(
-      quantitiesResult.data?.map((q) => [q.storageUnitId, q.quantity]) ?? []
-    );
+    // One row per storage unit and batch or serial number: a storage unit
+    // holds the sum of its rows.
+    const quantitiesMap = new Map<string | null, number>();
+    for (const row of quantitiesResult.data ?? []) {
+      quantitiesMap.set(
+        row.storageUnitId,
+        (quantitiesMap.get(row.storageUnitId) ?? 0) + Number(row.quantity ?? 0)
+      );
+    }
 
     const shelvesWithQuantities =
       shelvesResult.data?.filter((storageUnit) => {
@@ -69,35 +71,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
   return await getStorageUnitsListForLocation(client, companyId, locationId);
 }
 
-export async function clientLoader({
-  request,
-  serverLoader
-}: ClientLoaderFunctionArgs) {
-  const companyId = getCompanyId();
-
-  if (!companyId) {
-    return await serverLoader<typeof loader>();
-  }
-
-  const url = new URL(request.url);
-  const locationId = url.searchParams.get("locationId");
-  const itemId = url.searchParams.get("itemId");
-
-  const queryKey = storageUnitsQuery(
-    companyId,
-    locationId ?? null,
-    itemId ?? null
-  ).queryKey;
-  const data =
-    window?.clientCache?.getQueryData<Awaited<ReturnType<typeof loader>>>(
-      queryKey
-    );
-
-  if (!data) {
-    const serverData = await serverLoader<typeof loader>();
-    window?.clientCache?.setQueryData(queryKey, serverData);
-    return serverData;
-  }
-
-  return data;
-}
+// On-hand moves with every receipt, pick and shipment, by anyone: the cached
+// value is shown at once and always read again.
+export const clientLoader = cachedClientLoader<typeof loader>({ staleTime: 0 });

@@ -6,6 +6,7 @@ import { assertIsPost, error, success } from "@carbon/auth";
 import { requirePermissions } from "@carbon/auth/auth.server";
 import { flash } from "@carbon/auth/session.server";
 import { ValidatedForm, validationError, validator } from "@carbon/form";
+import { useLoaderQuery } from "@carbon/query";
 import {
   HStack,
   Modal,
@@ -15,8 +16,7 @@ import {
   ModalHeader,
   ModalOverlay,
   ModalTitle,
-  useCloseRoute,
-  useMount,
+  useRouteDialog,
   VStack
 } from "@carbon/react";
 import { redirect } from "@carbon/utils";
@@ -25,8 +25,8 @@ import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import { useFetcher, useLoaderData } from "react-router";
 import { Input, Select, Submit } from "~/components/Form";
 import { convertOperatorValidator } from "~/modules/users/users.models";
-import { convertConsoleOperatorToUser } from "~/modules/users/users.server";
 import type { getEmployeeTypes } from "~/modules/users/users.service";
+import { convertConsoleOperatorToUser } from "~/modules/users/users.service";
 import type { Result } from "~/types";
 import { path } from "~/utils/path";
 
@@ -98,14 +98,11 @@ export async function action({ request, params }: ActionFunctionArgs) {
 export default function ConvertOperatorRoute() {
   const { t } = useLingui();
   const { operator } = useLoaderData<typeof loader>();
-  const closeRoute = useCloseRoute();
+  const dialog = useRouteDialog();
   const formFetcher = useFetcher<Result>();
-  const employeeTypeFetcher =
-    useFetcher<Awaited<ReturnType<typeof getEmployeeTypes>>>();
-
-  useMount(() => {
-    employeeTypeFetcher.load(path.to.api.employeeTypes);
-  });
+  const employeeTypeFetcher = useLoaderQuery<
+    Awaited<ReturnType<typeof getEmployeeTypes>>
+  >(path.to.api.employeeTypes);
 
   const employeeTypeOptions =
     employeeTypeFetcher.data?.data
@@ -117,9 +114,9 @@ export default function ConvertOperatorRoute() {
 
   return (
     <Modal
-      open
+      open={dialog.open}
       onOpenChange={(open) => {
-        if (!open) closeRoute();
+        if (!open) dialog.close();
       }}
     >
       <ModalOverlay />

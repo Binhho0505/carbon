@@ -10,6 +10,7 @@ import {
   Select,
   ValidatedForm
 } from "@carbon/form";
+import { toastServiceError, useAction } from "@carbon/query";
 import {
   Badge,
   Button,
@@ -32,10 +33,10 @@ import {
 } from "@carbon/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { PostgrestResponse } from "@supabase/supabase-js";
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useState } from "react";
 import { LuCopy, LuKeySquare, LuLink, LuUnlink2 } from "react-icons/lu";
 import { RiProgress8Line } from "react-icons/ri";
-import { Await, useFetcher, useParams } from "react-router";
+import { Await, useParams } from "react-router";
 import { z } from "zod";
 import { zfd } from "zod-form-data";
 import {
@@ -45,6 +46,7 @@ import {
   useOptimisticAssignment
 } from "~/components";
 import {
+  ChargeNumber,
   Customer,
   Item,
   JobSalesOrderLine,
@@ -54,9 +56,10 @@ import {
   UnitOfMeasure
 } from "~/components/Form";
 import CustomFormInlineFields from "~/components/Form/CustomFormInlineFields";
+import { ItemThumbnailUpload } from "~/components/ItemThumnailUpload";
 import { usePermissions, useRouteData } from "~/hooks";
 import type { TrackedEntity } from "~/modules/inventory/types";
-import type { MethodItemType } from "~/modules/shared";
+import type { MethodItemType } from "~/modules/shared/types";
 import type { action } from "~/routes/x+/items+/update";
 import { path } from "~/utils/path";
 import { copyToClipboard } from "~/utils/string";
@@ -65,6 +68,7 @@ import {
   deadlineTypes,
   isJobLocked
 } from "../../production.models";
+import type { JobProjectCharge } from "../../production.service";
 import type { Job } from "../../types";
 import { getDeadlineIcon } from "./Deadline";
 
@@ -75,19 +79,18 @@ const JobProperties = () => {
 
   const routeData = useRouteData<{
     job: Job;
+    projectCharge?: JobProjectCharge | null;
     tags: { name: string }[];
     trackedEntities: Promise<PostgrestResponse<TrackedEntity>>;
   }>(path.to.job(jobId));
 
   const unlinkDisclosure = useDisclosure();
 
-  const fetcher = useFetcher<typeof action>();
-  useEffect(() => {
-    if (fetcher.data?.error) {
-      toast.error(fetcher.data.error.message);
+  const fetcher = useAction<typeof action>({
+    onError: (data) => {
+      toastServiceError(data);
     }
-  }, [fetcher.data]);
-
+  });
   const [type, setType] = useState<MethodItemType>(
     (routeData?.job?.itemType ?? "Part") as MethodItemType
   );
@@ -114,6 +117,24 @@ const JobProperties = () => {
     },
 
     [jobId, routeData?.job]
+  );
+
+  const currentChargeNumber = routeData?.projectCharge?.projectId
+    ? `${routeData.projectCharge.projectId}|${routeData.projectCharge.projectElementId ?? ""}`
+    : "";
+  const onUpdateChargeNumber = useCallback(
+    (value: string | null) => {
+      if ((value ?? "") === currentChargeNumber) return;
+      const formData = new FormData();
+      formData.append("ids", jobId);
+      formData.append("field", "chargeNumber");
+      formData.append("value", value ?? "");
+      fetcher.submit(formData, {
+        method: "post",
+        action: path.to.bulkUpdateJob
+      });
+    },
+    [jobId, currentChargeNumber, fetcher.submit]
   );
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: suppressed due to migration
@@ -250,6 +271,14 @@ const JobProperties = () => {
           </HStack>
         </HStack>
         <span className="text-sm">{routeData?.job?.jobId}</span>
+        {routeData?.job?.thumbnailPath && routeData?.job?.itemId && (
+          <ItemThumbnailUpload
+            path={routeData.job.thumbnailPath}
+            itemId={routeData.job.itemId}
+            modelId={routeData.job.modelId}
+            isReadOnly
+          />
+        )}
       </VStack>
 
       <VStack spacing={2}>
@@ -327,7 +356,7 @@ const JobProperties = () => {
               </Badge>
             </Hyperlink>
             <Button
-              className="group-hover:opacity-100 opacity-0 transition-opacity duration-200"
+              className="group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 md:opacity-0 transition-opacity duration-150"
               variant="ghost"
               size="sm"
               leftIcon={<LuUnlink2 className="w-3 h-3" />}
@@ -527,10 +556,8 @@ const JobProperties = () => {
           onChange={(value) => {
             const next = value?.value ?? "";
             setDeadlineType(next);
+            // One post: the server clears the date a type takes none of.
             onUpdate("deadlineType", next || null);
-            if (!deadlineRequiresDueDate(next)) {
-              onUpdate("dueDate", null);
-            }
           }}
         />
       </ValidatedForm>
@@ -549,6 +576,34 @@ const JobProperties = () => {
           isReadOnly={isDisabled || !!routeData?.job?.salesOrderId}
           onChange={(value) => {
             onUpdate("customerId", value?.value ?? null);
+          }}
+        />
+      </ValidatedForm>
+
+      <ValidatedForm
+        defaultValues={{
+          projectId: routeData?.projectCharge?.projectId ?? undefined,
+          projectElementId:
+            routeData?.projectCharge?.projectElementId ?? undefined
+        }}
+        validator={z.object({
+          projectId: zfd.text(z.string().optional()),
+          projectElementId: zfd.text(z.string().optional())
+        })}
+        className="w-full"
+      >
+        {/* Chosen before release: issued material and labor carry it. */}
+        <ChargeNumber
+          label={t`Charge Number`}
+          inline
+          isOptional
+          isReadOnly={
+            isDisabled ||
+            (routeData?.job?.status !== "Draft" &&
+              routeData?.job?.status !== "Planned")
+          }
+          onChange={(row) => {
+            onUpdateChargeNumber(row?.value ?? null);
           }}
         />
       </ValidatedForm>
@@ -630,47 +685,45 @@ const JobProperties = () => {
         onUpdate={onUpdateCustomFields}
       />
 
-      {unlinkDisclosure.isOpen && (
-        <Modal
-          open={unlinkDisclosure.isOpen}
-          onOpenChange={(open) => {
-            if (!open) unlinkDisclosure.onClose();
-          }}
-        >
-          <ModalOverlay />
-          <ModalContent>
-            <ModalHeader>
-              <ModalTitle>
-                <Trans>Unlink job from sales order?</Trans>
-              </ModalTitle>
-            </ModalHeader>
-            <ModalBody>
-              <p className="text-sm text-muted-foreground">
-                <Trans>
-                  This will remove {routeData?.job?.jobId}'s link to{" "}
-                  {routeData?.job?.salesOrderReadableId}. The job will no longer
-                  appear under the sales order and shipments won't find it.
-                </Trans>
-              </p>
-            </ModalBody>
-            <ModalFooter>
-              <Button variant="secondary" onClick={unlinkDisclosure.onClose}>
-                <Trans>Cancel</Trans>
-              </Button>
-              <Button
-                variant="destructive"
-                leftIcon={<LuUnlink2 className="w-3 h-3" />}
-                onClick={() => {
-                  onUpdate("salesOrderLineId", null);
-                  unlinkDisclosure.onClose();
-                }}
-              >
-                <Trans>Unlink</Trans>
-              </Button>
-            </ModalFooter>
-          </ModalContent>
-        </Modal>
-      )}
+      <Modal
+        open={unlinkDisclosure.isOpen}
+        onOpenChange={(open) => {
+          if (!open) unlinkDisclosure.onClose();
+        }}
+      >
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>
+            <ModalTitle>
+              <Trans>Unlink job from sales order?</Trans>
+            </ModalTitle>
+          </ModalHeader>
+          <ModalBody>
+            <p className="text-sm text-muted-foreground">
+              <Trans>
+                This will remove {routeData?.job?.jobId}'s link to{" "}
+                {routeData?.job?.salesOrderReadableId}. The job will no longer
+                appear under the sales order and shipments won't find it.
+              </Trans>
+            </p>
+          </ModalBody>
+          <ModalFooter>
+            <Button variant="secondary" onClick={unlinkDisclosure.onClose}>
+              <Trans>Cancel</Trans>
+            </Button>
+            <Button
+              variant="destructive"
+              leftIcon={<LuUnlink2 className="w-3 h-3" />}
+              onClick={() => {
+                onUpdate("salesOrderLineId", null);
+                unlinkDisclosure.onClose();
+              }}
+            >
+              <Trans>Unlink</Trans>
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </VStack>
   );
 };

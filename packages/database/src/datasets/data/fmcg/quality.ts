@@ -242,7 +242,7 @@ export const fmcgQuality: QualityData = {
       ref: "insp:nomex",
       receipt: "receipt:wire-paid",
       item: "RM-TEA-EXTRACT",
-      drawingNumber: "QC-TEA-EXTRACT-001",
+      name: "QC-TEA-EXTRACT-001",
       aql: 1,
       features: [
         {
@@ -344,7 +344,7 @@ export const fmcgQuality: QualityData = {
       ref: "insp:bao bì-blocks",
       receipt: "receipt:copperline-restock",
       item: "PKG-FOOD-BOX",
-      drawingNumber: "CW-TB6-35 Rev C",
+      name: "CW-TB6-35 Rev C",
       aql: 1,
       features: [
         {
@@ -445,7 +445,7 @@ export const fmcgQuality: QualityData = {
       ref: "insp:nomex-restock",
       receipt: "receipt:copperline-restock",
       item: "RM-TEA-EXTRACT",
-      drawingNumber: "QC-TEA-EXTRACT-001",
+      name: "QC-TEA-EXTRACT-001",
       aql: 1,
       features: [
         {
@@ -475,6 +475,27 @@ export const fmcgQuality: QualityData = {
       ref: "insp:bột bánh-journal",
       job: "floor-bột bánh",
       status: "Pending",
+      samples: []
+    },
+    {
+      source: "Manual",
+      ref: "insp:manual-hold",
+      status: "Pending",
+      trackedEntities: ["LOT-MAG45-2609"],
+      workCenter: "Trạm kiểm tra chất lượng",
+      assignee: "self",
+      notes:
+        "Kiểm tra cảm quan và độ ẩm lô trà xanh nguyên liệu đang bị giữ lại.",
+      samples: []
+    },
+    {
+      source: "Manual",
+      ref: "insp:manual-duplicate",
+      status: "Cancelled",
+      trackedEntities: ["LOT-MAG45-2609"],
+      workCenter: "Trạm kiểm tra chất lượng",
+      notes:
+        "Mở trùng cho cùng một lô bị giữ; hủy để dùng phiếu kiểm tra đang mở.",
       samples: []
     }
   ],

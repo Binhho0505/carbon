@@ -2,6 +2,7 @@
 // Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
 // including ports, remain AGPLv3; serving them over a network requires releasing their source.
 
+import { useCarbon } from "@carbon/auth";
 import { useRuleViolations } from "@carbon/ee/rules";
 import {
   DatePicker,
@@ -11,6 +12,7 @@ import {
   ValidatedForm
 } from "@carbon/form";
 import { LabelDownloadModal } from "@carbon/printing/ui";
+import { useAction, useLoaderQuery } from "@carbon/query";
 import {
   Button,
   Card,
@@ -18,7 +20,8 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-  Copy,
+  cn,
+  copyToClipboard,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuIcon,
@@ -26,52 +29,76 @@ import {
   DropdownMenuTrigger,
   HStack,
   IconButton,
+  InputGroup,
+  InputLeftElement,
   Modal,
   ModalBody,
   ModalContent,
+  ModalDescription,
   ModalFooter,
   ModalHeader,
   ModalTitle,
-  Table,
-  Tbody,
-  Td,
-  Th,
-  Thead,
-  Tr,
+  NonNettableBadge,
+  Input as SearchInput,
   toast,
   useDisclosure,
   VStack
 } from "@carbon/react";
-import { groupBy } from "@carbon/utils";
-import { getLocalTimeZone, today } from "@internationalized/date";
+import { groupBy, INPUT_FORMAT, round } from "@carbon/utils";
+import { getLocalTimeZone, parseDate, today } from "@internationalized/date";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { nanoid } from "nanoid";
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import {
+  LuArrowRightLeft,
+  LuBuilding2,
   LuCheck,
   LuChevronDown,
   LuChevronRight,
+  LuCoins,
   LuEllipsisVertical,
   LuPencil,
   LuPrinter,
-  LuQrCode
+  LuQrCode,
+  LuSearch
 } from "react-icons/lu";
-import { Outlet, useFetcher } from "react-router";
+import { Link, Outlet, useFetcher } from "react-router";
 import type { z } from "zod";
 import { DateTime } from "~/components";
-import { Enumerable } from "~/components/Enumerable";
-import { Input, Location, Select, TextArea } from "~/components/Form";
+import {
+  Account,
+  Input,
+  Location,
+  Number as NumberInput,
+  Select,
+  TextArea
+} from "~/components/Form";
 import ScrapReason from "~/components/Form/ScrapReason";
 import StorageUnit from "~/components/Form/StorageUnit";
 import { useUnitOfMeasure } from "~/components/Form/UnitOfMeasure";
-import { usePermissions, usePrinting } from "~/hooks";
+import { PhoneActionBar } from "~/components/Layout/Mobile/ChromeSlots";
+import {
+  useCompanyToday,
+  useCurrencyDecimals,
+  useDrawerItem,
+  usePermissions,
+  usePrinting,
+  useQuantityFormatter,
+  useUser
+} from "~/hooks";
+import { useCurrencyFormatter } from "~/hooks/useCurrencyFormatter";
+import { useNonNettableStorageUnits } from "~/hooks/useNonNettableStorageUnits";
 import type {
-  ItemStorageUnitQuantities,
   itemTrackingTypes,
   pickMethodValidator
-} from "~/modules/items";
+} from "~/modules/items/items.models";
+import type { ItemStorageUnitQuantities } from "~/modules/items/types";
 import { path } from "~/utils/path";
-import { inventoryAdjustmentValidator } from "../../inventory.models";
+import {
+  inventoryAdjustmentValidator,
+  serialUnitRecostValidator
+} from "../../inventory.models";
+import { StockTransferMoveModal } from "../StockTransfers/StockTransferMoveModal";
 
 type InventoryStorageUnitsProps = {
   pickMethod: z.infer<typeof pickMethodValidator>;
@@ -84,6 +111,8 @@ type InventoryStorageUnitsProps = {
   } | null;
   trackedEntityExpirations: Record<string, string | null>;
   storageUnits: { value: string; label: string }[];
+  /** The inventory quantities page: phones show a bottom bar. */
+  variant?: "quantity";
 };
 
 const InventoryStorageUnits = ({
@@ -93,10 +122,12 @@ const InventoryStorageUnits = ({
   itemShelfLife,
   trackedEntityExpirations,
   pickMethod,
-  storageUnits
+  storageUnits,
+  variant
 }: InventoryStorageUnitsProps) => {
   const permissions = usePermissions();
   const { t } = useLingui();
+  const isQuantity = variant === "quantity";
   const adjustmentModal = useDisclosure();
   const ruleViolations = useRuleViolations({
     action: path.to.inventoryItemAdjustment(pickMethod.itemId),
@@ -118,27 +149,116 @@ const InventoryStorageUnits = ({
     [itemStorageUnitQuantities]
   );
 
-  // One visual row per (storage unit, lot): fragments of the same batch in the
-  // same bin collapse into a group row with the summed quantity, expandable to
-  // the underlying tracked entities.
-  const storageUnitGroups = useMemo(() => {
-    const grouped = groupBy(
-      visibleStorageUnitQuantities.map((item, index) => ({ item, index })),
-      // Untracked/unnumbered rows get a per-row key so they stay singletons.
-      ({ item, index }) =>
-        `${item.storageUnitId}::${item.readableId ?? item.trackedEntityId ?? `row-${index}`}`
+  const storageUnitLabel = useCallback(
+    (item: ItemStorageUnitQuantities) =>
+      storageUnits.find((s) => s.value === item.storageUnitId)?.label ??
+      item.storageUnitName ??
+      item.storageUnitId ??
+      null,
+    [storageUnits]
+  );
+
+  const nonNettableIds = useNonNettableStorageUnits();
+  const ownerLabels = useStockOwnerLabels(
+    itemStorageUnitQuantities
+      .map((item) => item.projectId)
+      .filter((id): id is string => Boolean(id))
+  );
+
+  const [search, setSearch] = useState("");
+
+  // Matches a storage unit's name or a lot/serial number.
+  const matchingStorageUnitQuantities = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    if (!term) return visibleStorageUnitQuantities;
+    return visibleStorageUnitQuantities.filter((item) =>
+      [storageUnitLabel(item), item.readableId, item.trackedEntityId].some(
+        (value) => value?.toLowerCase().includes(term)
+      )
     );
-    return Object.entries(grouped)
-      .map(([key, rows]) => ({ key, members: rows.map((r) => r.item) }))
-      .sort((a, b) => {
-        const unitA = a.members[0].storageUnitName ?? "";
-        const unitB = b.members[0].storageUnitName ?? "";
-        if (unitA !== unitB) return unitA.localeCompare(unitB);
-        return (a.members[0].readableId ?? "").localeCompare(
-          b.members[0].readableId ?? ""
-        );
-      });
-  }, [visibleStorageUnitQuantities]);
+  }, [visibleStorageUnitQuantities, search, storageUnitLabel]);
+
+  // Rows are grouped three times: by stock owner (common stock, then each
+  // project with project stock), by storage unit, then by lot within it.
+  // Fragments of the same batch in the same bin collapse into one lot row
+  // with the summed quantity, expandable to the underlying tracked entities.
+  const ownerGroups = useMemo(() => {
+    const sumQuantity = (members: ItemStorageUnitQuantities[]) =>
+      round(members.reduce((sum, m) => sum + m.quantity, 0));
+
+    const buildUnitGroups = (
+      ownerKey: string,
+      ownerRows: { item: ItemStorageUnitQuantities; index: number }[]
+    ) => {
+      const byUnit = groupBy(ownerRows, ({ item }) => item.storageUnitId ?? "");
+
+      return Object.entries(byUnit)
+        .map(([storageUnitId, rows]) => {
+          const byLot = groupBy(
+            rows,
+            // Untracked/unnumbered rows get a per-row key so they stay singletons.
+            ({ item, index }) =>
+              item.readableId ?? item.trackedEntityId ?? `row-${index}`
+          );
+          const lots = Object.entries(byLot)
+            .map(([lotKey, lotRows]) => {
+              const members = lotRows.map((r) => r.item);
+              return {
+                key: `${ownerKey}::${storageUnitId}::${lotKey}`,
+                members,
+                quantity: sumQuantity(members)
+              };
+            })
+            // Largest first; serials all hold one, so they fall back to number order.
+            .sort(
+              (a, b) =>
+                b.quantity - a.quantity ||
+                (a.members[0].readableId ?? "").localeCompare(
+                  b.members[0].readableId ?? ""
+                )
+            );
+          const first = rows[0].item;
+          return {
+            key: `${ownerKey}::${storageUnitId}`,
+            storageUnitId,
+            name: storageUnitId ? storageUnitLabel(first) : null,
+            quantity: sumQuantity(rows.map((r) => r.item)),
+            lots
+          };
+        })
+        .sort((a, b) => {
+          // Stock with no storage unit goes last.
+          if (!a.name || !b.name) return a.name ? -1 : b.name ? 1 : 0;
+          return a.name.localeCompare(b.name);
+        });
+    };
+
+    const byOwner = groupBy(
+      matchingStorageUnitQuantities.map((item, index) => ({ item, index })),
+      ({ item }) => item.projectId ?? ""
+    );
+
+    return (
+      Object.entries(byOwner)
+        .map(([ownerKey, rows]) => ({
+          projectId: ownerKey || null,
+          quantity: sumQuantity(rows.map((r) => r.item)),
+          units: buildUnitGroups(ownerKey, rows)
+        }))
+        // Common stock first, then the projects by label.
+        .sort((a, b) => {
+          if (!a.projectId || !b.projectId) return a.projectId ? 1 : -1;
+          return (ownerLabels[a.projectId] ?? "").localeCompare(
+            ownerLabels[b.projectId] ?? ""
+          );
+        })
+    );
+  }, [matchingStorageUnitQuantities, storageUnitLabel, ownerLabels]);
+
+  // Owner headings show only when some stock belongs to a project.
+  const showOwners = ownerGroups.some((owner) => owner.projectId !== null);
+
+  const formatQuantity = useQuantityFormatter();
 
   const [expandedGroupKeys, setExpandedGroupKeys] = useState<Set<string>>(
     new Set()
@@ -156,15 +276,6 @@ const InventoryStorageUnits = ({
     });
   };
 
-  const showExpirationColumn = useMemo(
-    () =>
-      visibleStorageUnitQuantities.some(
-        (item) =>
-          item.trackedEntityId && trackedEntityExpirations[item.trackedEntityId]
-      ),
-    [visibleStorageUnitQuantities, trackedEntityExpirations]
-  );
-
   const [quantity, setQuantity] = useState(1);
   const [selectedStorageUnitId, setSelectedStorageUnitId] = useState<
     string | null
@@ -173,6 +284,9 @@ const InventoryStorageUnits = ({
     string | null
   >(null);
   const [selectedReadableId, setSelectedReadableId] = useState<string | null>(
+    null
+  );
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(
     null
   );
   const [isEditingRow, setIsEditingRow] = useState(false);
@@ -208,9 +322,11 @@ const InventoryStorageUnits = ({
     storageUnitId?: string,
     trackedEntityId?: string,
     readableId?: string,
-    currentQuantity?: number
+    currentQuantity?: number,
+    projectId?: string | null
   ) => {
     setSelectedStorageUnitId(storageUnitId || null);
+    setSelectedProjectId(projectId ?? null);
     setSelectedTrackedEntityId(trackedEntityId || null);
     setSelectedReadableId(readableId || null);
     setIsEditingRow(storageUnitId !== undefined);
@@ -248,6 +364,62 @@ const InventoryStorageUnits = ({
     }
   };
 
+  // A serialized unit can leave stock as a fixed asset (Dr asset / Cr Finished
+  // Goods at its carrying cost). The capitalize route reads the unit from the
+  // search params; the posting itself needs `create: accounting`.
+  const canCapitalize = permissions.can("create", "accounting");
+
+  // What each serial unit would leave stock at — the cost a shipment or a
+  // capitalization would relieve. Inventory value is accounting data, so it
+  // is only read for someone who can view accounting.
+  const canViewCost = isSerial && permissions.can("view", "accounting");
+  const { data: serialCosts } = useLoaderQuery<{
+    costs: Record<string, number>;
+    costingMethod: string | null;
+    retainedEarningsAccountId: string | null;
+  }>(
+    canViewCost
+      ? path.to.api.itemSerialCosts(pickMethod.itemId, locationId)
+      : null
+  );
+  const costFormatter = useCurrencyFormatter({ rate: true });
+
+  // Recosting one unit puts a number of the user's own on the books, so it
+  // takes accounting update; only a FIFO / LIFO unit carries its own layer.
+  const canRecost =
+    canViewCost &&
+    permissions.can("update", "accounting") &&
+    (serialCosts?.costingMethod === "FIFO" ||
+      serialCosts?.costingMethod === "LIFO");
+  const { company } = useUser();
+  const currencyDecimals = useCurrencyDecimals(company.baseCurrencyCode);
+  const companyToday = useCompanyToday();
+  const retainedEarningsAccountId = serialCosts?.retainedEarningsAccountId;
+  const recostModal = useDrawerItem<ItemStorageUnitQuantities>();
+  const recostItem = recostModal.item;
+  const moveModal = useDrawerItem<ItemStorageUnitQuantities>();
+  const moveItem = moveModal.item;
+  const canMove = permissions.can("create", "inventory");
+  const recostFetcher = useAction({
+    onSuccess: () => {
+      recostModal.close();
+      toast.success(t`Unit recosted`);
+    }
+  });
+  const unitCostOf = (item: ItemStorageUnitQuantities) =>
+    item.trackedEntityId ? serialCosts?.costs[item.trackedEntityId] : undefined;
+  const capitalizeHref = (item: ItemStorageUnitQuantities) => {
+    const params = new URLSearchParams({
+      itemId: pickMethod.itemId,
+      trackedEntityId: item.trackedEntityId,
+      locationId
+    });
+    // A unit in no bin has a null storageUnitId; URLSearchParams would send it
+    // as the string "null", which then fails the itemLedger bin FK.
+    if (item.storageUnitId) params.set("storageUnitId", item.storageUnitId);
+    return `${path.to.fixedAssetCapitalize}?${params}`;
+  };
+
   const handleConfirmPrint = () => {
     if (!pendingPrintEntityId || !selectedPrinterId) return;
     printFetcher.submit(
@@ -268,80 +440,178 @@ const InventoryStorageUnits = ({
     setPendingPrintEntityId(null);
   };
 
-  const renderStorageUnitRow = (
-    item: ItemStorageUnitQuantities,
-    key: string
-  ) => (
-    <Tr key={key}>
-      <Td>
-        {storageUnits.find((s) => s.value === item.storageUnitId)?.label ||
-          item.storageUnitName ||
-          item.storageUnitId}
-      </Td>
+  const unitOfMeasureLabel = itemUnitOfMeasure?.label ?? itemUnitOfMeasureCode;
 
-      <Td>
-        <span>{item.quantity}</span>
-      </Td>
-      <Td>
-        {item.trackedEntityId && (
-          <HStack>
-            {item.readableId && <span>{item.readableId}</span>}
-            <Copy
-              icon={<LuQrCode />}
-              text={item.trackedEntityId}
-              withTextInTooltip
-            />
-          </HStack>
-        )}
-      </Td>
-      {showExpirationColumn && (
-        <Td>
-          {item.trackedEntityId &&
-            trackedEntityExpirations[item.trackedEntityId] && (
-              <span>
-                <DateTime
-                  value={trackedEntityExpirations[item.trackedEntityId]}
-                  variant="date"
-                />
-              </span>
-            )}
-        </Td>
+  // Expired lots read red, and lots inside 30 days amber.
+  const expirationClassName = (value: string) => {
+    const daysLeft = parseDate(value.slice(0, 10)).compare(
+      today(getLocalTimeZone())
+    );
+    if (daysLeft < 0) return "text-destructive";
+    if (daysLeft <= 30) return "text-amber-600 dark:text-amber-400";
+    return "text-muted-foreground";
+  };
+
+  // One grid for every row, so quantities and actions line up down the card.
+  const rowClassName =
+    "group/row -mx-2 grid h-9 grid-cols-[minmax(0,1fr)_auto_5.25rem] items-center gap-3 rounded-md px-2";
+
+  const renderQuantity = (value: number, className?: string) => (
+    <span
+      className={cn(
+        "text-right tabular-nums",
+        value < 0 && "text-destructive",
+        className
       )}
-      <Td className="flex flex-shrink-0 justify-end items-center">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <IconButton
-              aria-label={t`Actions`}
-              variant="ghost"
-              icon={<LuEllipsisVertical />}
-            />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-56">
+    >
+      {formatQuantity(value)}
+    </span>
+  );
+
+  // A unit carried at nothing is the one to recost before it ships or is
+  // capitalized, so it reads amber.
+  const renderUnitCost = (item: ItemStorageUnitQuantities) => {
+    const cost = unitCostOf(item);
+    if (cost === undefined) return null;
+    return cost > 0 ? (
+      <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+        {costFormatter.format(cost)}
+      </span>
+    ) : (
+      <span className="shrink-0 text-xs text-amber-600 dark:text-amber-400">
+        <Trans>No cost</Trans>
+      </span>
+    );
+  };
+
+  const renderTracking = (
+    item: ItemStorageUnitQuantities,
+    expiration: string | null | undefined
+  ) => (
+    <span className="flex min-w-0 items-baseline gap-2">
+      {item.trackedEntityId ? (
+        <span className="truncate font-mono text-xs">
+          {item.readableId ?? item.trackedEntityId}
+        </span>
+      ) : (
+        <span className="text-muted-foreground">
+          <Trans>Untracked</Trans>
+        </span>
+      )}
+      {renderUnitCost(item)}
+      {expiration && (
+        <span
+          className={cn("shrink-0 text-xs", expirationClassName(expiration))}
+        >
+          <Trans>
+            Expires <DateTime value={expiration} variant="date" />
+          </Trans>
+        </span>
+      )}
+    </span>
+  );
+
+  // One trigger per row; the actions live in its menu.
+  const renderActions = (item: ItemStorageUnitQuantities) => (
+    <HStack
+      spacing={0}
+      className="justify-end opacity-0 transition-opacity duration-150 ease-out group-hover/row:opacity-100 focus-within:opacity-100 has-[[data-state=open]]:opacity-100 [@media(hover:none)]:opacity-100"
+    >
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <IconButton
+            aria-label={t`Actions`}
+            variant="ghost"
+            size="sm"
+            icon={<LuEllipsisVertical />}
+          />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          {item.trackedEntityId && (
             <DropdownMenuItem
-              onClick={() =>
-                openAdjustmentModal(
-                  item.storageUnitId,
-                  item.trackedEntityId,
-                  item.readableId,
-                  item.quantity
-                )
-              }
+              onSelect={async () => {
+                // Only confirm a copy that happened.
+                if (await copyToClipboard(item.trackedEntityId!)) {
+                  toast.success(t`Copied ID to clipboard`);
+                }
+              }}
             >
-              <DropdownMenuIcon icon={<LuPencil />} />
-              <Trans>Update Quantity</Trans>
+              <DropdownMenuIcon icon={<LuQrCode />} />
+              <Trans>Copy ID</Trans>
             </DropdownMenuItem>
-            {item.trackedEntityId && (
-              <DropdownMenuItem
-                onClick={() => handlePrintLabel(item.trackedEntityId!)}
-              >
-                <DropdownMenuIcon icon={<LuPrinter />} />
-                <Trans>Print Label</Trans>
-              </DropdownMenuItem>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </Td>
-    </Tr>
+          )}
+          {item.trackedEntityId && (
+            <DropdownMenuItem
+              onSelect={() => handlePrintLabel(item.trackedEntityId!)}
+            >
+              <DropdownMenuIcon icon={<LuPrinter />} />
+              <Trans>Print Label</Trans>
+            </DropdownMenuItem>
+          )}
+          <DropdownMenuItem
+            onSelect={() =>
+              openAdjustmentModal(
+                item.storageUnitId,
+                item.trackedEntityId,
+                item.readableId,
+                item.quantity,
+                item.projectId
+              )
+            }
+          >
+            <DropdownMenuIcon icon={<LuPencil />} />
+            <Trans>Update Quantity</Trans>
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            // A tracked item moves by its unit: a row with none has nothing
+            // a transfer could pick.
+            disabled={
+              !canMove ||
+              item.quantity <= 0 ||
+              ((isSerial || isBatch) && !item.trackedEntityId)
+            }
+            onSelect={() => moveModal.open(item)}
+          >
+            <DropdownMenuIcon icon={<LuArrowRightLeft />} />
+            <Trans>Move to Another Storage Unit</Trans>
+          </DropdownMenuItem>
+          {item.trackedEntityId && canRecost && (
+            <DropdownMenuItem onSelect={() => recostModal.open(item)}>
+              <DropdownMenuIcon icon={<LuCoins />} />
+              <Trans>Recost</Trans>
+            </DropdownMenuItem>
+          )}
+          {/* A fixed asset is one serialized unit; a batch row is many. */}
+          {item.trackedEntityId && isSerial && canCapitalize && (
+            <DropdownMenuItem asChild>
+              <Link to={capitalizeHref(item)}>
+                <DropdownMenuIcon icon={<LuBuilding2 />} />
+                <Trans>Capitalize as Fixed Asset</Trans>
+              </Link>
+            </DropdownMenuItem>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </HStack>
+  );
+
+  const renderStockRow = (
+    item: ItemStorageUnitQuantities,
+    key: string,
+    indent: string
+  ) => (
+    <div key={key} className={cn(rowClassName, "hover:bg-muted/60")}>
+      <div className={cn("min-w-0", indent)}>
+        {renderTracking(
+          item,
+          item.trackedEntityId
+            ? trackedEntityExpirations[item.trackedEntityId]
+            : null
+        )}
+      </div>
+      {renderQuantity(item.quantity)}
+      {renderActions(item)}
+    </div>
   );
 
   return (
@@ -349,334 +619,474 @@ const InventoryStorageUnits = ({
       <Card className="w-full">
         <HStack className="w-full justify-between">
           <CardHeader>
-            <CardTitle>
-              <HStack className="gap-2 items-center">
-                <Trans>Storage Units</Trans>
-                <Enumerable
-                  value={
-                    unitOfMeasures.find(
-                      (uom) => uom.value === itemUnitOfMeasureCode
-                    )?.label || itemUnitOfMeasureCode
-                  }
-                />
-              </HStack>
+            <CardTitle className="whitespace-nowrap">
+              <Trans>Storage Units</Trans>
             </CardTitle>
           </CardHeader>
           <CardAction>
-            <Button onClick={() => openAdjustmentModal()}>
-              <Trans>Update Inventory</Trans>
-            </Button>
+            <HStack>
+              {/* A search box over a handful of rows is clutter. */}
+              {visibleStorageUnitQuantities.length > 8 && (
+                <InputGroup size="sm" className="w-40">
+                  <InputLeftElement>
+                    <LuSearch className="h-4 w-4" />
+                  </InputLeftElement>
+                  <SearchInput
+                    aria-label={t`Search storage units and tracking numbers`}
+                    placeholder={t`Search...`}
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                  />
+                </InputGroup>
+              )}
+              {/* Quantities page, phones: the action is in the bottom bar. */}
+              <Button
+                className={isQuantity ? "max-md:hidden" : undefined}
+                onClick={() => openAdjustmentModal()}
+              >
+                <Trans>Update Inventory</Trans>
+              </Button>
+            </HStack>
           </CardAction>
         </HStack>
         <CardContent>
-          <Table className="table-fixed">
-            <Thead>
-              <Tr>
-                <Th>
-                  <Trans>Storage Unit</Trans>
-                </Th>
-
-                <Th>
-                  <Trans>Quantity</Trans>
-                </Th>
-                <Th>
-                  <Trans>Tracking ID</Trans>
-                </Th>
-                {showExpirationColumn && (
-                  <Th>
-                    <Trans>Expiration Date</Trans>
-                  </Th>
+          {ownerGroups.length === 0 && (
+            <p className="py-6 text-center text-sm text-muted-foreground">
+              {search.trim() ? (
+                <Trans>No storage units or tracking numbers match.</Trans>
+              ) : (
+                <Trans>No stock on hand at this location.</Trans>
+              )}
+            </p>
+          )}
+          <div className="text-sm">
+            {ownerGroups.map((owner) => (
+              <div
+                key={owner.projectId ?? "common"}
+                className={cn(
+                  showOwners && "border-t pt-2 first:border-t-0 first:pt-0"
                 )}
-                <Th className="flex flex-shrink-0 justify-end" />
-              </Tr>
-            </Thead>
-            <Tbody>
-              {storageUnitGroups.map((group) => {
-                if (group.members.length === 1) {
-                  return renderStorageUnitRow(group.members[0], group.key);
-                }
-                const isExpanded = expandedGroupKeys.has(group.key);
-                const first = group.members[0];
-                // Batch quantities are decimals — clamp float noise on the sum.
-                const summedQuantity =
-                  Math.round(
-                    group.members.reduce((sum, m) => sum + m.quantity, 0) * 1e6
-                  ) / 1e6;
-                const expirations = group.members
-                  .map((m) =>
-                    m.trackedEntityId
-                      ? trackedEntityExpirations[m.trackedEntityId]
-                      : null
-                  )
-                  .filter((d): d is string => Boolean(d));
-                const earliestExpiration =
-                  expirations.length > 0
-                    ? expirations.reduce((min, d) => (d < min ? d : min))
-                    : null;
-                return (
-                  <Fragment key={group.key}>
-                    <Tr>
-                      <Td>
-                        <HStack className="gap-1">
-                          <IconButton
-                            aria-label={isExpanded ? t`Collapse` : t`Expand`}
-                            variant="ghost"
-                            icon={
-                              isExpanded ? (
-                                <LuChevronDown />
-                              ) : (
-                                <LuChevronRight />
-                              )
-                            }
-                            onClick={() => toggleGroup(group.key)}
-                          />
-                          <span>
-                            {storageUnits.find(
-                              (s) => s.value === first.storageUnitId
-                            )?.label ||
-                              first.storageUnitName ||
-                              first.storageUnitId}
+              >
+                {showOwners && (
+                  <div className={rowClassName}>
+                    <span className="truncate text-xs font-medium text-muted-foreground">
+                      {owner.projectId ? (
+                        (ownerLabels[owner.projectId] ?? t`Project stock`)
+                      ) : (
+                        <Trans>Unassigned stock</Trans>
+                      )}
+                    </span>
+                    {renderQuantity(
+                      owner.quantity,
+                      "text-xs text-muted-foreground"
+                    )}
+                    <span />
+                  </div>
+                )}
+                {owner.units.map((unit) => {
+                  const unitLabel = unit.name ?? (
+                    <span className="text-muted-foreground">
+                      <Trans>No storage unit</Trans>
+                    </span>
+                  );
+                  const [onlyLot] = unit.lots;
+                  // A bin holding one untracked row needs no lot rows under it.
+                  const isSingleUntrackedRow =
+                    unit.lots.length === 1 &&
+                    onlyLot.members.length === 1 &&
+                    !onlyLot.members[0].trackedEntityId;
+
+                  return (
+                    <div
+                      key={unit.key}
+                      className="border-t py-1.5 first:border-t-0"
+                    >
+                      <div
+                        className={cn(
+                          rowClassName,
+                          isSingleUntrackedRow && "hover:bg-muted/60"
+                        )}
+                      >
+                        <span className="flex min-w-0 items-center gap-2">
+                          <span className="truncate font-medium">
+                            {unitLabel}
                           </span>
-                        </HStack>
-                      </Td>
-                      <Td>
-                        <span>{summedQuantity}</span>
-                      </Td>
-                      <Td>
-                        <HStack>
-                          {first.readableId && <span>{first.readableId}</span>}
-                          <span className="text-xs text-muted-foreground">
-                            ×{group.members.length}
-                          </span>
-                        </HStack>
-                      </Td>
-                      {showExpirationColumn && (
-                        <Td>
-                          {earliestExpiration && (
-                            <span>
-                              <DateTime
-                                value={earliestExpiration}
-                                variant="date"
-                              />
-                            </span>
+                          {nonNettableIds.has(unit.storageUnitId) && (
+                            <NonNettableBadge />
                           )}
-                        </Td>
-                      )}
-                      <Td className="flex flex-shrink-0 justify-end items-center" />
-                    </Tr>
-                    {isExpanded &&
-                      group.members.map((item, index) =>
-                        renderStorageUnitRow(item, `${group.key}:${index}`)
-                      )}
-                  </Fragment>
-                );
-              })}
-            </Tbody>
-          </Table>
+                        </span>
+                        {renderQuantity(unit.quantity, "font-medium")}
+                        {isSingleUntrackedRow ? (
+                          renderActions(onlyLot.members[0])
+                        ) : (
+                          // The unit sits beside the total so the digits stay in one column.
+                          <span className="truncate text-xs text-muted-foreground">
+                            {unitOfMeasureLabel}
+                          </span>
+                        )}
+                      </div>
+                      {!isSingleUntrackedRow &&
+                        unit.lots.map((lot) => {
+                          const first = lot.members[0];
+                          if (lot.members.length === 1) {
+                            return renderStockRow(first, lot.key, "pl-7");
+                          }
+                          const isExpanded = expandedGroupKeys.has(lot.key);
+                          const earliestExpiration = lot.members
+                            .map((m) =>
+                              m.trackedEntityId
+                                ? trackedEntityExpirations[m.trackedEntityId]
+                                : null
+                            )
+                            .filter((d): d is string => Boolean(d))
+                            .sort()[0];
+                          return (
+                            <Fragment key={lot.key}>
+                              <div className={rowClassName}>
+                                <div className="flex min-w-0 items-center">
+                                  {/* The chevron sits in the gutter the other lots leave empty. */}
+                                  <IconButton
+                                    aria-label={
+                                      isExpanded ? t`Collapse` : t`Expand`
+                                    }
+                                    aria-expanded={isExpanded}
+                                    variant="ghost"
+                                    size="sm"
+                                    className="-ml-0.5 mr-0.5 size-7 shrink-0"
+                                    icon={
+                                      isExpanded ? (
+                                        <LuChevronDown />
+                                      ) : (
+                                        <LuChevronRight />
+                                      )
+                                    }
+                                    onClick={() => toggleGroup(lot.key)}
+                                  />
+                                  {renderTracking(first, earliestExpiration)}
+                                  <span className="ml-2 shrink-0 text-xs text-muted-foreground">
+                                    ×{lot.members.length}
+                                  </span>
+                                </div>
+                                {renderQuantity(lot.quantity)}
+                                <span />
+                              </div>
+                              {isExpanded &&
+                                lot.members.map((item, index) =>
+                                  renderStockRow(
+                                    item,
+                                    `${lot.key}:${index}`,
+                                    "pl-14"
+                                  )
+                                )}
+                            </Fragment>
+                          );
+                        })}
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
         </CardContent>
       </Card>
-      {adjustmentModal.isOpen && (
+      {isQuantity ? (
+        <PhoneActionBar>
+          <Button
+            size="lg"
+            className="w-full"
+            onClick={() => openAdjustmentModal()}
+          >
+            <Trans>Update Inventory</Trans>
+          </Button>
+        </PhoneActionBar>
+      ) : null}
+      {moveItem && (
+        <StockTransferMoveModal
+          open={moveModal.isOpen}
+          itemId={pickMethod.itemId}
+          locationId={locationId}
+          fromStorageUnitId={moveItem.storageUnitId ?? null}
+          fromStorageUnitName={
+            moveItem.storageUnitId ? storageUnitLabel(moveItem) : null
+          }
+          quantityOnHand={moveItem.quantity}
+          unitOfMeasure={unitOfMeasureLabel}
+          itemTrackingType={itemTrackingType}
+          trackedEntityId={moveItem.trackedEntityId ?? null}
+          trackedEntityLabel={moveItem.readableId ?? null}
+          onClose={moveModal.close}
+        />
+      )}
+      {recostItem?.trackedEntityId && (
         <Modal
-          open
+          open={recostModal.isOpen}
           onOpenChange={(open) => {
-            if (!open) {
-              adjustmentModal.onClose();
-            }
+            if (!open) recostModal.close();
           }}
         >
           <ModalContent>
             <ValidatedForm
               method="post"
-              validator={inventoryAdjustmentValidator}
-              fetcher={ruleViolations.fetcher}
-              action={path.to.inventoryItemAdjustment(pickMethod.itemId)}
+              validator={serialUnitRecostValidator}
+              action={path.to.inventoryItemRecost(pickMethod.itemId)}
+              fetcher={recostFetcher}
               defaultValues={{
-                itemId: pickMethod.itemId,
-                quantity: isSerial && !isEditing ? 1 : quantity,
-                locationId: pickMethod.locationId,
-                storageUnitId: selectedStorageUnitId || undefined,
-                originalStorageUnitId: isEditing
-                  ? selectedStorageUnitId || undefined
-                  : undefined,
-                adjustmentType:
-                  isSerial && !isEditing ? "Positive Adjmt." : "Set Quantity",
-                trackedEntityId: selectedTrackedEntityId || nanoid(),
-                readableId: selectedReadableId || undefined,
-                expirationDate: defaultExpirationDate
+                trackedEntityId: recostItem.trackedEntityId,
+                unitCost: unitCostOf(recostItem) ?? 0,
+                offsetAccountId: retainedEarningsAccountId ?? "",
+                postingDate: companyToday
               }}
             >
               <ModalHeader>
                 <ModalTitle>
-                  <Trans>Inventory Adjustment</Trans>
+                  <Trans>Recost {recostItem.readableId ?? ""}</Trans>
                 </ModalTitle>
               </ModalHeader>
               <ModalBody>
-                <Hidden name="itemId" />
-                {isEditing && <Hidden name="originalStorageUnitId" />}
-                <Hidden
-                  name="requiresSerialTracking"
-                  value={isSerial ? "true" : "false"}
-                />
-
-                <VStack spacing={2}>
-                  <Location name="locationId" label={t`Location`} isReadOnly />
-                  <StorageUnit
-                    name="storageUnitId"
-                    locationId={pickMethod.locationId}
-                    label={t`Storage Unit`}
-                    isReadOnly={isEditingRow}
-                  />
-                  <Select
-                    name="adjustmentType"
-                    label={t`Adjustment Type`}
-                    termId="inventory-adjustment-type"
-                    onChange={(option) =>
-                      setAdjustmentType(option?.value ?? "Set Quantity")
-                    }
-                    options={
-                      isEditing && (isSerial || isBatch)
-                        ? [
-                            { label: t`Set Quantity`, value: "Set Quantity" },
-                            {
-                              label: t`Negative Adjustment`,
-                              value: "Negative Adjmt."
-                            },
-                            { label: t`Scrap`, value: "Scrap" }
-                          ]
-                        : [
-                            ...(isSerial
-                              ? []
-                              : [
-                                  {
-                                    label: "Set Quantity",
-                                    value: "Set Quantity"
-                                  }
-                                ]),
-                            {
-                              label: t`Positive Adjustment`,
-                              value: "Positive Adjmt."
-                            },
-                            {
-                              label: t`Negative Adjustment`,
-                              value: "Negative Adjmt."
-                            },
-                            { label: t`Scrap`, value: "Scrap" }
-                          ]
-                    }
-                  />
-                  {adjustmentType === "Scrap" && (
-                    <ScrapReason name="scrapReasonId" label={t`Scrap Reason`} />
-                  )}
-                  {(isBatch || isSerial) && (
-                    <>
-                      <Hidden name="trackedEntityId" />
-                      <Input
-                        name="readableId"
-                        label={isSerial ? t`Serial Number` : t`Batch Number`}
-                        termId={
-                          isSerial
-                            ? "inventory-adjustment-serial-number"
-                            : "inventory-adjustment-batch-number"
-                        }
-                      />
-                      {showExpirationField && (
-                        <DatePicker
-                          name="expirationDate"
-                          label={t`Expiration Date`}
-                          termId="inventory-adjustment-expiration-date"
-                        />
-                      )}
-                    </>
-                  )}
-                  <NumberControlled
-                    name="quantity"
-                    label={t`Quantity`}
+                <Hidden name="trackedEntityId" />
+                <VStack spacing={4}>
+                  <p className="text-sm text-muted-foreground">
+                    <Trans>
+                      Sets what this unit is carried at in inventory. The
+                      difference is booked between inventory and the account the
+                      cost was spent from: Retained Earnings for an earlier
+                      year, or this year's labor or material expense.
+                    </Trans>
+                  </p>
+                  <NumberInput
+                    name="unitCost"
+                    label={t`Unit Cost`}
                     minValue={0}
-                    maxValue={isSerial && isEditing ? 1 : undefined}
-                    value={isSerial && !isEditing ? 1 : quantity}
-                    onChange={setQuantity}
-                    isReadOnly={isSerial && !isEditing}
+                    formatOptions={INPUT_FORMAT.rate(
+                      company.baseCurrencyCode,
+                      currencyDecimals
+                    )}
                   />
-
-                  <Input
-                    name="unitOfMeasure"
-                    label={t`Unit of Measure`}
-                    value={itemUnitOfMeasure?.label ?? ""}
-                    isReadOnly
-                  />
-                  <TextArea name="comment" label={t`Comment`} />
+                  <Account name="offsetAccountId" label={t`Offset Account`} />
+                  <DatePicker name="postingDate" label={t`Posting Date`} />
                 </VStack>
               </ModalBody>
               <ModalFooter>
-                <Button onClick={adjustmentModal.onClose} variant="secondary">
+                <Button variant="secondary" onClick={recostModal.close}>
                   <Trans>Cancel</Trans>
                 </Button>
-                <Submit
-                  withBlocker={false}
-                  isDisabled={!permissions.can("update", "inventory")}
-                >
-                  Save
+                <Submit>
+                  <Trans>Recost</Trans>
                 </Submit>
               </ModalFooter>
             </ValidatedForm>
           </ModalContent>
         </Modal>
       )}
-      <ruleViolations.ViolationModal />
-      {printerModal.isOpen && pendingPrintEntityId && (
-        <Modal open onOpenChange={(open) => !open && printerModal.onClose()}>
-          <ModalContent>
+      <Modal
+        open={adjustmentModal.isOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            adjustmentModal.onClose();
+          }
+        }}
+      >
+        <ModalContent>
+          <ValidatedForm
+            method="post"
+            validator={inventoryAdjustmentValidator}
+            fetcher={ruleViolations.fetcher}
+            action={path.to.inventoryItemAdjustment(pickMethod.itemId)}
+            defaultValues={{
+              itemId: pickMethod.itemId,
+              quantity: isSerial && !isEditing ? 1 : quantity,
+              locationId: pickMethod.locationId,
+              storageUnitId: selectedStorageUnitId || undefined,
+              originalStorageUnitId: isEditing
+                ? selectedStorageUnitId || undefined
+                : undefined,
+              adjustmentType:
+                isSerial && !isEditing ? "Positive Adjmt." : "Set Quantity",
+              trackedEntityId: selectedTrackedEntityId || nanoid(),
+              readableId: selectedReadableId || undefined,
+              expirationDate: defaultExpirationDate
+            }}
+          >
             <ModalHeader>
               <ModalTitle>
-                <Trans>Select Printer</Trans>
+                <Trans>Inventory Adjustment</Trans>
               </ModalTitle>
+              {selectedProjectId && (
+                <ModalDescription>
+                  {ownerLabels[selectedProjectId] ?? t`Project stock`}
+                </ModalDescription>
+              )}
             </ModalHeader>
             <ModalBody>
-              <div className="flex flex-col gap-1">
-                {printerRoutes.map((route) => (
-                  <button
-                    type="button"
-                    key={route.id}
-                    className={`flex items-center gap-3 rounded-lg border p-3 text-left transition-colors ${
-                      selectedPrinterId === route.id
-                        ? "border-primary bg-primary/5"
-                        : "border-border hover:bg-muted"
-                    }`}
-                    onClick={() => setSelectedPrinterId(route.id)}
-                  >
-                    <LuPrinter className="size-4 text-muted-foreground shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <span className="text-sm font-medium">{route.name}</span>
-                      <span className="text-xs text-muted-foreground ml-2 uppercase">
-                        {route.format}
-                      </span>
-                    </div>
-                    {selectedPrinterId === route.id && (
-                      <LuCheck className="size-4 text-primary shrink-0" />
+              <Hidden name="itemId" />
+              {selectedProjectId && (
+                <Hidden name="projectId" value={selectedProjectId} />
+              )}
+              {isEditing && <Hidden name="originalStorageUnitId" />}
+              <Hidden
+                name="requiresSerialTracking"
+                value={isSerial ? "true" : "false"}
+              />
+
+              <VStack spacing={2}>
+                <Location name="locationId" label={t`Location`} isReadOnly />
+                <StorageUnit
+                  name="storageUnitId"
+                  locationId={pickMethod.locationId}
+                  label={t`Storage Unit`}
+                  isReadOnly={isEditingRow}
+                />
+                <Select
+                  name="adjustmentType"
+                  label={t`Adjustment Type`}
+                  termId="inventory-adjustment-type"
+                  onChange={(option) =>
+                    setAdjustmentType(option?.value ?? "Set Quantity")
+                  }
+                  options={
+                    isEditing && (isSerial || isBatch)
+                      ? [
+                          { label: t`Set Quantity`, value: "Set Quantity" },
+                          {
+                            label: t`Negative Adjustment`,
+                            value: "Negative Adjmt."
+                          },
+                          { label: t`Scrap`, value: "Scrap" }
+                        ]
+                      : [
+                          ...(isSerial
+                            ? []
+                            : [
+                                {
+                                  label: "Set Quantity",
+                                  value: "Set Quantity"
+                                }
+                              ]),
+                          {
+                            label: t`Positive Adjustment`,
+                            value: "Positive Adjmt."
+                          },
+                          {
+                            label: t`Negative Adjustment`,
+                            value: "Negative Adjmt."
+                          },
+                          { label: t`Scrap`, value: "Scrap" }
+                        ]
+                  }
+                />
+                {adjustmentType === "Scrap" && (
+                  <ScrapReason name="scrapReasonId" label={t`Scrap Reason`} />
+                )}
+                {(isBatch || isSerial) && (
+                  <>
+                    <Hidden name="trackedEntityId" />
+                    <Input
+                      name="readableId"
+                      label={isSerial ? t`Serial Number` : t`Batch Number`}
+                      termId={
+                        isSerial
+                          ? "inventory-adjustment-serial-number"
+                          : "inventory-adjustment-batch-number"
+                      }
+                    />
+                    {showExpirationField && (
+                      <DatePicker
+                        name="expirationDate"
+                        label={t`Expiration Date`}
+                        termId="inventory-adjustment-expiration-date"
+                      />
                     )}
-                  </button>
-                ))}
-              </div>
+                  </>
+                )}
+                <NumberControlled
+                  name="quantity"
+                  label={t`Quantity`}
+                  minValue={0}
+                  maxValue={isSerial && isEditing ? 1 : undefined}
+                  value={isSerial && !isEditing ? 1 : quantity}
+                  onChange={setQuantity}
+                  isReadOnly={isSerial && !isEditing}
+                />
+
+                <Input
+                  name="unitOfMeasure"
+                  label={t`Unit of Measure`}
+                  value={itemUnitOfMeasure?.label ?? ""}
+                  isReadOnly
+                />
+                <TextArea name="comment" label={t`Comment`} />
+              </VStack>
             </ModalBody>
             <ModalFooter>
-              <div className="flex gap-2">
-                <Button
-                  variant="primary"
-                  leftIcon={<LuPrinter />}
-                  disabled={!selectedPrinterId}
-                  onClick={handleConfirmPrint}
-                >
-                  <Trans>Print</Trans>
-                </Button>
-                <Button variant="solid" onClick={printerModal.onClose}>
-                  <Trans>Cancel</Trans>
-                </Button>
-              </div>
+              <Button onClick={adjustmentModal.onClose} variant="secondary">
+                <Trans>Cancel</Trans>
+              </Button>
+              <Submit
+                withBlocker={false}
+                isDisabled={!permissions.can("update", "inventory")}
+              >
+                Save
+              </Submit>
             </ModalFooter>
-          </ModalContent>
-        </Modal>
-      )}
-      {downloadModal.isOpen && pendingPrintEntityId && (
+          </ValidatedForm>
+        </ModalContent>
+      </Modal>
+      <ruleViolations.ViolationModal />
+      <Modal
+        open={printerModal.isOpen && !!pendingPrintEntityId}
+        onOpenChange={(open) => !open && printerModal.onClose()}
+      >
+        <ModalContent>
+          <ModalHeader>
+            <ModalTitle>
+              <Trans>Select Printer</Trans>
+            </ModalTitle>
+          </ModalHeader>
+          <ModalBody>
+            <div className="flex flex-col gap-1">
+              {printerRoutes.map((route) => (
+                <button
+                  type="button"
+                  key={route.id}
+                  className={`flex items-center gap-3 rounded-lg border p-3 text-left transition-colors ${
+                    selectedPrinterId === route.id
+                      ? "border-primary bg-primary/5"
+                      : "border-border hover:bg-muted"
+                  }`}
+                  onClick={() => setSelectedPrinterId(route.id)}
+                >
+                  <LuPrinter className="size-4 text-muted-foreground shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <span className="text-sm font-medium">{route.name}</span>
+                    <span className="text-xs text-muted-foreground ml-2 uppercase">
+                      {route.format}
+                    </span>
+                  </div>
+                  {selectedPrinterId === route.id && (
+                    <LuCheck className="size-4 text-primary shrink-0" />
+                  )}
+                </button>
+              ))}
+            </div>
+          </ModalBody>
+          <ModalFooter>
+            <div className="flex gap-2">
+              <Button
+                variant="primary"
+                leftIcon={<LuPrinter />}
+                disabled={!selectedPrinterId}
+                onClick={handleConfirmPrint}
+              >
+                <Trans>Print</Trans>
+              </Button>
+              <Button variant="solid" onClick={printerModal.onClose}>
+                <Trans>Cancel</Trans>
+              </Button>
+            </div>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+      {pendingPrintEntityId && (
         <LabelDownloadModal
           sourceDocumentId={pendingPrintEntityId}
           fileRoutes={{
@@ -684,15 +1094,52 @@ const InventoryStorageUnits = ({
             zpl: path.to.file.trackedEntityLabelZpl
           }}
           isOpen={downloadModal.isOpen}
-          onClose={() => {
-            downloadModal.onClose();
-            setPendingPrintEntityId(null);
-          }}
+          onClose={downloadModal.onClose}
         />
       )}
       <Outlet />
     </>
   );
 };
+
+/**
+ * The labels of the projects that own stock in the rows (Projects Phase 2a):
+ * one read, only when some stock belongs to a project.
+ */
+function useStockOwnerLabels(projectIds: string[]) {
+  const { carbon } = useCarbon();
+  const key = [...new Set(projectIds)].sort().join(",");
+  const [labels, setLabels] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (!carbon || !key) {
+      setLabels({});
+      return;
+    }
+    let cancelled = false;
+    carbon
+      .from("project")
+      .select("id, identifier, name")
+      .in("id", key.split(","))
+      .then(({ data }) => {
+        if (cancelled) return;
+        setLabels(
+          Object.fromEntries(
+            (data ?? []).map((project) => [
+              project.id,
+              project.identifier
+                ? `${project.identifier} — ${project.name}`
+                : project.name
+            ])
+          )
+        );
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [carbon, key]);
+
+  return labels;
+}
 
 export default InventoryStorageUnits;

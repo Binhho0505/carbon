@@ -5,18 +5,17 @@
 import { error, notFound, success } from "@carbon/auth";
 import { requirePermissions } from "@carbon/auth/auth.server";
 import { flash } from "@carbon/auth/session.server";
+import { useRouteDialog } from "@carbon/react";
 import { redirect } from "@carbon/utils";
 import { useLingui } from "@lingui/react/macro";
-import type {
-  ActionFunctionArgs,
-  ClientActionFunctionArgs,
-  LoaderFunctionArgs
-} from "react-router";
-import { useLoaderData, useNavigate, useParams } from "react-router";
+import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
+import { useLoaderData, useParams } from "react-router";
 import { ConfirmDelete } from "~/components/Modals";
-import { deleteCustomerType, getCustomerType } from "~/modules/sales";
+import {
+  deleteCustomerType,
+  getCustomerType
+} from "~/modules/sales/sales.service";
 import { getParams, path } from "~/utils/path";
-import { customerTypesQuery, getCompanyId } from "~/utils/react-query";
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const { client } = await requirePermissions(request, {
@@ -48,7 +47,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
   if (!customerTypeId) {
     throw redirect(
       `${path.to.customerTypes}?${getParams(request)}`,
-      await flash(request, error(params, "Failed to get an customer type id"))
+      await flash(request, error(null, "Failed to get an customer type id"))
     );
   }
 
@@ -72,30 +71,21 @@ export async function action({ request, params }: ActionFunctionArgs) {
   );
 }
 
-export async function clientAction({ serverAction }: ClientActionFunctionArgs) {
-  window.clientCache?.setQueryData(
-    customerTypesQuery(getCompanyId()).queryKey,
-    null
-  );
-  return await serverAction();
-}
-
 export default function DeleteCustomerTypeRoute() {
   const { t } = useLingui();
   const { customerTypeId } = useParams();
   const { customerType } = useLoaderData<typeof loader>();
-  const navigate = useNavigate();
+  const dialog = useRouteDialog(path.to.customerTypes);
 
   if (!customerTypeId) throw new Error("customerTypeId not found");
-
-  const onCancel = () => navigate(path.to.customerTypes);
 
   return (
     <ConfirmDelete
       action={path.to.deleteCustomerType(customerTypeId)}
       name={customerType.name}
       text={t`Are you sure you want to delete the customer type: ${customerType.name}? This cannot be undone.`}
-      onCancel={onCancel}
+      isOpen={dialog.open}
+      onCancel={dialog.close}
     />
   );
 }

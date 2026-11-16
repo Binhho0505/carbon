@@ -710,33 +710,33 @@ export const fmcgOps: OpsData = {
   ],
   timecards: [
     {
-      dayOffset: -5,
+      workdaysBack: 5,
       clockIn: "06:30:00",
       clockOut: "15:02:00"
     },
     {
-      dayOffset: -4,
+      workdaysBack: 4,
       clockIn: "06:28:00",
       clockOut: "15:05:00"
     },
     {
-      dayOffset: -3,
+      workdaysBack: 3,
       clockIn: "06:33:00",
       clockOut: "15:00:00"
     },
     {
-      dayOffset: -2,
+      workdaysBack: 2,
       clockIn: "06:25:00",
       clockOut: "17:40:00",
       note: "Stayed to run the Miền Bắc actuator sản phẩm FMCGs through the kiểm nghiệm."
     },
     {
-      dayOffset: -1,
+      workdaysBack: 1,
       clockIn: "06:31:00",
       clockOut: "11:00:00"
     },
     {
-      dayOffset: -1,
+      workdaysBack: 1,
       clockIn: "11:30:00",
       clockOut: "15:03:00"
     }

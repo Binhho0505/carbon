@@ -221,7 +221,7 @@ export const WAREHOUSES: WarehouseSpec[] = [
   { key: "QC", name: "Incoming Inspection Hold", requiresBin: true }
 ];
 
-export const STORAGE_TYPES = ["Shelf", "Bin", "Rack", "Cabinet"];
+export const STORAGE_TYPES = ["Shelf", "Bin", "Rack", "Cabinet", "Quarantine"];
 
 // Names here are the contract for OPENING_STOCK[].shelf — a mismatch is a hard
 // error, so the racking rows are listed rather than generated.
@@ -238,7 +238,12 @@ export const SHELVES: ShelfSpec[] = [
   { name: "A3-L3", warehouse: "Main", storageType: "Bin", parent: "Aisle-A" },
   // Rare-earth magnets are kept locked and away from anything ferrous.
   { name: "Magnet-Vault", warehouse: "Main", storageType: "Cabinet" },
-  { name: "Winding-Crib", warehouse: "Main", storageType: "Shelf" }
+  { name: "Winding-Crib", warehouse: "Main", storageType: "Shelf" },
+  // Non-nettable (its storage type is): stock held here pending a quality
+  // decision is not planned against or picked.
+  { name: "MRB-Hold", warehouse: "Main", storageType: "Quarantine" },
+  // Non-nettable: inspected goods-in receipts wait here for their lot's decision.
+  { name: "QC-Inspection", warehouse: "QC", storageType: "Quarantine" }
 ];
 
 export const PRINTER_ROUTE: PrinterRouteSpec = {
@@ -330,48 +335,63 @@ export const CUSTOMER_CONTACTS = [
     lastName: "Boone",
     email: "tboone@wabashindustrial.com",
     title: "Category Buyer"
+  },
+  {
+    customer: "Wabash Industrial Supply",
+    firstName: "Nina",
+    lastName: "Castellano",
+    email: "ncastellano@wabashindustrial.com",
+    title: "Plant Engineer",
+    sharesLocation: true as const
   }
 ];
 
 export const SUPPLIERS = [
   {
     name: "Meridian Magnetics",
+    stage: "Production" as const,
     type: "Magnets",
     phone: "+1-330-555-0510",
     website: "https://meridianmagnetics.com"
   },
   {
     name: "Copperline Wire Works",
+    stage: "Production" as const,
     type: "Electrical",
     phone: "+1-513-555-0620",
     website: "https://copperlinewire.com"
   },
   {
     name: "Lakeland Electrical Steel",
+    stage: "Qualified" as const,
     type: "Materials",
     phone: "+1-219-555-0730",
     website: "https://lakelandsteel.com"
   },
   {
     name: "Summit Bearing Supply",
+    stage: "Production" as const,
     type: "Hardware",
     phone: "+1-847-555-0840",
     website: "https://summitbearing.com"
   },
   {
     name: "Ironwood Fasteners",
+    stage: "Production" as const,
     type: "Hardware",
     phone: "+1-630-555-0950",
     website: "https://ironwoodfasteners.com"
   },
   {
     name: "Maumee Contract Machining",
+    stage: "Qualified" as const,
     type: "Contract Manufacturer",
     phone: "+1-419-555-1060",
     website: "https://maumeemachining.com"
   },
   {
     name: "Anchor Metrology Services",
+    stage: "Production" as const,
     type: "Services",
     phone: "+1-937-555-1170",
     website: "https://anchormetrology.com"
@@ -387,6 +407,7 @@ export const SUPPLIERS = [
   },
   {
     name: "Amperon Winding Works",
+    stage: "Sampling" as const,
     type: "Electrical",
     phone: "+1-317-555-1390",
     website: "https://amperonwindings.com",
@@ -394,6 +415,7 @@ export const SUPPLIERS = [
   },
   {
     name: "Budget Bearing Depot",
+    stage: "Prospect" as const,
     type: "Hardware",
     phone: "+1-614-555-1410",
     website: "https://budgetbearing.com",
@@ -401,6 +423,7 @@ export const SUPPLIERS = [
   },
   {
     name: "Euromag Ferrite Werke GmbH",
+    stage: "Production" as const,
     type: "Magnets",
     phone: "+49-231-555-1520",
     website: "https://euromag-ferrite.de",
@@ -962,7 +985,10 @@ export const motorFoundation: FoundationData = {
   employeeJob: EMPLOYEE_JOB,
   warehouses: WAREHOUSES,
   storageTypes: STORAGE_TYPES,
+  nonNettableStorageTypes: ["Quarantine"],
   shelves: SHELVES,
+  inspectionShelf: "QC-Inspection",
+  rejectedShelf: "MRB-Hold",
   printerRoute: PRINTER_ROUTE,
   holidays: HOLIDAYS,
   tags: TAGS,

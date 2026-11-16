@@ -5,20 +5,16 @@
 import { assertIsPost, error } from "@carbon/auth";
 import { requirePermissions } from "@carbon/auth/auth.server";
 import { flash } from "@carbon/auth/session.server";
-import { useCloseRoute } from "@carbon/react";
+import { useRouteDialog } from "@carbon/react";
 import { redirect } from "@carbon/utils";
 import { useLingui } from "@lingui/react/macro";
-import type {
-  ActionFunctionArgs,
-  ClientActionFunctionArgs
-} from "react-router";
+import type { ActionFunctionArgs } from "react-router";
 import { useParams } from "react-router";
 import { ConfirmDelete } from "~/components/Modals";
 import { useRouteData } from "~/hooks";
-import type { SupplierProcess } from "~/modules/purchasing";
-import { deleteSupplierProcess } from "~/modules/purchasing";
+import { deleteSupplierProcess } from "~/modules/purchasing/purchasing.service";
+import type { SupplierProcess } from "~/modules/purchasing/types";
 import { path } from "~/utils/path";
-import { supplierProcessesQuery } from "~/utils/react-query";
 
 export async function action({ request, params }: ActionFunctionArgs) {
   assertIsPost(request);
@@ -45,22 +41,8 @@ export async function action({ request, params }: ActionFunctionArgs) {
   return redirect(path.to.supplierProcesses(supplierId));
 }
 
-export async function clientAction({
-  request,
-  serverAction
-}: ClientActionFunctionArgs) {
-  const processId = new URL(request.url).searchParams.get("processId");
-  if (processId) {
-    window.clientCache?.setQueryData(
-      supplierProcessesQuery(processId).queryKey,
-      null
-    );
-  }
-  return await serverAction();
-}
-
 export default function DeleteSupplierProcessRoute() {
-  const closeRoute = useCloseRoute();
+  const dialog = useRouteDialog();
   const { supplierId, id } = useParams();
   if (!supplierId) throw new Error("Could not find supplier id");
   if (!id) throw new Error("Could not find id");
@@ -78,12 +60,10 @@ export default function DeleteSupplierProcessRoute() {
       action={`${path.to.deleteSupplierProcess(supplierId, id)}?processId=${
         process?.processId
       }`}
-      isOpen
+      isOpen={dialog.open}
       name={process.processName!}
       text={t`Are you sure you want to permanently delete the supplier process?`}
-      onCancel={() => {
-        closeRoute();
-      }}
+      onCancel={dialog.close}
     />
   );
 }

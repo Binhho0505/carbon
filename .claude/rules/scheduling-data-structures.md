@@ -66,33 +66,58 @@ Spec/plan: `.ai/specs/2026-09-22-quote-lead-time-prediction.md`.
   normalizes pg DATE columns (JS Date at local midnight) to "YYYY-MM-DD" —
   required before any lexicographic date comparison (operator expiry).
 - **ERP authoring boards** (`apps/erp/app/routes/x+/priority+/`): `operations.tsx`
-  (ops Kanban; drag → `operations.update.tsx` writes `jobOperation.workCenterId` +
-  `priority`, no reschedule — the board header carries a tooltip: *"Reorders dispatch
+  (ops Kanban; drag → `operations.update.tsx` → `api.production.reorderScheduleOperations`,
+  which writes `jobOperation.workCenterId` + `priority` and, only when a card moved to
+  another work center, calls `notifyScheduleInputsChanged(…, "work-center", …)`; a
+  reorder within one column re-sequences the dispatch order and reschedules nothing — the
+  board header carries a tooltip: *"Reorders dispatch
   sequence and work center only — does not reschedule. Change dates on the Dates board."*)
   and `dates.tsx` (jobs-by-due-date Kanban; drag →
-  `dates.update.tsx` writes `job.dueDate` + `priority`, **then calls
-  `notifyScheduleInputsChanged(companyId, "reorder", …)`** — which only stamps the
+  `dates.update.tsx` → `api.production.moveScheduleJob`, which writes `job.dueDate` +
+  `priority` and, in the same UPDATE, the deadline type the date implies
+  (`deadlineTypeForDueDate`: a dated No Deadline or ASAP job becomes Soft Deadline — the
+  scheduler ignores an ASAP date that MRP would plan supply to — and an undated
+  Hard / Soft Deadline job becomes No Deadline), **then calls `notifyScheduleInputsChanged(…, "reorder", …)`** — which only stamps the
   jobs schedule-outdated; the debounced wave regenerates the whole location. There
   is no immediate single-job path). `people.tsx` is the People
   page with a segmented view switcher (`?view=`): the People **board** (manning
   board: drag employees onto work-center columns per date; Unassigned column
   is `position: sticky` — needs `min-w-max` on the shared `BoardContainer`
   row and `MeasuringStrategy.Always` on the DndContext; mutations via
-  `people.update.tsx`, which fires
-  `notifyScheduleInputsChanged(companyId, "people", ..., workCenterId)` — a MOVE
+  `people.update.tsx`, which calls one people service function per `intent`
+  (`assignPerson`, `movePerson`, `markPersonAbsentRange`, … in `production.server.ts`);
+  each fires `notifyScheduleInputsChanged(…, "people", …, workCenterId)` — a MOVE
   notifies BOTH the destination and the source work center (via
   `movePeopleAssignment`'s `previousWorkCenterId`), so the station the person left
   re-plans too instead of keeping a stale booking), a
   week **matrix** (`PeopleMatrix.tsx`: employee×day grid + assigned-vs-needed
   coverage as sub-tabs, department filter), and a week **capacity** board
-  (`PeopleCapacity.tsx`). Capacity math: Demand = open `jobOperation` hours by
-  due date via `makeDurations` (Draft/Planned jobs excluded — released work
-  only; ops overdue up to 28 days land in a Past-due column); Scheduled =
-  `capacityReservation.workHours` distributed across each reservation's span
-  per day; Available = people headcount × real shift hours resolved through
-  the ladder assignment `shiftId` → the person's `employeeShift` →
-  most-common shift duration at the location → 8h (unassigned stations fall
-  back to the location's per-weekday shift calendar); Load renders as hours
+  (`PeopleCapacity.tsx`). Both read each station's working windows:
+  `getWorkCenterWorkingWindows` (the engine's ladder and holidays; a station's
+  linked shifts at another location are loaded too, `getShiftsWithTimesByIds`)
+  less the open offline maintenance outages (`getWorkCenterOutages` →
+  `downtimeOutages`, `@carbon/planning`, the rule the engine uses). Capacity
+  math: Demand = the hours each open `jobOperation` still needs as the engine
+  counts them (`remainingWorkHours`: setup + max(labor, machine), netted by
+  quantity complete, setup dropped once a production event exists) by due date
+  (Draft/Planned jobs excluded — released work only; overdue lands in a
+  Past-due column); Scheduled = `capacityReservation.workHours` split across
+  the days of the booking by the station's working time in each day, so a
+  booking from Monday noon to Tuesday 11:30 puts its hours in shift time and
+  none on the night or a weekend (no working time falls back to the clock-time
+  share); Available = the working hours in each plant day
+  (`workingHoursByDay`: 0 on a holiday, less maintenance downtime, and the
+  real day length on a lights-out station, 23 or 25 hours across DST).
+  Coverage (Matrix) needs `ceil(attended hours / person-day hours)` people per
+  station-day, where attended hours are the setup + labor share of each booking
+  laid on the station's working time from the booking's start
+  (`attendedHoursByDay`, `getOperationAttendedShares`); machine time and
+  lights-out stations need nobody. On a shift tab only the hours inside that
+  shift count (`within`, `getShiftWorkingWindows`), each on the day the shift
+  STARTS: the roster puts Friday's night shift on Friday, so its hours past
+  midnight are Friday's (a run longer than a day, back-to-back shifts merged
+  into one window, is split by the clock). A shift id from the URL that is not
+  one of the location's shifts reads as All shifts. Load renders as hours
   over/free (+Xh / Xh free), not %. Shift + location filters live in header
   popovers; the shift filter's "All shifts" option (`shiftId` null on
   drag) creates shift-less assignments that resolve hours via the ladder.
@@ -110,7 +135,7 @@ Spec/plan: `.ai/specs/2026-09-22-quote-lead-time-prediction.md`.
   `PeopleColumn` (extracted from `PeopleBoard`), with the shift-hours/time ladders
   shared via `peopleShared.ts`; the Capacity view's demand/scheduled buckets are
   computed server-side by `buildPeopleCapacityBuckets`
-  (`modules/production/peopleCapacity.server.ts`).
+  (`modules/production/production.service.ts`).
 - **MES display** (`apps/mes/app/routes/x+/operations.tsx`): the "Schedule" page is
   a **Kanban** (columns = work centers, cards = operations sorted by `priority`),
   not a Gantt. Read-only re display; operators execute via `operation.$operationId.tsx`.
@@ -134,6 +159,14 @@ never abandons the location run.
   guard defers to a human pick landing mid-wave). Release therefore never
   requires a work center; no candidates at all degrades to per-member
   placement.
+- **What blocks a batch**: `batchBlockingReservations` decides which live
+  reservations a batch is placed around. It keeps other jobs' bookings and
+  other batches' rows. It drops this location's own batch rows, and every
+  non-batch row of a job the run re-plans (`orderedJobIds`): the run replaces
+  those bookings, so they must not push the batch later. Before this, the
+  batch drifted later on every regen. A job that throws during the run is left
+  out of the write, so `persistLocationWrites` clears its stored bookings too
+  (`failedJobIds`): otherwise the batch could sit on top of one.
 - **One reservation per Released (`Active`/`Completing`) batch**, tagged
   `capacityReservation.jobOperationBatchId`; `operationId`/`jobId` stay NOT
   NULL by anchoring on the min member op id. Placeholder semantics mirror
@@ -193,7 +226,17 @@ Two Inngest functions listen on that event
 - **MARK** (`markScheduleStaleFunction`, immediate, concurrency 1 per company):
   stamps the affected jobs' `scheduleOutdatedReason` / `scheduleOutdatedAt` (scoped
   per kind — a qualification change in a shop with no gated ops stamps nothing;
-  `location` / `reorder` stamp company-wide). Recomputes nothing.
+  `location` / `reorder` stamp company-wide). A `shift` event with a shift id also
+  stamps every job with an open op on a work center whose hours come from that shift
+  (`workCentersOnShift`, `shift-work-centers.ts`: the stations linked to it, plus the
+  stations at its location with no link to an active shift; lights-out stations never
+  count), or on a process those stations run (`processesOfWorkCenters`: an unstarted op
+  can move onto them). An unknown shift id stamps company-wide. `createShift`,
+  `updateShift` and `deleteShift` send the id; an update that moves the shift to
+  another location sends kind `location` instead, so the stations it left re-plan too.
+  Changing a location's staffing requirement (`updateProductionSettings`) or its
+  timezone (`updateLocation`, shifts are local times) also sends kind `location`,
+  only when the value actually changed. Recomputes nothing.
 - **WAVE** (`scheduleReplanWaveFunction`, **debounce 30s / timeout 10m**,
   concurrency 1 per company): loads the company's stale jobs, groups them by
   **LOCATION**, and calls `runLocationSchedule({ db: getJobDatabaseClient(),
@@ -234,22 +277,20 @@ filter). The trigger is the one chokepoint every terminal path funnels through
 Completed); SECURITY DEFINER because a cancel only holds `production_update` while
 the DELETE policy needs `production_delete`.
 
-Other whole-location regen callers now run `runLocationSchedule(...)` IN-PROCESS
+Other whole-location regen callers run `runLocationSchedule(...)` IN-PROCESS
 (no edge invoke): `recalculateJobOperationDependencies` (`production.service.ts`,
-resolves the job's `locationId` first — it dynamic-imports `@carbon/planning`
-+ `@carbon/database/client` (via `getSchedulingDb`) and uses a lazy Node pool, because
-`production.service.ts` is also client-bundled and must not STATICALLY pull `pg`/`.server`
-code), `recalculate.ts`, `kanban.$id.tsx`, and `job/$jobId.status.tsx` (the last two are
-route actions, which CAN import `@carbon/planning` + `~/services/database.server`
-directly since React Router strips their server code from the client bundle). The
-expedite what-if uses `runExpediteWhatIf`. `reschedule` (`packages/server-functions/src/reschedule/`)
+resolves the job's `locationId` first, takes the caller's `db` handle and
+dynamic-imports `@carbon/planning`), `releaseJobs` (`production.server.ts`, once per
+location after every status flip), `scanKanban` (`inventory.server.ts`, a Make card's
+auto-release), `api+/schedule.ts`, and the jobs task `tasks/recalculate.ts`. The
+expedite what-if uses `runExpediteWhatIf`. `rescheduleJob` (`production.service.ts`, the `reschedule` posting)
 is a separate per-job backward re-plan, not a whole-location regen.
 
 ## Engine pipeline (`scheduling-engine.ts` `run()`)
 
 `initialize → assignMaterials → createDependencies → calculateDates →
-computeNeedBys → selectWorkCenters → calculatePriorities → persistChanges` (the last
-is skipped when `persist: false`, i.e. the expedite what-if). **There is no backward
+computeNeedBys → selectWorkCenters → calculatePriorities → buildWrites` (the engine
+writes nothing; the location run stores the result, the expedite what-if drops it). **There is no backward
 JIT pass in PLACEMENT and no `initial`/`reschedule` mode split** — everything places
 FORWARD-ASAP, and the projected finish IS the overdue forecast (slack is real). The
 backward need-by pass (`computeNeedBys`, below) computes demand-anchored TARGETS
@@ -263,8 +304,18 @@ only; its output is read by nothing in the placement path (spec
   `dueDate ASC NULLS LAST → job.priority ASC → createdAt ASC` — so a no-due-date ASAP
   order claims capacity first. Each job's engine run **excludes the jobs not yet run
   (itself + later)** from the reservation snapshot, so it sees non-batch reservations
-  plus the just-persisted placements of already-run jobs → sequential capacity
-  claiming, no pre-clear step.
+  plus the placements of already-run jobs → sequential capacity
+  claiming, no pre-clear step. **Nothing is written while the jobs run.** The
+  engine only computes: `engine.getWrites()` returns a `JobWrites`
+  (`run-overlay.ts`), `provider.recordJob(writes)` makes that job's reservations
+  and operation placements visible to the jobs after it (`beginRun` reads the
+  live reservations once; the rules are the pure `visibleReservations` /
+  `mergeCrossJobOperations`), and `persistLocationWrites`
+  (`persist-location.ts`) stores the whole location in ONE transaction at the
+  end. A job that throws while computing is left out of the write and keeps its
+  stored reservations visible to later jobs; a database error in the write
+  rolls the location back and `runLocationSchedule` throws. This replaced a
+  write per job (about 17 statements each, 500 for a 28-job location).
 - **Sequencing** (`dependency-manager.ts`): the `jobOperation."operationOrder"` enum
   (`methodOperationOrder` = `'After Previous' | 'With Previous'`) decides serial vs
   parallel, plus assembly edges (a sub-make-method's last op feeds the parent's
@@ -283,8 +334,11 @@ only; its output is read by nothing in the placement path (spec
   `job.dueDate` (null due date ⇒ all-null targets); leaves are due on the job due
   date; an op with dependents is due at the earliest dependent constraint — the
   dependent's need-by START minus that dependent's `operationLeadTime` working
-  days, minus this op's `assemblyLeadTime` at assembly edges (a sub-make-method
-  feeding its parent); "With Previous" ops copy their partner's target dates; a
+  days. An assembly edge (a sub-make-method feeding its parent) subtracts NO
+  item lead time: the subassembly's own ops are in the walk, so adding
+  `itemReplenishment.leadTime` (default 7) counted the build twice per BOM
+  level and put targets weeks before the job's start. "With Previous" ops copy
+  their partner's target dates; a
   pinned op's stored `dueDate` is taken as-is AND propagates upstream. Day math
   runs on real calendars via `calendarAdapters` over the SAME availability-ladder
   windows placement uses (one shared `loadAvailabilityWindows()` fetch):
@@ -301,10 +355,18 @@ only; its output is read by nothing in the placement path (spec
   forward from `max(now, placed-dependency-ends)` — **no backward-pass floor** — into the
   first feasible span. Two finite resources gate it: the work center (capacity 1 — one op
   at a time, decided by actual `capacityReservation` intervals) AND, for ability-gated
-  processes, ≥1 qualified employee on shift and unreserved. **Work-center selection is
-  sticky**: an op keeps its `workCenterId` when that work center is in the capacity set;
-  an op with no work center (or whose WC has no capacity data, e.g. deactivated) gets
-  earliest-finish selection among its process candidates. A placement past the job's
+  processes, ≥1 qualified employee on shift and unreserved. **Only a started op is
+  sticky** (`isOperationStarted`, `apply-work-center-selections.ts`: status In Progress
+  or Paused, or `quantityComplete > 0`): it stays on its `workCenterId`. An op that has
+  not started gets earliest-finish selection across its process's work centers, even
+  when it carries a work center (the stored one is the fallback when the process has no
+  mapped centers). `applyWorkCenterSelections` then puts the chosen work center on a
+  placed op that has not started, and `placementWrites` (`run-overlay.ts`) writes it,
+  so `jobOperation.workCenterId` and the op's `capacityReservation` always name the
+  same station. A started op and a placeholder
+  keep the stored one; an op with no work center gets one either way. Consequence: a
+  card dragged to another column on the operations board can move back at the next
+  regen when another station finishes it earlier. A placement past the job's
   `dueDate` sets `hasConflict`/`conflictReason` but keeps the placement.
 - **Machine availability windows** come from the ladder resolved per work center in
   `machine-availability.ts` (`resolveWorkCenterWindows`) — the provider's
@@ -321,6 +383,25 @@ only; its output is read by nothing in the placement path (spec
   dispatch restores the hours at the next regen. People with no `employeeShift` rows now
   default to the job LOCATION's calendar (rung 3/4 via `getLocationCalendarWindows`),
   not 24×7.
+- **Company holidays close the plant.** The provider reads the company's `holiday`
+  dates once per run (`getHolidayDates`). `closeHolidays` (`machine-availability.ts`)
+  removes each holiday's whole day, in the plant timezone, from every work center that
+  is not `alwaysOn`; a lights-out station keeps running. `loadLocationCalendarWindows`
+  removes them from the location calendar, and `buildFiniteContext` adds each holiday as
+  an absence for every person (`withHolidays`, `people-utils.ts`). The ERP reads the same
+  dates (`getHolidayDates`, `production.service.ts`): the Forecast shades a holiday as
+  closed, and the Capacity view shows 0 Available on it. Each Forecast lane is shaded and
+  its bars split on its OWN station's hours (`getWorkCenterNonWorkingIntervals` →
+  the Gantt's `nonWorkingIntervalsByRow`; rows under a lane inherit it, the location
+  rollup is not split, operator-pool lanes keep the plant calendar,
+  `getForecastNonWorkingIntervals`), so a lights-out station is never shaded. `createHoliday`,
+  `updateHoliday` and `deleteHoliday` (`people.server.ts`) notify kind `location`.
+- **A qualification ends at its expiry.** `isEligibleOperator` tests an operator at the
+  op's earliest start only. `clipToQualification` (`operator-eligibility.ts`) then cuts
+  the operator's windows at the start of the `expiresAt` day in the plant timezone, and
+  `buildEligibleMembers` drops an operator with no window left. Without the clip, an op
+  that waited for its machine could be booked on a day after the qualification expired.
+  The People board treats the expiry day as expired too (`expiresAt <= date`).
 - **Attended-window labor model is UNCHANGED** (`slot-allocator.ts`): ability gating,
   manning-board / team mode, attended windows, wait attribution, absence subtraction
   (`peopleAbsence`), overtime extension (`peopleAssignment.overtimeHours`), split-day
@@ -341,6 +422,11 @@ only; its output is read by nothing in the placement path (spec
   nights/weekends a per-date clip would leave open (the bug an earlier per-date version
   caused — the op landed on a future Saturday and fell out of the current-week view).
   Blank board => every qualified person is a floater => fallback unchanged.
+  When people ARE qualified but every one is on the board elsewhere, the reason says so
+  (`composeNoFreeOperator`: "No free operator for X: … assigned to other stations on
+  the manning board"), the Forecast detail lists who is qualified and the stations
+  the board has them at (`getQualifiedPeopleByProcess`), and the ability page warns
+  how many operations of its process can't be scheduled (`getAbilityScheduleImpact`).
 - **Require-staffing policy** (`location.requiresStaffing`, `20260820151847_location-requires-staffing.sql`;
   per-location, default false; edited on the Production settings page): when ON, the finite scheduler
   places work ONLY where an operator is manned. `buildFiniteContext` reads it
@@ -369,21 +455,25 @@ only; its output is read by nothing in the placement path (spec
   dispatch-sequencing policy** — the old per-work-center policy table, its rule enum,
   and the FIFO/EDD/SPT/… comparators were all removed; placement order is the only
   sequence.
-- **`persistChanges` (one transaction, only when `persist`)** writes, for every op whose
-  values changed (`isDistinctFromAny` guards the UPDATE in SQL, so a quiet regen writes no
+- **`persistLocationWrites` (one transaction per location run; the expedite what-if
+  never calls it)** writes, for every op whose
+  values changed (an `is distinct from` guard in the UPDATE, so a quiet regen writes no
   `jobOperation` or `job` row and queues no audit/search event), the
   forward placement's results — `startDate` (projected start, business day) +
   `jobOperation.projectedCompletionAt` (exact placed-end instant, timestamptz) +
   `priority` + `workCenterId` + conflict flags. `dueDate` is the backward need-by and
   is DIFF-written: only when the computed target differs from the stored value (a
   quiet regen touches zero `dueDate`s), and never for a `manuallyScheduled` op — a
-  human owns that target. It rebuilds this job's `capacityReservation` rows
-  (delete-by-job where `scenarioId IS NULL`, then bulk insert — a materialized OUTPUT,
+  human owns that target. It rebuilds the jobs' `capacityReservation` rows
+  (one delete for all the run's jobs where `scenarioId IS NULL`, then bulk insert — a materialized OUTPUT,
   `WorkCenter`/`Employee` kinds); and writes `job.projectedCompletionAt` (= the max
   placed end, the forecast finish) while clearing
-  `scheduleOutdatedReason`/`scheduleOutdatedAt` for that job. It also computes the
+  `scheduleOutdatedReason`/`scheduleOutdatedAt` for each job. The engine's `buildWrites` also computes the
   **newly-late** flag (was on-time-or-unforecast before, now projected past `dueDate`
-  on the location calendar) for the wave's digest.
+  on the location calendar) for the wave's digest. Every due-date judgement — need-by
+  targets, lateness conflicts, newly-late, the behind-target sentence — reads
+  `committedDueDate` (`priority-calculator.ts`): only a Hard or Soft Deadline job has
+  one; the date left on an ASAP or No Deadline job (the job form hides it) is ignored.
 - **Behind-target attribution (informational only):** when the JOB's verdict is late,
   `getCause()` appends `composeBehindTarget` (`conflict-messages.ts`) — "First behind
   target: {op} (due X, projected Y)", the first op in topological order whose
@@ -401,13 +491,13 @@ only; its output is read by nothing in the placement path (spec
 (`20260525143721_manual-scheduling.sql` — adds only this column). Under dual dates a
 pin means **a human owns the need-by TARGET**, not the placement: the backward pass
 takes the pinned op's stored `dueDate` as-is and derives upstream ops' targets from
-it (the pin propagates), and `persistChanges()` never writes `dueDate` for a pinned
+it (the pin propagates), and the location write never includes `dueDate` for a pinned
 op. Forward placement schedules pinned ops **normally** — the old frozen-window
 branch (reserve the pinned span, skip placement) was REMOVED with the dual-dates
 split, so a pinned op's `startDate`/`projectedCompletionAt` are re-projected every
 regen and may differ from its pin. The one exception is a pinned OUTSIDE-PROCESSING
 op, which skips placement and keeps its stored window (successors chain after the
-pinned end). Pins are set via `updateJobOperationDueDate` (`production.service.ts`,
+pinned end). Pins are set via `setJobOperationDueDate` (`production.server.ts`,
 sets `manuallyScheduled`) from `OperationDueDatePicker` on the BOP.
 
 ## Conflict detection
@@ -442,7 +532,9 @@ so `job.projectedCompletionAt` extends to it and successors chain after it
 the next regen. The Forecast surfaces it with a red "can't be scheduled" alert
 (`LuBan`) in the TREE status column — via `GanttEvent.data.isUnschedulable`, set
 on BOTH the work-center lane (any unplaceable child) and the operation row, so it
-reports at the work-center level AND per operation; clicking either row opens the
+reports at the work-center level AND per operation (in a Compact lane the
+placeholders get their own bottom strip, overlapping ones merged into one
+"N can't be scheduled" chip, `groupOverlaps`); clicking either row opens the
 detail sidebar ("Unschedulable" chip + reason + "where it would run"
 explanation). Plus a separate "{n} can't be scheduled" header count. (Placed-but
 -LATE ops keep a real reservation, show the generic `isError` triangle, and are
@@ -451,14 +543,22 @@ the "conflict" count.)
 ## Read RPCs (display only; do not compute schedules)
 
 ### `get_active_job_operations_by_location(location_id, work_center_ids[])`
-Newest: `20260818031629_dual-dates.sql` (forked from `20260720121629_capacity-planning.sql`
-+ a `projectedCompletionAt TIMESTAMPTZ` output column; prior revisions:
-capacity-planning added `hasConflict`/`conflictReason`,
-`20260531084723_rework-serial-flow.sql`
+Newest: `20261006021134_mes-hide-outside-processing.sql` (excludes
+`operationType = 'Outside Processing'`; prior revisions:
+`20260905132037_job-operation-batching.sql` added the batch columns and the
+membership-handoff floor rule, `20260818031629_dual-dates.sql` added
+`projectedCompletionAt TIMESTAMPTZ`, `20260720121629_capacity-planning.sql` added
+`hasConflict`/`conflictReason`, `20260531084723_rework-serial-flow.sql`
 added `quantityReworked`/`reworkId`, `20260304000000` added `operationDueDate`).
+It feeds the MES Work Centers board, the ERP Priority board and the API tool
+`production_getActiveJobOperationsByLocation`. Outside Processing is filtered by
+TYPE, not by a null `workCenterId`: both boards' columns are work centers, so an
+outside operation holding a stale work center (left over from an in-house type)
+otherwise lands in that column for an operator to start. Pinned by
+`supabase/tests/outside-processing-off-the-floor.test.sql`.
 TS wrappers (identical): `apps/mes/app/services/operations.service.ts`
 `getActiveJobOperationsByLocation` and
-`apps/erp/app/modules/production/production.service.ts`. Returns 41 cols incl.:
+`apps/erp/app/modules/production/production.service.ts`. Returns 44 cols incl.:
 `id, jobId, jobMakeMethodId, operationOrder` (← `jo."order"`)`, priority, processId,
 workCenterId, description, setup/labor/machineTime+Unit, operationOrderType` (←
 `jo."operationOrder"`, serial/parallel enum)`, jobReadableId, jobStatus, jobDueDate,
@@ -469,8 +569,8 @@ salesOrderId/LineId/ReadableId, assignee, tags, thumbnailPath, operationDueDate`
 (← `jo."dueDate"`, the need-by target)`,
 reworkId, hasConflict` (COALESCEd, never null)`, conflictReason,
 projectedCompletionAt` (← `jo."projectedCompletionAt"`, the projected finish
-instant). The ERP ops board
-(`schedule+/operations.tsx` → `ItemCard`) and MES schedule loader map
+instant)`, processBatchable, jobOperationBatchId, batchReadableId`. The ERP ops board
+(`priority+/operations.tsx` → `ItemCard`) and MES schedule loader map
 `hasConflict`/`conflictReason` onto Kanban items (red border + triangle tooltip on
 the ERP card); the dual dates drive the amber behind-target state (projected day >
 need-by). The same dual-dates migration also forks `get_job_operation_by_id`
@@ -534,16 +634,31 @@ capacity-planning migration and drive the dates board's forecast/stale surfaces.
   `jobOperation.dueDate` is the backward demand-anchored need-by target (DATE, stable
   — changes only when the job due date, routing, or lead times change; a pinned op's
   is human-owned). The job-level forecast finish is `job.projectedCompletionAt`.
-  Consumers that key urgency on op `dueDate` (MES queue sort + overdue flags,
+  Consumers that key urgency on op `dueDate` (MES queue sort,
   the People Capacity view's Demand buckets, `get_picking_schedule` ordering) are
   deliberately unchanged — they now honestly read "when work is needed", not the
-  sim's last forecast. `getJobPromiseDate` returns `job.projectedCompletionAt` or
+  sim's last forecast. The MES operation view's "Due" header, Due Date card and
+  overdue flag read the JOB's `jobDueDate`; the op target is shown under it as
+  "Operation needed by …" and only drives the behind-target projection badge.
+  Labelling the op target "Due" with the job's deadline icon read as the job
+  being due weeks early. The MES Work Centers board cards follow the same rule:
+  `Item.dueDate` is `jobDueDate`, so the "Due …" line, the overdue flag, the
+  urgency border (`getDueUrgency`) and a collapsed batch's earliest member
+  deadline all read the job's date, against the location's `today` from the
+  loader rather than the device's day. The ERP Priority board still maps
+  `operationDueDate`, since its card carries the behind-target badge. The
+  urgency classifiers and both boards' batch reductions ignore an ASAP or No
+  Deadline due date — only Hard and Soft Deadline carry one
+  (`deadlineRequiresDueDate`), but an ASAP job can still hold a stale date.
+  `getJobPromiseDate` returns `job.projectedCompletionAt` or
   null (its old max-op-dueDate fallback would now just echo the job due date and
   was removed).
-- Editing the ERP ops board (`operations.update.tsx`) does NOT re-run the engine and does
-  not even notify — it only re-sequences `workCenterId` + `priority`. The dates board
-  notifies (`notifyScheduleInputsChanged`), and the debounced wave regenerates the whole
-  location. The MES board is display/drag-only.
+- Editing the ERP ops board (`operations.update.tsx`, `reorderScheduleOperations`) does NOT
+  re-run the engine: it re-sequences `workCenterId` + `priority`, and notifies
+  (`notifyScheduleInputsChanged`, kind `work-center`) only when a card changed work
+  center. The dates board always notifies, and the debounced wave regenerates the whole
+  location. A failed notify is logged and never fails the write. The MES board is
+  display/drag-only.
 - The selector MUTATES each context's reservation arrays as it places, so the quote
   what-if runs every simulation on a `cloneFiniteContext` copy (`quote-lead-time.ts`) —
   reusing one context across quantities/scenarios would let earlier runs' placements

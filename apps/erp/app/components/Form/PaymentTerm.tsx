@@ -4,11 +4,10 @@
 
 import type { ComboboxProps } from "@carbon/form";
 import { Combobox, CreatableCombobox } from "@carbon/form";
-import { useDisclosure, useMount } from "@carbon/react";
-import { useMemo, useRef, useState } from "react";
-import { useFetcher } from "react-router";
-import { usePermissions } from "~/hooks";
-import type { getPaymentTermsList } from "~/modules/accounting";
+import { useLoaderQuery } from "@carbon/query";
+import { useMemo, useRef } from "react";
+import { useDrawerItem, usePermissions } from "~/hooks";
+import type { getPaymentTermsList } from "~/modules/accounting/accounting.service";
 import PaymentTermForm from "~/modules/accounting/ui/PaymentTerms/PaymentTermForm";
 import { path } from "~/utils/path";
 import { useEmptyState } from "./emptyStates";
@@ -30,12 +29,11 @@ const PaymentTerm = (props: PaymentTermSelectProps) => {
   const options = usePaymentTerm();
   const permissions = usePermissions();
 
-  const newPaymentTermModal = useDisclosure();
-  const [created, setCreated] = useState<string>("");
+  const create = useDrawerItem<string>();
   const triggerRef = useRef<HTMLButtonElement>(null);
 
   const emptyMessage = useEmptyState("paymentTerm", {
-    onCreate: () => newPaymentTermModal.onOpen()
+    onCreate: () => create.open("")
   });
 
   return permissions.can("create", "accounting") ? (
@@ -48,20 +46,20 @@ const PaymentTerm = (props: PaymentTermSelectProps) => {
         inline={props.inline ? PaymentTermPreview : undefined}
         label={props?.label ?? "Payment Term"}
         onCreateOption={(option) => {
-          newPaymentTermModal.onOpen();
-          setCreated(option);
+          create.open(option);
         }}
       />
-      {newPaymentTermModal.isOpen && (
+      {create.item !== null && (
         <PaymentTermForm
+          key={create.key}
+          open={create.isOpen}
           type="modal"
           onClose={() => {
-            setCreated("");
-            newPaymentTermModal.onClose();
-            triggerRef.current?.click();
+            create.close();
+            create.afterClose(() => triggerRef.current?.click());
           }}
           initialValues={{
-            name: created,
+            name: create.item,
             calculationMethod: "Net" as const,
             daysDue: 0,
             discountPercentage: 0,
@@ -86,12 +84,9 @@ PaymentTerm.displayName = "PaymentTerm";
 export default PaymentTerm;
 
 export const usePaymentTerm = () => {
-  const paymentTermFetcher =
-    useFetcher<Awaited<ReturnType<typeof getPaymentTermsList>>>();
-
-  useMount(() => {
-    paymentTermFetcher.load(path.to.api.paymentTerms);
-  });
+  const paymentTermFetcher = useLoaderQuery<
+    Awaited<ReturnType<typeof getPaymentTermsList>>
+  >(path.to.api.paymentTerms);
 
   const options = useMemo(() => {
     return (paymentTermFetcher.data?.data ?? []).map((c) => ({

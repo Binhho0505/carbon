@@ -6,23 +6,17 @@ import { assertIsPost, error } from "@carbon/auth";
 import { requirePermissions } from "@carbon/auth/auth.server";
 import { flash } from "@carbon/auth/session.server";
 import { validationError, validator } from "@carbon/form";
-import { useCloseRoute } from "@carbon/react";
+import { useRouteDialog } from "@carbon/react";
 import { redirect } from "@carbon/utils";
-import type {
-  ActionFunctionArgs,
-  ClientActionFunctionArgs
-} from "react-router";
+import type { ActionFunctionArgs } from "react-router";
 import { useParams } from "react-router";
 import { useRouteData } from "~/hooks";
-import type { SupplierProcess } from "~/modules/purchasing";
-import {
-  supplierProcessValidator,
-  upsertSupplierProcess
-} from "~/modules/purchasing";
+import { supplierProcessValidator } from "~/modules/purchasing/purchasing.models";
+import { upsertSupplierProcess } from "~/modules/purchasing/purchasing.service";
+import type { SupplierProcess } from "~/modules/purchasing/types";
 import SupplierProcessForm from "~/modules/purchasing/ui/Supplier/SupplierProcessForm";
 import { setCustomFields } from "~/utils/form";
 import { path } from "~/utils/path";
-import { supplierProcessesQuery } from "~/utils/react-query";
 
 export async function action({ request, params }: ActionFunctionArgs) {
   assertIsPost(request);
@@ -66,29 +60,6 @@ export async function action({ request, params }: ActionFunctionArgs) {
   return redirect(path.to.supplierProcesses(supplierId));
 }
 
-export async function clientAction({
-  request,
-  serverAction,
-  params
-}: ClientActionFunctionArgs) {
-  const formData = await request.clone().formData(); // if we. don't clone it we can't access it in the action
-  const validation = await validator(supplierProcessValidator).validate(
-    formData
-  );
-
-  if (validation.error) {
-    return validationError(validation.error);
-  }
-
-  if (validation.data.processId) {
-    window.clientCache?.setQueryData(
-      supplierProcessesQuery(validation.data.processId).queryKey,
-      null
-    );
-  }
-  return await serverAction();
-}
-
 export default function SupplierProcessRoute() {
   const { supplierId, id } = useParams();
   if (!supplierId) throw new Error("Could not find supplier id");
@@ -100,7 +71,7 @@ export default function SupplierProcessRoute() {
   const process = routeData?.processes.find((process) => process.id === id);
   if (!process) throw new Error("Could not find process");
 
-  const closeRoute = useCloseRoute();
+  const dialog = useRouteDialog();
 
   const initialValues = {
     id: process.id ?? undefined,
@@ -113,7 +84,8 @@ export default function SupplierProcessRoute() {
   return (
     <SupplierProcessForm
       initialValues={initialValues}
-      onClose={() => closeRoute()}
+      open={dialog.open}
+      onClose={dialog.close}
     />
   );
 }

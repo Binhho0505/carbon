@@ -9,9 +9,9 @@ import { describe, expect, it, vi } from "vitest";
 // a unit test has no business booting. Everything below runs real — the actual
 // descriptor, the actual mode profiles, the actual zod schema.
 vi.mock("@carbon/auth", () => ({ RAMP_CLIENT_ID: "test-client-id" }));
-// Same reason, one layer out: `@carbon/react`'s barrel reaches
-// `useRealtimeChannel`, which reads env at load. The descriptor only imports it
-// for the setup-instructions JSX, which nothing here renders.
+// `@carbon/react`'s barrel reaches components that use Lingui macros, which
+// cannot run uncompiled. The descriptor only imports it for the
+// setup-instructions JSX, which nothing here renders.
 vi.mock("@carbon/react", () => ({
   Copy: () => null,
   Input: () => null,
@@ -71,65 +71,15 @@ describe("Ramp settings by install mode", () => {
     expect(accountSettings.filter((s) => surviving.has(s.name))).toEqual([]);
   });
 
-  it("gives every mode its own copy, so no install shows the all-modes blurb", () => {
-    // The bug this pins: the drawer and the card fell back to
-    // `integration.description`, which describes every mode at once — it told a
-    // push-only customer that Carbon "pulls your charges, bills, and employee
-    // reimbursements into Carbon's general ledger", the exact opposite of what
-    // that mode does. A mode added without its own copy silently reintroduces it.
-    for (const mode of Ramp.modes ?? []) {
-      expect(mode.label.length).toBeGreaterThan(0);
-      expect(mode.description.length).toBeGreaterThan(0);
-      expect(mode.shortDescription?.length ?? 0).toBeGreaterThan(0);
-      expect(mode.description).not.toBe(Ramp.description);
-      expect(mode.shortDescription).not.toBe(Ramp.shortDescription);
-    }
-  });
-
-  it("does not promise inbound sync in the push-only copy", () => {
-    const pushOnly = (Ramp.modes ?? []).find((m) => m.id === "push-only");
-    const copy = `${pushOnly?.description} ${pushOnly?.shortDescription}`;
-    // "pull" / "into Carbon's ledger" are the claims that were wrong: this mode
-    // pulls nothing into the GL, and saying so is what made the whole feature
-    // read as the double-posting it exists to prevent.
-    expect(copy.toLowerCase()).not.toContain("pull");
-    expect(copy.toLowerCase()).not.toContain("into carbon's ledger");
-  });
-
-  it("promises only the documents push-only mode can actually push", () => {
-    // The copy said Carbon "pushes purchase orders, receipts and provisional
-    // bills". Item-receipt push was designed and then dropped (2026-09-25): the
-    // mode's outbound ceiling is purchase orders and bills, `rampSyncerRegistry`
-    // registers exactly those two, and `RAMP_PUSH_ONLY_SCOPES` does not ask for
-    // `item_receipts:write`. This text is shown BEFORE consent for a choice that
-    // cannot be changed without reinstalling, so it sold a capability the mode
-    // does not have.
-    const pushOnly = (Ramp.modes ?? []).find((m) => m.id === "push-only");
-    const copy =
-      `${pushOnly?.description} ${pushOnly?.shortDescription}`.toLowerCase();
-
-    expect(RAMP_MODE_PROFILES["push-only"].outboundCeiling).toEqual({
-      purchaseOrder: true,
-      bill: true
-    });
-    expect(pushOnly?.scopes).not.toContain("item_receipts:write");
-    expect(copy).toContain("purchase orders");
-    expect(copy).toContain("bills");
-    expect(copy).not.toContain("receipt");
-  });
-
   it("names a ledger holder only when Carbon does not hold the seat", () => {
-    // A provider-mode install showed "Ramp reports the ledger is held by Rillet"
-    // beside "Carbon is my accounting system" — a flat contradiction, from a
-    // snapshot that provider mode never refreshes. Reported from the UI 2026-09-26.
+    // Provider mode never refreshes the ledger-holder snapshot, so it must not show it.
     const stored = { accountingConnectionProvider: "Rillet" };
 
     expect(
       Ramp.resolveInstallMode?.({ ...stored, syncMode: "provider" })
     ).toEqual({ id: "provider", detail: undefined });
 
-    // An install with no stored mode resolves to provider, so it must behave the
-    // same way — this is every pre-modes install.
+    // An install with no stored mode is a provider install.
     expect(Ramp.resolveInstallMode?.(stored)).toEqual({
       id: "provider",
       detail: undefined

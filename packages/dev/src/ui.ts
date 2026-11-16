@@ -2,22 +2,118 @@
 // Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
 // including ports, remain AGPLv3; serving them over a network requires releasing their source.
 
+import { homedir } from "node:os";
+import { stripVTControlCharacters } from "node:util";
+import {
+  progress as clackProgress,
+  spinner as clackSpinner,
+  type Task
+} from "@clack/prompts";
 import Table from "cli-table3";
 import pc from "picocolors";
-import { type AppId, TLD } from "./constants.js";
-import type { Container } from "./services/compose.js";
 import {
-  PORT_NAMES,
-  type PortMap,
-  projectName,
-  SHARED_REDIS_PORT
-} from "./worktree.js";
+  APPS,
+  type AppId,
+  ROUTE_STYLE,
+  ROUTES,
+  type RouteName,
+  routeHost
+} from "./constants.js";
+import type { Container } from "./services/compose.js";
+import { type DbTarget, dbUrl } from "./stack.js";
+import { projectName, SHARED_REDIS_PORT } from "./topology.js";
+import { PORT_NAMES, type PortMap } from "./worktree.js";
 
-// ---------------------------------------------------------------------------
-// Tables (status / list)
-// ---------------------------------------------------------------------------
+// clack redraws a spinner every 80 ms, which a pipe (an agent, a log file)
+// records as thousands of frames. Its only static mode is keyed on CI=true,
+// read when the spinner is created — so set it for that instant only, never
+// for the process: the dev servers and pnpm crbn spawns must not inherit it.
+function calm<T>(make: () => T): T {
+  if (process.stdout.isTTY) return make();
+  const prev = process.env.CI;
+  process.env.CI = "true";
+  try {
+    return make();
+  } finally {
+    if (prev === undefined) delete process.env.CI;
+    else process.env.CI = prev;
+  }
+}
 
-/** Common cli-table3 style: gray border, no inter-row separators. */
+// Every 80 ms clack erases the spinner line in one write and draws it again in
+// the next. A terminal that paints between the two shows an empty line: the
+// flicker. Hold writes that only move the cursor or erase, and send them with
+// the next write that has text, as one synchronized update (DEC mode 2026;
+// terminals without it ignore the markers).
+export function steady(stream: NodeJS.WriteStream): NodeJS.WriteStream {
+  let held = "";
+  let callbacks: Array<(err?: Error | null) => void> = [];
+  const flush = () => {
+    if (!held) return;
+    const data = `\x1b[?2026h${held}\x1b[?2026l`;
+    const done = callbacks;
+    held = "";
+    callbacks = [];
+    stream.write(data, (err) => {
+      for (const cb of done) cb(err);
+    });
+  };
+  // A write held when the process exits right after a spinner stops would be
+  // lost, and with it the cursor-show: the terminal keeps a hidden cursor.
+  process.once("exit", flush);
+  // The rest of the stream (columns, isTTY, events) stays the real one:
+  // clack's block() gives it to readline.
+  const out = Object.create(stream) as NodeJS.WriteStream;
+  out.write = ((chunk: string | Uint8Array, ...rest: unknown[]) => {
+    const cb = rest.find((a) => typeof a === "function");
+    if (cb) callbacks.push(cb as (err?: Error | null) => void);
+    const text =
+      typeof chunk === "string" ? chunk : Buffer.from(chunk).toString();
+    if (!held) queueMicrotask(flush);
+    held += text;
+    if (stripVTControlCharacters(text).trim()) flush();
+    return true;
+  }) as NodeJS.WriteStream["write"];
+  return out;
+}
+
+// ◆ while running, ◇ when done: clack's own pair for an active and a finished
+// step. Its default spinner frames (◒◐◓◑) come from a fallback font in most
+// terminals and draw larger than the ◇ beside them.
+// A pipe or a file gets the plain stream: no terminal paints it, and the
+// sync markers would land in the log.
+const SPINNER = {
+  frames: ["◆"],
+  output: process.stdout.isTTY ? steady(process.stdout) : process.stdout
+};
+
+export const spinner: typeof clackSpinner = (opts) =>
+  calm(() => clackSpinner({ ...SPINNER, ...opts }));
+
+export const progress: typeof clackProgress = (opts) =>
+  calm(() => clackProgress({ ...SPINNER, ...opts }));
+
+/**
+ * Runs the enabled tasks in order. `plain` prints a line per task instead of
+ * a spinner: after a Ctrl+C, clack's spinner fails with EIO setting raw mode
+ * on the interrupted stdin.
+ */
+export async function tasks(list: Task[], opts: { plain?: boolean } = {}) {
+  for (const t of list) {
+    if (t.enabled === false) continue;
+    if (opts.plain) {
+      process.stderr.write(`${pc.cyan("•")} ${t.title}…\n`);
+      const result = await t.task(() => undefined);
+      process.stderr.write(`${pc.green("✓")} ${result || t.title}\n`);
+      continue;
+    }
+    const s = spinner();
+    s.start(t.title);
+    const result = await t.task(s.message);
+    s.stop(result || t.title);
+  }
+}
+
 const BASE_STYLE = {
   style: { head: [], border: ["gray"] as string[] },
   chars: {
@@ -28,7 +124,6 @@ const BASE_STYLE = {
   }
 };
 
-/** Per-worktree port + redis-db assignment table. */
 export function portsTable(
   ports: PortMap,
   redisDb: number | undefined
@@ -51,7 +146,6 @@ export function portsTable(
   return t.toString();
 }
 
-/** Compose-stack health table for `dev status`. */
 export function servicesTable(containers: Container[]): string {
   const sorted = [...containers].sort((a, b) =>
     a.Service.localeCompare(b.Service)
@@ -66,7 +160,6 @@ export function servicesTable(containers: Container[]): string {
   return t.toString();
 }
 
-/** Worktree list table for `dev list`. */
 export function worktreesTable(
   rows: {
     path: string;
@@ -74,28 +167,47 @@ export function worktreesTable(
     current: boolean;
     slug: string | null;
     dockerState: string | null;
-  }[]
+    mode?: string | null;
+  }[],
+  // Columns the table may use; clack's gutter takes four. A pipe has no width
+  // and is never narrowed.
+  width = process.stdout.columns ? process.stdout.columns - 4 : Infinity
 ): string {
   const t = new Table({
     head: [pc.bold("Worktree"), pc.bold("Branch"), pc.bold("Stack")],
     ...BASE_STYLE
   });
+  const home = homedir();
+  const stacked: string[] = [];
   for (const r of rows) {
-    const project = r.slug ? projectName(r.slug) : "—";
+    const path = r.path.startsWith(`${home}/`)
+      ? `~${r.path.slice(home.length)}`
+      : r.path;
+    const project = r.slug
+      ? `${projectName(r.slug)}${r.mode ? ` · ${r.mode}` : ""}`
+      : "—";
     const stack = !r.slug
       ? pc.gray("not initialized")
       : r.dockerState === "running"
         ? pc.green(`● up · ${project}`)
-        : r.dockerState
-          ? pc.yellow(`${r.dockerState} · ${project}`)
-          : pc.dim(`registered · ${project}`);
-    t.push([
-      r.current ? pc.bold(pc.cyan(r.path)) : r.path,
-      r.branch ? pc.cyan(r.branch) : pc.dim("(detached)"),
-      stack
-    ]);
+        : r.dockerState === "hibernated"
+          ? pc.blue(`◌ hibernated · ${project}`)
+          : r.dockerState
+            ? pc.yellow(`${r.dockerState} · ${project}`)
+            : pc.dim(`registered · ${project}`);
+    const branch = r.branch ? pc.cyan(r.branch) : pc.dim("(detached)");
+    t.push([r.current ? pc.bold(pc.cyan(path)) : path, branch, stack]);
+    stacked.push(
+      `${r.current ? pc.bold(branch) : branch}  ${stack}\n  ${pc.dim(path)}`
+    );
   }
-  return t.toString();
+  // A table wider than the terminal wraps mid-row and is unreadable; one
+  // worktree per two lines reads at any width.
+  const table = t.toString();
+  const widest = Math.max(
+    ...table.split("\n").map((line) => stripVTControlCharacters(line).length)
+  );
+  return widest <= width ? table : stacked.join("\n");
 }
 
 function colorState(state: string, health: string | null): string {
@@ -126,73 +238,55 @@ function formatPorts(c: Container): string {
   return out.length ? out.join(" ") : pc.dim("—");
 }
 
-// ---------------------------------------------------------------------------
-// Summary (boxed URLs printed after `crbn up`)
-// ---------------------------------------------------------------------------
-
-/** Boxed list of URLs + DB DSN for the up-summary. */
-export function summaryLines(
-  ports: PortMap,
-  apps: readonly AppId[],
-  /** When provided, show portless hostnames; otherwise show localhost URLs. */
-  branchPrefix?: string
-): string[] {
-  const url = branchPrefix
-    ? (sub: string, _port?: number) => `https://${sub}.${branchPrefix}.${TLD}`
-    : (sub: string, port: number) => `http://localhost:${port}`;
-  const dbUrl = `postgresql://postgres:postgres@localhost:${ports.PORT_DB}/postgres`;
+/** The URLs and database DSNs `crbn up` prints when the stack is up. */
+export function summaryLines(opts: {
+  ports: PortMap;
+  apps: readonly AppId[];
+  /** The portless host prefix; null prints localhost URLs. */
+  prefix: string | null;
+  /** False when the boot left Studio out; the row then says how to start it. */
+  studioRunning: boolean;
+  db: DbTarget;
+  shared: boolean;
+}): string[] {
+  const { ports, prefix } = opts;
   const lines: string[] = [];
-  if (apps.includes("erp"))
-    lines.push(row(pc.cyan, "ERP", url("erp", ports.PORT_ERP)));
-  if (apps.includes("mes"))
-    lines.push(row(pc.magenta, "MES", url("mes", ports.PORT_MES)));
-  lines.push(
-    row(
-      pc.green,
-      "API",
-      url("api", ports.PORT_API),
-      branchPrefix ? ports.PORT_API : undefined
-    ),
-    row(
-      pc.green,
-      "Studio",
-      url("studio", ports.PORT_STUDIO),
-      branchPrefix ? ports.PORT_STUDIO : undefined
-    ),
-    row(
-      pc.yellow,
-      "Mail",
-      url("mail", ports.PORT_INBUCKET),
-      branchPrefix ? ports.PORT_INBUCKET : undefined
-    ),
-    ...(apps.includes("email")
-      ? [
-          row(
-            pc.yellow,
-            "Email",
-            url("email", ports.PORT_EMAIL),
-            branchPrefix ? ports.PORT_EMAIL : undefined
-          )
-        ]
-      : []),
-    row(
-      pc.blue,
-      "Inngest",
-      url("inngest", ports.PORT_INNGEST),
-      branchPrefix ? ports.PORT_INNGEST : undefined
-    ),
-    ...(apps.includes("assembler")
-      ? [
-          row(
-            pc.yellow,
-            "Assembler",
-            url("assembler", ports.PORT_ASSEMBLER),
-            branchPrefix ? ports.PORT_ASSEMBLER : undefined
-          )
-        ]
-      : []),
-    `${pc.gray(pc.bold("Postgres".padEnd(8)))}  ${pc.gray(dbUrl)}`
-  );
+  for (const name of Object.keys(ROUTES) as RouteName[]) {
+    const app = APPS.find((a) => a.id === name);
+    // Only the processes that run; a compose service has its row anyway.
+    if (app && app.kind !== "service" && !opts.apps.includes(app.id)) continue;
+    const { label, color } = ROUTE_STYLE[name];
+    if (name === "studio" && !opts.studioRunning) {
+      lines.push(
+        `${pc.dim(label.padEnd(8))}  ${pc.dim("not started — crbn reload studio")}`
+      );
+      continue;
+    }
+    const port = ports[ROUTES[name]];
+    const url =
+      prefix === null
+        ? `http://localhost:${port}`
+        : `https://${routeHost(name, prefix)}`;
+    // Behind portless, the port the host reaches, for a tool that needs it.
+    const tag =
+      prefix !== null && app?.kind !== "react-router" ? port : undefined;
+    lines.push(row(pc[color], label, url, tag));
+  }
+  const dsn = (label: string, url: string) =>
+    `${pc.gray(pc.bold(label.padEnd(8)))}  ${pc.gray(url)}`;
+  lines.push(dsn("Postgres", dbUrl(opts.db)));
+  if (opts.shared) {
+    lines.push(
+      dsn(
+        "Pooler",
+        dbUrl({ port: ports.PORT_POOLER, database: opts.db.database })
+      ),
+      dsn(
+        "Shared",
+        "Postgres, PgBouncer, Storage, Mail, Redis and the edge runtime run in crbn-shared"
+      )
+    );
+  }
   return lines;
 }
 

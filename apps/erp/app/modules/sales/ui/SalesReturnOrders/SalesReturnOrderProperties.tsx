@@ -10,6 +10,7 @@ import {
   InputControlled,
   ValidatedForm
 } from "@carbon/form";
+import { toastServiceError, useAction } from "@carbon/query";
 import {
   Badge,
   Button,
@@ -25,7 +26,7 @@ import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-  toast,
+  toastError,
   useDisclosure,
   VStack
 } from "@carbon/react";
@@ -33,7 +34,7 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { LuCopy, LuKeySquare, LuLink, LuUnlink2 } from "react-icons/lu";
 import { RiProgress8Line } from "react-icons/ri";
-import { useFetcher, useParams } from "react-router";
+import { useParams } from "react-router";
 import { z } from "zod";
 import { zfd } from "zod-form-data";
 import {
@@ -90,13 +91,11 @@ const SalesReturnOrderProperties = () => {
 
   const unlinkDisclosure = useDisclosure();
 
-  const fetcher = useFetcher<{ error: { message: string } | null }>();
-  useEffect(() => {
-    if (fetcher.data?.error) {
-      toast.error(fetcher.data.error.message);
+  const fetcher = useAction<{ error: { message: string } | null }>({
+    onError: (data) => {
+      toastServiceError(data);
     }
-  }, [fetcher.data]);
-
+  });
   const { carbon } = useCarbon();
   const [salesOrderOptions, setSalesOrderOptions] = useState<
     { value: string; label: string }[]
@@ -139,7 +138,7 @@ const SalesReturnOrderProperties = () => {
       .then(({ data, error }) => {
         if (cancelled) return;
         if (error) {
-          toast.error(t`Failed to load sales orders`);
+          toastError(t`Failed to load sales orders`, error);
           setSalesOrderOptions([]);
           return;
         }
@@ -529,48 +528,45 @@ const SalesReturnOrderProperties = () => {
         />
       </VStack>
 
-      {unlinkDisclosure.isOpen && (
-        <Modal
-          open={unlinkDisclosure.isOpen}
-          onOpenChange={(open) => {
-            if (!open) unlinkDisclosure.onClose();
-          }}
-        >
-          <ModalOverlay />
-          <ModalContent>
-            <ModalHeader>
-              <ModalTitle>
-                <Trans>Unlink RMA from sales order?</Trans>
-              </ModalTitle>
-            </ModalHeader>
-            <ModalBody>
-              <p className="text-sm text-muted-foreground">
-                <Trans>
-                  This will remove the link between{" "}
-                  {routeData?.salesReturnOrder?.salesReturnOrderId} and its
-                  sales order. The RMA will no longer appear under the sales
-                  order.
-                </Trans>
-              </p>
-            </ModalBody>
-            <ModalFooter>
-              <Button variant="secondary" onClick={unlinkDisclosure.onClose}>
-                <Trans>Cancel</Trans>
-              </Button>
-              <Button
-                variant="destructive"
-                leftIcon={<LuUnlink2 className="w-3 h-3" />}
-                onClick={() => {
-                  onUpdate("salesOrderId", null);
-                  unlinkDisclosure.onClose();
-                }}
-              >
-                <Trans>Unlink</Trans>
-              </Button>
-            </ModalFooter>
-          </ModalContent>
-        </Modal>
-      )}
+      <Modal
+        open={unlinkDisclosure.isOpen}
+        onOpenChange={(open) => {
+          if (!open) unlinkDisclosure.onClose();
+        }}
+      >
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>
+            <ModalTitle>
+              <Trans>Unlink RMA from sales order?</Trans>
+            </ModalTitle>
+          </ModalHeader>
+          <ModalBody>
+            <p className="text-sm text-muted-foreground">
+              <Trans>
+                This will remove the link between{" "}
+                {routeData?.salesReturnOrder?.salesReturnOrderId} and its sales
+                order. The RMA will no longer appear under the sales order.
+              </Trans>
+            </p>
+          </ModalBody>
+          <ModalFooter>
+            <Button variant="secondary" onClick={unlinkDisclosure.onClose}>
+              <Trans>Cancel</Trans>
+            </Button>
+            <Button
+              variant="destructive"
+              leftIcon={<LuUnlink2 className="w-3 h-3" />}
+              onClick={() => {
+                onUpdate("salesOrderId", null);
+                unlinkDisclosure.onClose();
+              }}
+            >
+              <Trans>Unlink</Trans>
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
 
       <CustomFormInlineFields
         customFields={

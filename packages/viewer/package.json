@@ -6,7 +6,7 @@
     "@carbon/utils": "workspace:*",
     "@react-three/drei": "9.122.0",
     "@react-three/fiber": "8.18.0",
-    "@tanstack/react-query": "5.97.0",
+    "@tanstack/react-query": "catalog:",
     "occt-import-js": "0.0.23",
     "react-icons": "catalog:",
     "rhino3dm": "8.17.0",
@@ -29,7 +29,9 @@
     "./steps": "./src/steps.ts",
     "./canvas": "./src/ModelCanvas.tsx",
     "./model-preview": "./src/ModelPreview.tsx",
+    "./model-upload-preview": "./src/ModelUploadPreview.tsx",
     "./optimize-progress": "./src/OptimizeProgress.tsx",
+    "./pmi": "./src/pmi.ts",
     "./use-optimized-model": "./src/useOptimizedModel.ts"
   },
   "peerDependencies": {
@@ -41,7 +43,7 @@
     "clean": "rimraf .turbo node_modules",
     "lint": "biome lint --write ",
     "test": "vitest run",
-    "typecheck": "tsgo --noEmit"
+    "typecheck": "tsc --noEmit"
   },
   "sideEffects": false,
   "version": "0.0.0"
