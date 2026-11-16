@@ -1074,7 +1074,7 @@ export const fmcgSales: SalesData = {
       ]
     },
     {
-      // A unit back for service: FG-BEV-TEA-500-S013, the "expired" customer
+      // A cooler back for service: EQ-COOLER-400-S013, the "expired" customer
       // asset. Received, so its service job ("service-return") is open and the
       // RMA is In Progress.
       key: "service-return",
@@ -1084,12 +1084,12 @@ export const fmcgSales: SalesData = {
       dateOffset: -3,
       lines: [
         {
-          item: "FG-BEV-TEA-500",
+          item: "EQ-COOLER-400",
           quantity: 1,
-          unitPrice: 242500,
+          unitPrice: 12500000,
           returnType: "Return for Service",
           asset: "expired",
-          problem: "Lô hàng bị phồng nắp sau 3 tháng lưu kho tại đại lý."
+          problem: "Tủ mát không xuống dưới 8°C, máy nén chạy liên tục."
         }
       ]
     }
@@ -1143,13 +1143,13 @@ export const fmcgSales: SalesData = {
       ]
     }
   ],
-  // Field service: three units at customers (one in warranty, one whose labor
-  // warranty has ended, one expired).
+  // Field service: three display coolers placed at customers (one in warranty,
+  // one whose labor warranty has ended, one expired).
   customerAssets: [
     {
       key: "in-warranty",
-      item: "FG-BEV-TEA-500",
-      serial: "FG-BEV-TEA-500-S011",
+      item: "EQ-COOLER-400",
+      serial: "EQ-COOLER-400-S011",
       customer: "Siêu thị An Việt Demo",
       shippedOffset: -120,
       laborWarrantyEndOffset: 245,
@@ -1157,8 +1157,8 @@ export const fmcgSales: SalesData = {
     },
     {
       key: "labor-ended",
-      item: "FG-BEV-TEA-500",
-      serial: "FG-BEV-TEA-500-S012",
+      item: "EQ-COOLER-400",
+      serial: "EQ-COOLER-400-S012",
       customer: "Nhà phân phối Miền Nam Demo",
       shippedOffset: -500,
       laborWarrantyEndOffset: -135,
@@ -1166,8 +1166,8 @@ export const fmcgSales: SalesData = {
     },
     {
       key: "expired",
-      item: "FG-BEV-TEA-500",
-      serial: "FG-BEV-TEA-500-S013",
+      item: "EQ-COOLER-400",
+      serial: "EQ-COOLER-400-S013",
       customer: "Đại lý Miền Trung Demo",
       shippedOffset: -900,
       laborWarrantyEndOffset: -535,
@@ -1187,7 +1187,7 @@ export const fmcgSales: SalesData = {
       priority: "High",
       asset: "expired",
       salesReturnLine: { salesReturn: "service-return", line: 1 },
-      problem: "Lô hàng bị phồng nắp sau 3 tháng lưu kho tại đại lý.",
+      problem: "Tủ mát không xuống dưới 8°C, máy nén chạy liên tục.",
       time: [],
       charges: [],
       assignments: [
@@ -1204,9 +1204,9 @@ export const fmcgSales: SalesData = {
       asset: "labor-ended",
       openedWorkdaysBack: 6,
       dueOffset: 10,
-      problem: "Khách hàng phản ánh vị trà thay đổi trong lô hàng tồn kho.",
+      problem: "Tủ mát đọng nước dưới đáy, cửa kính đóng không kín.",
       findings:
-        "Kho đại lý vượt nhiệt độ bảo quản. Bao bì và nắp chai còn nguyên vẹn.",
+        "Gioăng cửa bị rách, dàn lạnh bám bụi dày làm đóng tuyết và tràn nước xả.",
       repairable: true,
       estimate: {
         status: "Sent",
@@ -1214,10 +1214,10 @@ export const fmcgSales: SalesData = {
         lines: [
           { quantity: 6, unitPrice: 6750 },
           {
-            item: "Dịch vụ kiểm nghiệm sản phẩm",
-            description: "Kiểm nghiệm mẫu và cấp phiếu kết quả",
+            item: "Bảo dưỡng tủ mát trưng bày",
+            description: "Vệ sinh dàn lạnh và thay gioăng cửa tủ mát",
             quantity: 1,
-            unitPrice: 92500
+            unitPrice: 650000
           }
         ]
       },
@@ -1225,7 +1225,7 @@ export const fmcgSales: SalesData = {
         {
           workdaysBack: 4,
           hours: 3,
-          note: "Khảo sát điều kiện bảo quản tại kho đại lý"
+          note: "Kiểm tra gioăng cửa, dàn lạnh và đường nước xả tại cửa hàng"
         }
       ],
       charges: []
@@ -1239,20 +1239,20 @@ export const fmcgSales: SalesData = {
       asset: "in-warranty",
       openedWorkdaysBack: 3,
       dueOffset: 4,
-      problem: "Tem truy xuất nguồn gốc không quét được tại quầy thu ngân.",
-      findings: "Tem bị trầy do va chạm khi xếp hàng lên kệ.",
+      problem: "Đèn chiếu sáng tủ mát chập chờn, bộ điều khiển nhiệt độ báo lỗi.",
+      findings: "Cảm biến nhiệt độ dàn lạnh lỏng giắc do rung khi vận chuyển.",
       repairable: true,
       time: [
         {
           workdaysBack: 2,
           hours: 3.5,
           clock: { start: "08:00:00", end: "11:30:00" },
-          note: "Kiểm tra mã truy xuất trên toàn bộ lô tại điểm bán"
+          note: "Đo nhiệt độ và kiểm tra bộ điều khiển trong giờ mở cửa"
         },
         {
           workdaysBack: 1,
           hours: 4,
-          note: "Dán lại tem truy xuất cho các thùng bị lỗi"
+          note: "Cố định lại giắc cảm biến và thay bộ đèn LED"
         }
       ],
       charges: [],
@@ -1260,7 +1260,7 @@ export const fmcgSales: SalesData = {
         {
           weekday: 0,
           plannedHours: 4,
-          note: "Mang theo tem truy xuất dự phòng"
+          note: "Mang theo cảm biến nhiệt độ và bộ đèn LED dự phòng"
         },
         { weekday: 1, plannedHours: 3 }
       ]
@@ -1273,10 +1273,10 @@ export const fmcgSales: SalesData = {
       priority: "Medium",
       asset: "in-warranty",
       openedWorkdaysBack: 30,
-      problem: "Màng co lốc chai bị bong sau khi giao hàng.",
-      findings: "Nhiệt độ hầm co màng thấp hơn tiêu chuẩn.",
+      problem: "Tủ mát không đạt nhiệt độ sau khi lắp đặt tại siêu thị.",
+      findings: "Thiếu gas lạnh do mối hàn ống đồng bị rò từ nhà máy.",
       resolution:
-        "Đóng lại màng co cho lô hàng và hiệu chỉnh nhiệt độ hầm co màng.",
+        "Hàn lại mối rò, hút chân không, nạp gas R290 và chạy thử 24 giờ đạt 2–8°C.",
       repairable: true,
       time: [
         { workdaysBack: 28, hours: 5 },
@@ -1293,10 +1293,10 @@ export const fmcgSales: SalesData = {
       priority: "Medium",
       asset: "labor-ended",
       openedWorkdaysBack: 18,
-      problem: "Thùng hàng bị móp do xếp chồng sai quy cách tại kho.",
-      findings: "Kho đại lý xếp quá số tầng cho phép.",
+      problem: "Tủ mát làm lạnh yếu, máy nén ngắt liên tục vào buổi trưa.",
+      findings: "Dàn nóng bám bụi dày và thiếu gas sau hai năm vận hành.",
       resolution:
-        "Đóng gói lại các thùng bị móp và hướng dẫn quy cách xếp chồng.",
+        "Vệ sinh dàn nóng, dàn lạnh, nạp bổ sung gas và kiểm tra dòng điện máy nén.",
       repairable: true,
       estimate: {
         status: "Accepted",
@@ -1306,10 +1306,10 @@ export const fmcgSales: SalesData = {
         lines: [
           { quantity: 8, unitPrice: 6750 },
           {
-            item: "Dịch vụ kiểm nghiệm sản phẩm",
-            description: "Kiểm nghiệm mẫu và cấp phiếu kết quả",
+            item: "Bảo dưỡng tủ mát trưng bày",
+            description: "Vệ sinh dàn nóng, dàn lạnh và nạp bổ sung gas",
             quantity: 1,
-            unitPrice: 92500
+            unitPrice: 650000
           }
         ]
       },
@@ -1325,10 +1325,10 @@ export const fmcgSales: SalesData = {
       ],
       charges: [
         {
-          item: "Dịch vụ kiểm nghiệm sản phẩm",
-          description: "Kiểm nghiệm mẫu và cấp phiếu kết quả",
+          item: "Bảo dưỡng tủ mát trưng bày",
+          description: "Vệ sinh dàn nóng, dàn lạnh và nạp bổ sung gas",
           quantity: 1,
-          unitPrice: 92500
+          unitPrice: 650000
         }
       ],
       completedWorkdaysBack: 12,
@@ -1350,24 +1350,24 @@ export const fmcgSales: SalesData = {
         {
           fixedAsset: "fleet-1",
           rateUnit: "Month",
-          rate: 10500,
-          fairValue: 133500,
+          rate: 950000,
+          fairValue: 12500000,
           economicLifeMonths: 60,
           deliveredOffset: -40
         },
         {
           fixedAsset: "fleet-2",
           rateUnit: "Month",
-          rate: 10500,
-          fairValue: 133500,
+          rate: 950000,
+          fairValue: 12500000,
           economicLifeMonths: 60
         }
       ],
       charges: [
         {
           line: 1,
-          description: "Phí vận chuyển và kiểm tra",
-          amount: 9000,
+          description: "Phí vận chuyển và lắp đặt tủ mát",
+          amount: 350000,
           dateOffset: -40
         }
       ]
@@ -1385,8 +1385,8 @@ export const fmcgSales: SalesData = {
         {
           fixedAsset: "fleet-3",
           rateUnit: "Month",
-          rate: 6750,
-          fairValue: 81000,
+          rate: 1000000,
+          fairValue: 12500000,
           economicLifeMonths: 60
         }
       ]

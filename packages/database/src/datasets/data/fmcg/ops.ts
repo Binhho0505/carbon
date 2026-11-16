@@ -70,6 +70,12 @@ export const fmcgOps: OpsData = {
       prefix: "MTR4500-SN-",
       size: 4,
       next: 0
+    },
+    {
+      item: "EQ-COOLER-400",
+      prefix: "COOLER400-SN-",
+      size: 4,
+      next: 1
     }
   ],
   printJobs: [

@@ -126,6 +126,19 @@ export const fmcgItems: ItemsData = {
       standardCost: 3500,
       unitSalePrice: 5000,
       leadTime: 5
+    },
+    {
+      // Branded display cooler placed at retailers: the serial-tracked unit of
+      // the field-service and rental demos (sales.customerAssets, serviceJobs,
+      // rentalAgreements; accounting fixedAssets "fleet-*").
+      readableId: "EQ-COOLER-400",
+      name: "Tủ mát trưng bày 400L",
+      type: "Part",
+      replenishment: "Buy",
+      trackingType: "Serial",
+      standardCost: 9500000,
+      unitSalePrice: 12500000,
+      leadTime: 30
     }
   ],
   materials: [
@@ -272,6 +285,16 @@ export const fmcgItems: ItemsData = {
       description:
         "Kiểm tra định kỳ tồn kho, hạn sử dụng và tiêu chuẩn trưng bày tại điểm bán.",
       standardCost: 24000
+    },
+    {
+      // Charged on the cooler service jobs (sales.serviceJobs).
+      readableId: "Bảo dưỡng tủ mát trưng bày",
+      name: "Bảo dưỡng tủ mát trưng bày",
+      type: "Service",
+      replenishment: "Buy",
+      description:
+        "Vệ sinh dàn nóng, dàn lạnh, thay gioăng cửa và nạp gas cho tủ mát trưng bày.",
+      standardCost: 450000
     }
   ],
   makeParts: [
@@ -1056,6 +1079,12 @@ export const fmcgItems: ItemsData = {
       item: "RM-TEA-GREEN",
       price: 925,
       leadTime: 60
+    },
+    {
+      supplier: "Bao Bì Thực Phẩm Việt Demo",
+      item: "EQ-COOLER-400",
+      price: 9500000,
+      leadTime: 30
     },
     {
       supplier: "Trà Nguyên Liệu Việt Demo",
