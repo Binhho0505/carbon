@@ -1341,6 +1341,7 @@ export const fmcgSales: SalesData = {
       key: "active",
       customer: "Đại lý Miền Trung Demo",
       primaryContact: "Boone",
+      contacts: [{ contact: "Nguyễn", role: "Liên hệ tại kho" }],
       status: "Active",
       startOffset: -45,
       billingCycle: "Calendar Month",

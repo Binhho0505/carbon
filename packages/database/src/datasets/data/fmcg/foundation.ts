@@ -194,6 +194,14 @@ export const fmcgFoundation: FoundationData = {
       lastName: "Boone",
       email: "tboone@fmcg-demo.example",
       title: "Category Buyer"
+    },
+    {
+      customer: "Đại lý Miền Trung Demo",
+      firstName: "Lan",
+      lastName: "Nguyễn",
+      email: "lnguyen@fmcg-demo.example",
+      title: "Quản lý kho đại lý",
+      sharesLocation: true as const
     }
   ],
   suppliers: [

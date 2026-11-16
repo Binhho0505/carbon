@@ -496,6 +496,35 @@ export const fmcgAccounting: AccountingData = {
       identifier: "AVL",
       costTreatment: "Contract",
       status: "Released",
+      // The contract keeps its own stock: two packaging parts received for it,
+      // and food cartons transferred in from common stock.
+      projectStock: {
+        openingStock: [
+          {
+            item: "PKG-LOT-LABEL",
+            shelf: "A1-L3",
+            qty: 100,
+            unitCost: 112.5,
+            dateOffset: -30
+          },
+          {
+            item: "PKG-FOOD-BOX",
+            shelf: "A1-L2",
+            qty: 10,
+            unitCost: 445,
+            dateOffset: -30
+          }
+        ],
+        transfers: [
+          {
+            item: "PKG-FOOD-CARTON",
+            shelf: "A1-L1",
+            qty: 50,
+            reason: "Cấp thùng carton cho lô sản xuất thử của dự án",
+            dateOffset: -12
+          }
+        ]
+      },
       purchaseInvoiceLine: {
         invoiceKey: "paid",
         item: "RM-WATER"
@@ -703,7 +732,61 @@ export const fmcgAccounting: AccountingData = {
           parentKey: "req-guard",
           state: "Backlog",
           estimatedHours: 6
+        },
+        {
+          key: "p-cycle",
+          type: "Parameter",
+          name: "Thời gian chu kỳ kiểm nghiệm",
+          parentKey: "cell",
+          state: "In Progress",
+          parameter: { source: "Sum", unit: "s" }
+        },
+        {
+          key: "p-cycle-sample",
+          type: "Parameter",
+          name: "Thời gian lấy mẫu",
+          parentKey: "p-cycle",
+          state: "In Progress",
+          parameter: { source: "Manual", value: 45, unit: "s" }
+        },
+        {
+          key: "p-cycle-measure",
+          type: "Parameter",
+          name: "Thời gian đo",
+          parentKey: "p-cycle",
+          state: "In Progress",
+          parameter: { source: "Manual", value: 30, unit: "s" }
+        },
+        {
+          key: "req-cycle-budget",
+          type: "Requirement",
+          name: "Chu kỳ kiểm nghiệm tối đa 90 giây",
+          parentKey: "cell",
+          state: "In Review",
+          requirement: {
+            category: "Performance",
+            operator: "≤",
+            target: 90,
+            unit: "s",
+            verificationMethod: "Test",
+            actualParameter: "p-cycle"
+          }
+        },
+        {
+          key: "tc-cycle",
+          type: "Test Case",
+          name: "Bấm giờ một chu kỳ kiểm nghiệm đầy đủ",
+          parentKey: "req-cycle-budget",
+          state: "Done",
+          verdict: "Pass"
         }
+      ],
+      links: [
+        { from: "cell", to: "req-cycle-budget", type: "satisfies" },
+        { from: "tc-cycle", to: "req-cycle-budget", type: "verifies" },
+        { from: "tc-profile", to: "req-profile", type: "verifies" },
+        { from: "task-db", to: "req-data", type: "implements" },
+        { from: "task-script", to: "tc-profile", type: "precedes" }
       ]
     }
   ],
