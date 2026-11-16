@@ -9,12 +9,16 @@ import { initWorktree } from "./commands/init.js";
 import { listWorktrees } from "./commands/list.js";
 import { migrate } from "./commands/migrate.js";
 import { newWorktree } from "./commands/new.js";
+import { prune } from "./commands/prune.js";
 import { reload } from "./commands/reload.js";
 import { removeWorktreeCmd } from "./commands/remove.js";
 import { reset } from "./commands/reset.js";
 import { type RestoreMode, restore } from "./commands/restore.js";
 import { status } from "./commands/status.js";
 import { up } from "./commands/up.js";
+import { mainCheckoutRoot } from "./git.js";
+import { APPS_IDLE_MINUTES, IDLE_MINUTES } from "./services/hibernate.js";
+import { worktreePath } from "./worktree.js";
 
 const main = defineCommand({
   meta: {
@@ -60,11 +64,11 @@ const main = defineCommand({
           description:
             "Pick another worktree's running containers to use instead of booting a new stack"
         },
+        // No default: unset falls back to CARBON_PORTLESS.
         portless: {
           type: "boolean",
-          default: true,
           description:
-            "Use portless .dev URLs (use --no-portless for localhost mode)"
+            "Use portless .dev URLs (--no-portless for localhost mode; default: on, or CARBON_PORTLESS=0 for off)"
         },
         run: {
           type: "string",
@@ -77,11 +81,28 @@ const main = defineCommand({
           description:
             "With --run, also remove Docker volumes on teardown (headless: don't leak data volumes across dispatches)"
         },
+        full: {
+          type: "boolean",
+          default: false,
+          description:
+            "Also start Studio, Postgres-Meta, a private edge runtime (used instead of the shared one, for editing functions) and imgproxy (off by default; `crbn reload studio` / `crbn reload imgproxy` starts one on a running stack)"
+        },
         minimal: {
           type: "boolean",
           default: false,
           description:
-            "Skip non-essential services (Studio, Postgres-Meta, Inbucket) to reduce memory footprint (useful for headless/CI builds)"
+            "Also skip Inbucket, for headless/CI builds that sign in by bypass"
+        },
+        isolated: {
+          type: "boolean",
+          default: false,
+          description:
+            "Run a private stack with its own Postgres, PgBouncer, Storage and Inbucket instead of the shared containers (for a branch that changes their images)"
+        },
+        hibernate: {
+          type: "boolean",
+          default: true,
+          description: `Stop the containers after ${IDLE_MINUTES} min without ERP/MES traffic, and the dev servers after ${APPS_IDLE_MINUTES} min; the next request starts them again (--no-hibernate to keep them up; CRBN_IDLE_MINUTES / CRBN_APPS_IDLE_MINUTES change the waits)`
         }
       },
       run: ({ args }) =>
@@ -92,10 +113,13 @@ const main = defineCommand({
           all: args.all === true,
           pull: args.pull === true,
           borrow: args.borrow === true,
-          portless: args.portless !== false,
+          portless: args.portless as boolean | undefined,
           run: typeof args.run === "string" ? args.run : undefined,
           volumes: args.volumes === true,
-          minimal: args.minimal === true
+          full: args.full === true,
+          minimal: args.minimal === true,
+          hibernate: args.hibernate !== false,
+          isolated: args.isolated === true
         })
     }),
     down: defineCommand({
@@ -122,18 +146,25 @@ const main = defineCommand({
     }),
     status: defineCommand({
       meta: { description: "Show port assignment + container health" },
-      run: () => status()
+      args: {
+        json: {
+          type: "boolean",
+          default: false,
+          description: "Print the slot and containers as JSON"
+        }
+      },
+      run: ({ args }) => status({ json: args.json === true })
     }),
     reload: defineCommand({
       meta: {
         description:
-          "Recreate specific compose services to apply docker-compose/.env.local edits (memory, env, image, ports) WITHOUT restarting the app dev servers — `crbn reload <service...>` (e.g. storage kong)"
+          "Recreate specific compose services to apply docker-compose/.env.local edits (memory, env, image, ports) WITHOUT restarting the app dev servers — `crbn reload <service...>` (e.g. storage api-gw)"
       },
       args: {
         service: {
           type: "positional",
           required: true,
-          description: "Service name(s) to recreate, e.g. storage kong"
+          description: "Service name(s) to recreate, e.g. storage api-gw"
         }
       },
       run: ({ rawArgs }) =>
@@ -303,18 +334,59 @@ const main = defineCommand({
     }),
     list: defineCommand({
       meta: { description: "List worktrees with stack status" },
-      run: () => listWorktrees()
+      args: {
+        json: {
+          type: "boolean",
+          default: false,
+          description: "Print the worktrees as JSON"
+        }
+      },
+      run: ({ args }) => listWorktrees({ json: args.json === true })
     }),
     remove: defineCommand({
-      meta: { description: "Pick a worktree to delete (with stack teardown)" },
+      meta: {
+        description:
+          "Delete worktrees with their stacks — pick interactively, or name them: `crbn remove <branch-or-path...>`"
+      },
       args: {
+        worktree: {
+          type: "positional",
+          required: false,
+          description: "Branch name(s) or path(s) to remove; skips the picker"
+        },
         prune: {
           type: "boolean",
           default: false,
           description: "Also delete the git branch after removing the worktree"
         }
       },
-      run: ({ args }) => removeWorktreeCmd({ prune: args.prune === true })
+      run: ({ args, rawArgs }) =>
+        removeWorktreeCmd({
+          prune: args.prune === true,
+          targets: rawArgs.filter((a) => a && !a.startsWith("-"))
+        })
+    }),
+    prune: defineCommand({
+      meta: {
+        description:
+          "Destroy stacks no worktree can reach: slots whose directory is gone, and stacks with no slot (volumes wiped; confirms first)"
+      },
+      args: {
+        all: {
+          type: "boolean",
+          default: false,
+          description:
+            "Destroy EVERY crbn stack on this machine, running ones included. Worktrees, branches and live slots are kept; the next `crbn up` rebuilds the database"
+        },
+        tree: {
+          type: "boolean",
+          default: false,
+          description:
+            "Also clean up git worktrees: forget ones whose directory is gone; with --all, remove this repo's linked worktrees too (never the main checkout, the current one, or one with uncommitted changes; branches are kept)"
+        }
+      },
+      run: ({ args }) =>
+        prune({ all: args.all === true, tree: args.tree === true })
     }),
     copy: defineCommand({
       meta: {
@@ -348,6 +420,19 @@ const main = defineCommand({
         })
       }
     }),
+    // For bin/crbn: the directory `crbn checkout` gives a branch's worktree.
+    "worktree-path": defineCommand({
+      meta: {
+        description: "Print the directory crbn gives <branch>'s worktree"
+      },
+      args: { branch: { type: "positional", required: true } },
+      run: async ({ args }) => {
+        const mainRoot = await mainCheckoutRoot();
+        process.stdout.write(
+          `${worktreePath(mainRoot, String(args.branch))}\n`
+        );
+      }
+    }),
     // Stubs so shell completion lists these — the bash router (`bin/crbn`)
     // intercepts them before tsx is invoked. Direct invocation lands here.
     checkout: defineCommand({
@@ -363,10 +448,7 @@ const main = defineCommand({
   }
 });
 
-try {
-  const { default: tab } = await import("@bomb.sh/tab/citty");
-  await tab(main);
-} catch {
-  // Optional: shell completions only; continue if the package is missing (run `pnpm install`).
-}
+// Shell completions only: a worktree without `pnpm install` runs without.
+const completions = await import("@bomb.sh/tab/citty").catch(() => null);
+if (completions) await completions.default(main);
 await runMain(main);

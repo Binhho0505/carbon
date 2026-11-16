@@ -11,6 +11,7 @@ import {
   TextArea,
   ValidatedForm
 } from "@carbon/form";
+import { useAction } from "@carbon/query";
 import {
   Button,
   Checkbox,
@@ -27,7 +28,7 @@ import {
   VStack
 } from "@carbon/react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { useEffect, useMemo, useState } from "react";
+import { type RefObject, useEffect, useMemo, useState } from "react";
 import { useFetcher } from "react-router";
 import { triggerReworkValidator } from "~/services/models";
 import type { OperationWithDetails } from "~/services/types";
@@ -53,7 +54,8 @@ export function ReworkModal({
   onClose,
   trackedEntities = [],
   parentIsSerial,
-  parentIsBatch
+  parentIsBatch,
+  returnFocusRef
 }: {
   operation: OperationWithDetails;
   jobId: string;
@@ -62,9 +64,26 @@ export function ReworkModal({
   trackedEntities?: TrackedEntity[];
   parentIsSerial?: boolean;
   parentIsBatch?: boolean;
+  // Where focus goes on close when the control that opened the modal is gone
+  // (an item in a sheet that closed as the modal opened).
+  returnFocusRef?: RefObject<HTMLElement | null>;
 }) {
   const { t } = useLingui();
-  const fetcher = useFetcher<Result>();
+  // The modal opens from state, not a DialogTrigger, so Radix has no trigger
+  // to return focus to and it falls to <body>. Remember the opener instead.
+  const [opener] = useState(() =>
+    typeof document === "undefined"
+      ? null
+      : (document.activeElement as HTMLElement | null)
+  );
+  const fetcher = useAction<Result>({
+    onSuccess: (data) => {
+      if (data?.success) {
+        toast.success(t`Rework created successfully`);
+        onClose();
+      }
+    }
+  });
   const targetsFetcher = useFetcher<{
     operations: UpstreamOperation[];
   }>();
@@ -108,13 +127,6 @@ export function ReworkModal({
     trackedEntities,
     targetsFetcher.load
   ]);
-
-  useEffect(() => {
-    if (fetcher.state === "idle" && fetcher.data?.success) {
-      toast.success(t`Rework created successfully`);
-      onClose();
-    }
-  }, [fetcher.state, fetcher.data, onClose, t]);
 
   const filteredEntities = useMemo(() => {
     if (!scanInput) return trackedEntities;
@@ -160,8 +172,6 @@ export function ReworkModal({
       ? JSON.stringify([selectedBatchId])
       : undefined;
 
-  if (!isOpen) return null;
-
   return (
     <Modal
       open={isOpen}
@@ -169,7 +179,16 @@ export function ReworkModal({
         if (!open) onClose();
       }}
     >
-      <ModalContent>
+      <ModalContent
+        onCloseAutoFocus={(event) => {
+          event.preventDefault();
+          const target =
+            opener?.isConnected && opener !== document.body
+              ? opener
+              : returnFocusRef?.current;
+          target?.focus();
+        }}
+      >
         <ValidatedForm
           method="post"
           action={path.to.triggerRework}
@@ -237,6 +256,7 @@ export function ReworkModal({
                       onChange={(e) => setScanInput(e.target.value)}
                       onKeyDown={handleScanKeyDown}
                       placeholder={t`Scan or search serial number...`}
+                      aria-label={t`Serial numbers`}
                       size="lg"
                     />
                     <div className="max-h-48 overflow-y-auto rounded-lg border">

@@ -12,22 +12,18 @@ import {
 import { requirePermissions } from "@carbon/auth/auth.server";
 import { flash } from "@carbon/auth/session.server";
 import { validationError, validator } from "@carbon/form";
+import { useRouteDialog } from "@carbon/react";
 import { redirect } from "@carbon/utils";
-import type {
-  ActionFunctionArgs,
-  ClientActionFunctionArgs,
-  LoaderFunctionArgs
-} from "react-router";
-import { useLoaderData, useNavigate, useParams } from "react-router";
+import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
+import { useLoaderData, useParams } from "react-router";
+import { supplierLocationValidator } from "~/modules/purchasing/purchasing.models";
 import {
   getSupplierLocation,
-  supplierLocationValidator,
   updateSupplierLocation
-} from "~/modules/purchasing";
+} from "~/modules/purchasing/purchasing.service";
 import SupplierLocationForm from "~/modules/purchasing/ui/Supplier/SupplierLocationForm";
 import { getCustomFields, setCustomFields } from "~/utils/form";
 import { path } from "~/utils/path";
-import { supplierLocationsQuery } from "~/utils/react-query";
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const { client } = await requirePermissions(request, {
@@ -101,26 +97,12 @@ export async function action({ request, params }: ActionFunctionArgs) {
   );
 }
 
-export async function clientAction({
-  serverAction,
-  params
-}: ClientActionFunctionArgs) {
-  const { supplierId } = params;
-  if (supplierId) {
-    window.clientCache?.setQueryData(
-      supplierLocationsQuery(supplierId).queryKey,
-      null
-    );
-  }
-  return await serverAction();
-}
-
 export default function EditSupplierLocationRoute() {
   const { location } = useLoaderData<typeof loader>();
-  const navigate = useNavigate();
 
   const { supplierId } = useParams();
   if (!supplierId) throw new Error("supplierId not found");
+  const dialog = useRouteDialog(path.to.supplierLocations(supplierId));
 
   const initialValues = {
     id: location?.id ?? undefined,
@@ -141,7 +123,8 @@ export default function EditSupplierLocationRoute() {
       key={initialValues.id}
       supplierId={supplierId}
       initialValues={initialValues}
-      onClose={() => navigate(path.to.supplierLocations(supplierId))}
+      open={dialog.open}
+      onClose={dialog.close}
     />
   );
 }

@@ -21,6 +21,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { POINTER_SENSOR_OPTIONS } from "~/utils/drag-sensors";
 import type { DragHandleBindings, ReorderableLine } from "./types";
 
 type ReorderableLineListProps<T extends ReorderableLine> = {
@@ -41,7 +42,7 @@ export function ReorderableLineList<T extends ReorderableLine>({
   renderOverlay
 }: ReorderableLineListProps<T>) {
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(PointerSensor, POINTER_SENSOR_OPTIONS),
     useSensor(KeyboardSensor)
   );
 

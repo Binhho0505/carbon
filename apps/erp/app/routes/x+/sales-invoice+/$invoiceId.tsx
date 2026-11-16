@@ -7,24 +7,28 @@ import { requirePermissions } from "@carbon/auth/auth.server";
 import { getCarbonServiceRole } from "@carbon/auth/client.server";
 import { flash } from "@carbon/auth/session.server";
 import { createMappingService } from "@carbon/ee/accounting";
-import { VStack } from "@carbon/react";
-import { isUnaffectedByNavigation, redirect } from "@carbon/utils";
+import { getExpectedLiquidation } from "@carbon/ee/contract-financing.server";
+import { getLogger } from "@carbon/logger";
+import { RecordOutlet, VStack } from "@carbon/react";
+import { STRIPE_CONNECT_INTEGRATION } from "@carbon/stripe/send-sales-invoice.server";
+import { redirect } from "@carbon/utils";
 import { msg } from "@lingui/core/macro";
 import type {
   ActionFunctionArgs,
   LoaderFunctionArgs,
-  ShouldRevalidateFunction
+  MetaFunction
 } from "react-router";
-import { Outlet, useParams } from "react-router";
+import { useLoaderData, useParams } from "react-router";
+import { DocumentForceDeleteBanner } from "~/components/ForceDelete/DocumentForceDelete";
 import { PanelProvider, ResizablePanels } from "~/components/Layout";
-import { getCurrencyByCode } from "~/modules/accounting";
+import { getCurrencyByCode } from "~/modules/accounting/accounting.service";
 import {
   getCompanyHasOpenCredits,
+  getDocumentForceDeleteData,
   getSalesInvoice,
   getSalesInvoiceLines,
   getSalesInvoiceShipment
-} from "~/modules/invoicing";
-import { STRIPE_CONNECT_INTEGRATION } from "~/modules/invoicing/stripe-customer.server";
+} from "~/modules/invoicing/invoicing.service";
 import SalesInvoiceExplorer from "~/modules/invoicing/ui/SalesInvoice/SalesInvoiceExplorer";
 import SalesInvoiceHeader from "~/modules/invoicing/ui/SalesInvoice/SalesInvoiceHeader";
 import SalesInvoiceProperties from "~/modules/invoicing/ui/SalesInvoice/SalesInvoiceProperties";
@@ -33,12 +37,25 @@ import {
   getOpportunity,
   getOpportunityDocuments
 } from "~/modules/sales/sales.service";
-import { getCompanySettings } from "~/modules/settings";
+import { getCompanySettings } from "~/modules/settings/settings.service";
 import { getDatabaseClient } from "~/services/database.server";
 import { detailBreadcrumb, type Handle } from "~/utils/handle";
+import { recordMeta } from "~/utils/meta";
 import { path, requestReferrer } from "~/utils/path";
 
 export const handle: Handle = {
+  realtime: [
+    { table: "salesInvoice", column: "id", param: "invoiceId" },
+    { table: "salesInvoiceLine", column: "invoiceId", param: "invoiceId" },
+    // What is applied to this invoice, and the payments behind it: voiding a
+    // payment changes the payment row only.
+    {
+      table: "invoiceSettlement",
+      column: "targetSalesInvoiceId",
+      param: "invoiceId"
+    },
+    { table: "payment", column: "targetSalesInvoiceId", param: "invoiceId" }
+  ],
   breadcrumb: detailBreadcrumb(
     { breadcrumb: msg`Sales Invoices`, to: path.to.invoicingSales },
     (data) => data?.salesInvoice?.invoiceId
@@ -46,27 +63,32 @@ export const handle: Handle = {
   module: "invoicing"
 };
 
-export const shouldRevalidate: ShouldRevalidateFunction = (args) =>
-  isUnaffectedByNavigation(args, { params: ["invoiceId"] })
-    ? false
-    : args.defaultShouldRevalidate;
+const logger = getLogger("erp", "sales-invoice");
+
+export const meta: MetaFunction<typeof loader> = ({ data }) =>
+  recordMeta(data?.salesInvoice?.invoiceId, "Sales Invoice");
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
-  const { client, companyId, companyGroupId } = await requirePermissions(
-    request,
-    {
+  const { client, companyId, companyGroupId, userId } =
+    await requirePermissions(request, {
       view: "invoicing"
-    }
-  );
+    });
 
   const { invoiceId } = params;
   if (!invoiceId) throw new Error("Could not find invoiceId");
 
-  const [salesInvoice, salesInvoiceLines, salesInvoiceShipment] =
+  const [salesInvoice, salesInvoiceLines, salesInvoiceShipment, forceDelete] =
     await Promise.all([
       getSalesInvoice(client, invoiceId),
       getSalesInvoiceLines(client, invoiceId),
-      getSalesInvoiceShipment(client, invoiceId)
+      getSalesInvoiceShipment(client, invoiceId),
+      // The Admin force-delete override (`force-delete+`).
+      getDocumentForceDeleteData(getCarbonServiceRole(), getDatabaseClient(), {
+        companyId,
+        userId,
+        documentType: "salesInvoice",
+        documentId: invoiceId
+      })
     ]);
 
   if (salesInvoice.error) {
@@ -119,21 +141,48 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     }
   }
 
+  // A delivery invoice of a financed contract: the liquidation the
+  // government will take from it. Degrades to null without the feature.
+  let expectedLiquidation: number | null = null;
+  if (
+    salesInvoice.data?.status &&
+    !["Draft", "Voided", "Paid"].includes(salesInvoice.data.status)
+  ) {
+    try {
+      const liquidation = await getExpectedLiquidation(
+        client,
+        getDatabaseClient(),
+        { companyId, salesInvoiceId: invoiceId }
+      );
+      expectedLiquidation = liquidation?.amount ?? null;
+    } catch (err) {
+      logger.error("Failed to read the expected liquidation", {
+        companyId,
+        invoiceId,
+        error: err
+      });
+    }
+  }
+
   return {
     salesInvoice: salesInvoice.data,
+    expectedLiquidation,
     currency: currency?.data ?? null,
     salesInvoiceLines: salesInvoiceLines.data ?? [],
     salesInvoiceShipment: salesInvoiceShipment.data,
-    files: getOpportunityDocuments(
-      client,
-      companyId,
-      salesInvoice.data?.opportunityId!
-    ),
+    files: salesInvoice.data?.opportunityId
+      ? getOpportunityDocuments(
+          client,
+          companyId,
+          salesInvoice.data.opportunityId
+        )
+      : Promise.resolve([]),
     opportunity: opportunity?.data ?? null,
     customer: customer?.data ?? null,
     defaultCc,
     orgHasCredits,
-    stripeInvoiceUrl
+    stripeInvoiceUrl,
+    ...forceDelete
   };
 }
 
@@ -145,6 +194,7 @@ export default function SalesInvoiceRoute() {
   const params = useParams();
   const { invoiceId } = params;
   if (!invoiceId) throw new Error("Could not find invoiceId");
+  const data = useLoaderData<typeof loader>();
 
   return (
     <PanelProvider>
@@ -157,7 +207,14 @@ export default function SalesInvoiceRoute() {
               content={
                 <div className="bg-card h-[calc(100dvh-var(--topbar-height)-var(--header-height)-var(--content-inset))] overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-accent w-full">
                   <VStack spacing={4} className="p-4">
-                    <Outlet />
+                    <DocumentForceDeleteBanner
+                      documentType="salesInvoice"
+                      documentId={invoiceId}
+                      readableId={data.salesInvoice.invoiceId ?? invoiceId}
+                      status={data.salesInvoice.status ?? "Draft"}
+                      forceDelete={data}
+                    />
+                    <RecordOutlet />
                   </VStack>
                 </div>
               }

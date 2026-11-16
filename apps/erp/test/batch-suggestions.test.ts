@@ -5,8 +5,6 @@
 import { resolveBatchRules } from "@carbon/utils";
 import { parseDate } from "@internationalized/date";
 import { describe, expect, it } from "vitest";
-// Import the logic module directly — the ERP barrels drag lingui macros vitest
-// does not transform (see batching-migration-guards.test.ts).
 import {
   batchPlanBreakdown,
   candidateValueSets,
@@ -783,6 +781,24 @@ describe("filterAndSortCandidates due filter", () => {
     expect(run({ kind: "range", start: day, end: day })).toEqual([
       "next-week"
     ]);
+  });
+
+  it("a range with only a start keeps everything due on or after it", () => {
+    expect(
+      run({ kind: "range", start: parseDate("2026-10-01"), end: null })
+    ).toEqual(["thu", "job-due", "next-week"]);
+  });
+
+  it("a range with only an end keeps everything due on or before it, overdue included", () => {
+    expect(
+      run({ kind: "range", start: null, end: parseDate("2026-09-29") })
+    ).toEqual(["overdue", "today"]);
+  });
+
+  it("an open-ended range still drops undated operations", () => {
+    expect(
+      run({ kind: "range", start: parseDate("2026-01-01"), end: null })
+    ).not.toContain("undated");
   });
 });
 

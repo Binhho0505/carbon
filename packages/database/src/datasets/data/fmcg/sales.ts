@@ -1072,6 +1072,324 @@ export const fmcgSales: SalesData = {
           unitPrice: 300
         }
       ]
+    },
+    {
+      // A cooler back for service: EQ-COOLER-400-S013, the "expired" customer
+      // asset. Received, so its service job ("service-return") is open and the
+      // RMA is In Progress.
+      key: "service-return",
+      status: "In Progress",
+      customer: "Đại lý Miền Trung Demo",
+      returnReason: "Defective",
+      dateOffset: -3,
+      lines: [
+        {
+          item: "EQ-COOLER-400",
+          quantity: 1,
+          unitPrice: 12500000,
+          returnType: "Return for Service",
+          asset: "expired",
+          problem: "Tủ mát không xuống dưới 8°C, máy nén chạy liên tục."
+        }
+      ]
+    }
+  ],
+  // One Active contract: a one-time setup fee and two subscriptions on Service
+  // items, two months in. Every invoice dated up to today is Billed Externally.
+  contracts: [
+    {
+      key: "anviet-merchandising",
+      name: "Dịch vụ trưng bày An Việt",
+      customer: "Siêu thị An Việt Demo",
+      startOffset: -60,
+      termMonths: 12,
+      renewal: "Renew",
+      renewalUpliftPercent: 5,
+      billingFrequency: "Month",
+      billingAlignment: "Calendar",
+      billingTiming: "Advance",
+      lines: [
+        {
+          revenueType: "One-time",
+          item: "Lắp đặt quầy trưng bày",
+          description: "Lắp đặt quầy trưng bày cho chương trình trà xanh 500 ml",
+          quantity: 1,
+          rate: 390000,
+          startOffset: -60,
+          endOffset: -31,
+          revenueMethod: "Daily"
+        },
+        {
+          revenueType: "Recurring",
+          item: "Giám sát trưng bày điểm bán",
+          description: "Giám sát trưng bày theo từng điểm bán",
+          quantity: 12,
+          rate: 3250,
+          rateUnit: "Month",
+          startOffset: -60,
+          revenueMethod: "Even Period"
+        },
+        {
+          revenueType: "Recurring",
+          item: "Dịch vụ kiểm nghiệm sản phẩm",
+          description: "Kiểm nghiệm định kỳ hằng năm",
+          quantity: 1,
+          rate: 120000,
+          rateUnit: "Year",
+          discountPercent: 10,
+          startOffset: -60,
+          revenueMethod: "Even Period"
+        }
+      ]
+    }
+  ],
+  // Field service: three display coolers placed at customers (one in warranty,
+  // one whose labor warranty has ended, one expired).
+  customerAssets: [
+    {
+      key: "in-warranty",
+      item: "EQ-COOLER-400",
+      serial: "EQ-COOLER-400-S011",
+      customer: "Siêu thị An Việt Demo",
+      shippedOffset: -120,
+      laborWarrantyEndOffset: 245,
+      partsWarrantyEndOffset: 610
+    },
+    {
+      key: "labor-ended",
+      item: "EQ-COOLER-400",
+      serial: "EQ-COOLER-400-S012",
+      customer: "Nhà phân phối Miền Nam Demo",
+      shippedOffset: -500,
+      laborWarrantyEndOffset: -135,
+      partsWarrantyEndOffset: 230
+    },
+    {
+      key: "expired",
+      item: "EQ-COOLER-400",
+      serial: "EQ-COOLER-400-S013",
+      customer: "Đại lý Miền Trung Demo",
+      shippedOffset: -900,
+      laborWarrantyEndOffset: -535,
+      partsWarrantyEndOffset: -170
+    }
+  ],
+  // VND per hour, on the same scale as the work-center labor rates.
+  serviceLaborRates: { cost: 2900, bill: 6750 },
+  // One service job per status. The Open job is the one the "service-return"
+  // RMA receipt created.
+  serviceJobs: [
+    {
+      key: "service-return",
+      status: "Open",
+      coverage: "Billable",
+      workSite: "Depot",
+      priority: "High",
+      asset: "expired",
+      salesReturnLine: { salesReturn: "service-return", line: 1 },
+      problem: "Tủ mát không xuống dưới 8°C, máy nén chạy liên tục.",
+      time: [],
+      charges: [],
+      assignments: [
+        { weekday: 2, plannedHours: 3 },
+        { weekday: 3, plannedHours: 2 }
+      ]
+    },
+    {
+      key: "estimate",
+      status: "Awaiting Approval",
+      coverage: "Billable",
+      workSite: "Customer Site",
+      priority: "Medium",
+      asset: "labor-ended",
+      openedWorkdaysBack: 6,
+      dueOffset: 10,
+      problem: "Tủ mát đọng nước dưới đáy, cửa kính đóng không kín.",
+      findings:
+        "Gioăng cửa bị rách, dàn lạnh bám bụi dày làm đóng tuyết và tràn nước xả.",
+      repairable: true,
+      estimate: {
+        status: "Sent",
+        sentWorkdaysBack: 3,
+        lines: [
+          { quantity: 6, unitPrice: 6750 },
+          {
+            item: "Bảo dưỡng tủ mát trưng bày",
+            description: "Vệ sinh dàn lạnh và thay gioăng cửa tủ mát",
+            quantity: 1,
+            unitPrice: 650000
+          }
+        ]
+      },
+      time: [
+        {
+          workdaysBack: 4,
+          hours: 3,
+          note: "Kiểm tra gioăng cửa, dàn lạnh và đường nước xả tại cửa hàng"
+        }
+      ],
+      charges: []
+    },
+    {
+      key: "on-site",
+      status: "In Progress",
+      coverage: "Warranty",
+      workSite: "Customer Site",
+      priority: "High",
+      asset: "in-warranty",
+      openedWorkdaysBack: 3,
+      dueOffset: 4,
+      problem: "Đèn chiếu sáng tủ mát chập chờn, bộ điều khiển nhiệt độ báo lỗi.",
+      findings: "Cảm biến nhiệt độ dàn lạnh lỏng giắc do rung khi vận chuyển.",
+      repairable: true,
+      time: [
+        {
+          workdaysBack: 2,
+          hours: 3.5,
+          clock: { start: "08:00:00", end: "11:30:00" },
+          note: "Đo nhiệt độ và kiểm tra bộ điều khiển trong giờ mở cửa"
+        },
+        {
+          workdaysBack: 1,
+          hours: 4,
+          note: "Cố định lại giắc cảm biến và thay bộ đèn LED"
+        }
+      ],
+      charges: [],
+      assignments: [
+        {
+          weekday: 0,
+          plannedHours: 4,
+          note: "Mang theo cảm biến nhiệt độ và bộ đèn LED dự phòng"
+        },
+        { weekday: 1, plannedHours: 3 }
+      ]
+    },
+    {
+      key: "warranty-repair",
+      status: "Completed",
+      coverage: "Warranty",
+      workSite: "Depot",
+      priority: "Medium",
+      asset: "in-warranty",
+      openedWorkdaysBack: 30,
+      problem: "Tủ mát không đạt nhiệt độ sau khi lắp đặt tại siêu thị.",
+      findings: "Thiếu gas lạnh do mối hàn ống đồng bị rò từ nhà máy.",
+      resolution:
+        "Hàn lại mối rò, hút chân không, nạp gas R290 và chạy thử 24 giờ đạt 2–8°C.",
+      repairable: true,
+      time: [
+        { workdaysBack: 28, hours: 5 },
+        { workdaysBack: 27, hours: 3.5 }
+      ],
+      charges: [],
+      completedWorkdaysBack: 27
+    },
+    {
+      key: "invoiced",
+      status: "Invoiced",
+      coverage: "Billable",
+      workSite: "Customer Site",
+      priority: "Medium",
+      asset: "labor-ended",
+      openedWorkdaysBack: 18,
+      problem: "Tủ mát làm lạnh yếu, máy nén ngắt liên tục vào buổi trưa.",
+      findings: "Dàn nóng bám bụi dày và thiếu gas sau hai năm vận hành.",
+      resolution:
+        "Vệ sinh dàn nóng, dàn lạnh, nạp bổ sung gas và kiểm tra dòng điện máy nén.",
+      repairable: true,
+      estimate: {
+        status: "Accepted",
+        sentWorkdaysBack: 16,
+        respondedWorkdaysBack: 15,
+        respondedBy: "Wes Talbot",
+        lines: [
+          { quantity: 8, unitPrice: 6750 },
+          {
+            item: "Bảo dưỡng tủ mát trưng bày",
+            description: "Vệ sinh dàn nóng, dàn lạnh và nạp bổ sung gas",
+            quantity: 1,
+            unitPrice: 650000
+          }
+        ]
+      },
+      time: [
+        { workdaysBack: 14, hours: 4 },
+        { workdaysBack: 13, hours: 3.5 },
+        {
+          workdaysBack: 13,
+          hours: 1,
+          billable: false,
+          note: "Di chuyển đến kho khách hàng, không tính phí"
+        }
+      ],
+      charges: [
+        {
+          item: "Bảo dưỡng tủ mát trưng bày",
+          description: "Vệ sinh dàn nóng, dàn lạnh và nạp bổ sung gas",
+          quantity: 1,
+          unitPrice: 650000
+        }
+      ],
+      completedWorkdaysBack: 12,
+      invoiceWorkdaysBack: 11
+    }
+  ],
+  // Rental agreements over the fleet units (accounting fixedAssets "fleet-*").
+  rentalAgreements: [
+    {
+      key: "active",
+      customer: "Đại lý Miền Trung Demo",
+      primaryContact: "Boone",
+      contacts: [{ contact: "Nguyễn", role: "Liên hệ tại kho" }],
+      status: "Active",
+      startOffset: -45,
+      billingCycle: "Calendar Month",
+      billingTiming: "Advance",
+      lines: [
+        {
+          fixedAsset: "fleet-1",
+          rateUnit: "Month",
+          rate: 950000,
+          fairValue: 12500000,
+          economicLifeMonths: 60,
+          deliveredOffset: -40
+        },
+        {
+          fixedAsset: "fleet-2",
+          rateUnit: "Month",
+          rate: 950000,
+          fairValue: 12500000,
+          economicLifeMonths: 60
+        }
+      ],
+      charges: [
+        {
+          line: 1,
+          description: "Phí vận chuyển và lắp đặt tủ mát",
+          amount: 350000,
+          dateOffset: -40
+        }
+      ]
+    },
+    {
+      key: "draft",
+      customer: "Siêu thị An Việt Demo",
+      primaryContact: "Raghavan",
+      status: "Draft",
+      startOffset: 14,
+      endOffset: 379,
+      billingCycle: "Calendar Month",
+      billingTiming: "Advance",
+      lines: [
+        {
+          fixedAsset: "fleet-3",
+          rateUnit: "Month",
+          rate: 1000000,
+          fairValue: 12500000,
+          economicLifeMonths: 60
+        }
+      ]
     }
   ],
   customerPortals: ["Siêu thị An Việt Demo", "Nhà phân phối Miền Nam Demo"],

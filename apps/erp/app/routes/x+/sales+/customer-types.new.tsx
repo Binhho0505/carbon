@@ -6,18 +6,14 @@ import { assertIsPost, error, success } from "@carbon/auth";
 import { requirePermissions } from "@carbon/auth/auth.server";
 import { flash } from "@carbon/auth/session.server";
 import { validationError, validator } from "@carbon/form";
-import { useCloseRoute } from "@carbon/react";
+import { useRouteDialog } from "@carbon/react";
 import { redirect } from "@carbon/utils";
-import type {
-  ActionFunctionArgs,
-  ClientActionFunctionArgs,
-  LoaderFunctionArgs
-} from "react-router";
-import { customerTypeValidator, upsertCustomerType } from "~/modules/sales";
+import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
+import { customerTypeValidator } from "~/modules/sales/sales.models";
+import { upsertCustomerType } from "~/modules/sales/sales.service";
 import { CustomerTypeForm } from "~/modules/sales/ui/CustomerTypes";
 import { setCustomFields } from "~/utils/form";
 import { getParams, path } from "~/utils/path";
-import { customerTypesQuery, getCompanyId } from "~/utils/react-query";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   await requirePermissions(request, {
@@ -71,16 +67,8 @@ export async function action({ request }: ActionFunctionArgs) {
       );
 }
 
-export async function clientAction({ serverAction }: ClientActionFunctionArgs) {
-  window.clientCache?.setQueryData(
-    customerTypesQuery(getCompanyId()).queryKey,
-    null
-  );
-  return await serverAction();
-}
-
 export default function NewCustomerTypesRoute() {
-  const closeRoute = useCloseRoute();
+  const dialog = useRouteDialog();
   const initialValues = {
     name: ""
   };
@@ -88,7 +76,8 @@ export default function NewCustomerTypesRoute() {
   return (
     <CustomerTypeForm
       initialValues={initialValues}
-      onClose={() => closeRoute()}
+      open={dialog.open}
+      onClose={dialog.close}
     />
   );
 }

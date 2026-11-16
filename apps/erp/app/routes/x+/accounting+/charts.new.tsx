@@ -6,28 +6,22 @@ import { assertIsPost, error, success } from "@carbon/auth";
 import { requirePermissions } from "@carbon/auth/auth.server";
 import { flash } from "@carbon/auth/session.server";
 import { validationError, validator } from "@carbon/form";
+import { useRouteDialog } from "@carbon/react";
 import { redirect } from "@carbon/utils";
-import type {
-  ActionFunctionArgs,
-  ClientActionFunctionArgs,
-  LoaderFunctionArgs
-} from "react-router";
+import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
+import { data, useLoaderData, useSearchParams } from "react-router";
+import { accountValidator } from "~/modules/accounting/accounting.models";
 import {
-  data,
-  useLoaderData,
-  useNavigate,
-  useSearchParams
-} from "react-router";
-import type { AccountClass, AccountIncomeBalance } from "~/modules/accounting";
-import {
-  accountValidator,
   getGroupAccounts,
   upsertAccount
-} from "~/modules/accounting";
+} from "~/modules/accounting/accounting.service";
+import type {
+  AccountClass,
+  AccountIncomeBalance
+} from "~/modules/accounting/types";
 import { ChartOfAccountForm } from "~/modules/accounting/ui/ChartOfAccounts";
 import { setCustomFields } from "~/utils/form";
 import { path } from "~/utils/path";
-import { accountsQuery, getCompanyId } from "~/utils/react-query";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const { client, companyGroupId } = await requirePermissions(request, {
@@ -78,7 +72,7 @@ export async function action({ request }: ActionFunctionArgs) {
   if (!accountId) {
     return data(
       {},
-      await flash(request, error(insertAccount, "Failed to insert account"))
+      await flash(request, error(null, "Failed to insert account"))
     );
   }
 
@@ -88,17 +82,9 @@ export async function action({ request }: ActionFunctionArgs) {
   );
 }
 
-export async function clientAction({ serverAction }: ClientActionFunctionArgs) {
-  window.clientCache?.setQueryData(
-    accountsQuery(getCompanyId()).queryKey,
-    null
-  );
-  return await serverAction();
-}
-
 export default function NewAccountRoute() {
   const { groupAccounts } = useLoaderData<typeof loader>();
-  const navigate = useNavigate();
+  const dialog = useRouteDialog(path.to.chartOfAccounts);
   const [searchParams] = useSearchParams();
   const parentId = searchParams.get("parentId") ?? undefined;
 
@@ -110,14 +96,16 @@ export default function NewAccountRoute() {
     accountType: undefined,
     class: "Asset" as AccountClass,
     incomeBalance: "Balance Sheet" as AccountIncomeBalance,
-    consolidatedRate: "Average" as const
+    consolidatedRate: "Average" as const,
+    allowability: "Allowable" as const
   };
 
   return (
     <ChartOfAccountForm
       initialValues={initialValues}
       groupAccounts={groupAccounts}
-      onClose={() => navigate(path.to.chartOfAccounts)}
+      open={dialog.open}
+      onClose={dialog.close}
     />
   );
 }

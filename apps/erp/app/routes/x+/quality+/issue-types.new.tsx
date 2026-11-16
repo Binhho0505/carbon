@@ -6,22 +6,17 @@ import { assertIsPost, error, success } from "@carbon/auth";
 import { requirePermissions } from "@carbon/auth/auth.server";
 import { flash } from "@carbon/auth/session.server";
 import { validationError, validator } from "@carbon/form";
-import { useCloseRoute } from "@carbon/react";
-import { redirect } from "@carbon/utils";
-import type {
-  ActionFunctionArgs,
-  ClientActionFunctionArgs,
-  LoaderFunctionArgs
-} from "react-router";
+import { useRouteDialog } from "@carbon/react";
+import { isUniqueViolation, redirect } from "@carbon/utils";
+import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
+import { issueTypeValidator } from "~/modules/quality/quality.models";
 import {
   getIssueTypeByName,
-  issueTypeValidator,
   upsertIssueType
-} from "~/modules/quality";
+} from "~/modules/quality/quality.service";
 import IssueTypeForm from "~/modules/quality/ui/IssueTypes/IssueTypeForm";
 import { setCustomFields } from "~/utils/form";
 import { getParams, path, requestReferrer } from "~/utils/path";
-import { getCompanyId, issueTypesQuery } from "~/utils/react-query";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   await requirePermissions(request, {
@@ -66,7 +61,7 @@ export async function action({ request }: ActionFunctionArgs) {
     createdBy: userId,
     customFields: setCustomFields(formData)
   });
-  if (insertIssueType.error?.code === "23505") {
+  if (isUniqueViolation(insertIssueType.error)) {
     return validationError({
       fieldErrors: { name: "An issue type with this name already exists" }
     });
@@ -92,21 +87,17 @@ export async function action({ request }: ActionFunctionArgs) {
       );
 }
 
-export async function clientAction({ serverAction }: ClientActionFunctionArgs) {
-  window.clientCache?.setQueryData(
-    issueTypesQuery(getCompanyId()).queryKey,
-    null
-  );
-  return await serverAction();
-}
-
 export default function NewCustomerStatusesRoute() {
-  const closeRoute = useCloseRoute();
+  const dialog = useRouteDialog();
   const initialValues = {
     name: ""
   };
 
   return (
-    <IssueTypeForm initialValues={initialValues} onClose={() => closeRoute()} />
+    <IssueTypeForm
+      initialValues={initialValues}
+      open={dialog.open}
+      onClose={dialog.close}
+    />
   );
 }

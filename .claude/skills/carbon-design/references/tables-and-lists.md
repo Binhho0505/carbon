@@ -47,6 +47,7 @@ Paths relative to `apps/erp/app/` unless they start with `apps/` or `packages/`.
 | **SortableList** | ordered children each edited inline (BoM/BoP) | `components/SortableList.tsx` |
 | **Grid** | small editable child lists on master data (supplier parts, price overrides) | `components/Grid/Grid.tsx` |
 | **Card-row list** | lines the user fills in before posting (receipts, shipments) | `modules/inventory/ui/Shipments/ShipmentLines.tsx` |
+| **Grouped work list** (Linear style) | work items grouped by state, one 36 px row each, no column headers or grid lines; only state, owner and date edit in place through their pickers; a click elsewhere opens the item's page | `modules/projects/ui/Elements/ElementList.tsx` |
 | **Kanban** | work moved between states or work centers by dragging | `apps/mes/app/components/Kanban/`, `modules/production/ui/Schedule/Kanban/Kanban.tsx` |
 | **Card grid** | operator (MES) lists read at a glance on touch | `apps/mes/app/components/OperationsList.tsx` |
 | **Activity feed** | history / audit narrative for one record | `components/Activity.tsx` |
@@ -86,7 +87,7 @@ title), `primaryAction`, `headerActions`, `table` + `withSavedView` (top-level l
 caller orders `data` by it; e.g. Outbound grouped by day), `defaultColumnVisibility`, `defaultColumnPinning`, `compact` (embedded),
 `emptyState`, `importCSV`, `getRowClassName`, `withInlineEditing` + `editableComponents`.
 
-Column `meta` (`components/Table/types.ts`): `icon`, `filter` (`static | fetcher | custom`,
+Column `meta` (`components/Table/types.ts`): `icon`, `filter` (`static | fetcher | custom | dateRange`,
 `isArray`), `filterHeader`, `pluralHeader`, `renderTotal` + `formatter` (footer aggregate),
 `exportValue`, `exportOnly`, `sortBy`. CSV rules: `.claude/rules/table-csv-export.md`
 (export = what the user sees; no `_` in accessorKey).
@@ -182,8 +183,11 @@ const WidgetsTable = memo(({ data, count }: Props) => {
 
 - **Search:** built in (`?search=`, debounced); server-side matching.
 - **Filters:** per column `meta.filter` — `static` options (label may be the cell component,
-  e.g. the Status pill), `fetcher` (endpoint), `custom`. Active filters show as chips under the
-  toolbar. `pluralHeader` for the chip label.
+  e.g. the Status pill), `fetcher` (endpoint), `custom`, `dateRange` (From / To pickers on a
+  DATE column, `?filter=col:between:from,to`, either side open). Active filters show as chips
+  under the toolbar. `pluralHeader` for the chip label. The From / To pickers themselves are
+  `DateRangeFields` (`components/DateRangeFields.tsx`) — reuse it for a date range kept in
+  local state rather than the URL (e.g. the batch builder's Custom due filter).
 - **Sort:** header click menu; `?sort=`; `meta.sortBy` to redirect.
 - **Views:** `withSavedView` + `table="…"` on every top-level module list; views appear in the
   module sub-nav under the matching submodule (same `table` key).
@@ -210,6 +214,7 @@ menu) unless the row is expandable. Report/workbench tables with no openable rec
 | Document lines (quote, SO, PO, invoice, return) | Explorer (left) + `…Summary` card (center) — never a list Table in the content pane |
 | Operational sub-table in a record | `Table compact title=… primaryAction=…`; editable → `withInlineEditing` + `editableComponents` (`EditableNumber(mutation)`), `forceEditMode` for Draft docs |
 | Small editable child list | `Grid` in a Card with `onNewRow` "New" row and an `<Outlet/>` for the form |
+| Any other editable table (timesheet, rates, plan lines, funding) | the Excel-like grid of the inventory count: `Table compact withInlineEditing` + `useCellSave` (or `Grid`), borderless cells until focused, a footer row for totals, "Add …" as a quiet button. Never a `NumberField` box per cell, never a modal per row. Editors built once (`useStableEditableComponents`). Exemplars: `modules/inventory/ui/InventoryCount/InventoryCountLines.tsx`, `modules/projects/ui/Timesheet/TimesheetGrid.tsx`, `modules/sales/ui/Contracts/ContractLaborRates.tsx` |
 | BoM / BoP | `SortableList` with expandable inline forms, live reorder + throttled save |
 | Receiving / shipping lines | card-row list with inline `NumberField` + selectors, per-line persistence |
 

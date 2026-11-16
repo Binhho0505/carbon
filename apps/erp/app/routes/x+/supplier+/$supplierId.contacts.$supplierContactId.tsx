@@ -12,22 +12,22 @@ import {
 import { requirePermissions } from "@carbon/auth/auth.server";
 import { flash } from "@carbon/auth/session.server";
 import { validationError, validator } from "@carbon/form";
+import { useRouteDialog } from "@carbon/react";
 import { redirect } from "@carbon/utils";
-import type {
-  ActionFunctionArgs,
-  ClientActionFunctionArgs,
-  LoaderFunctionArgs
-} from "react-router";
-import { useLoaderData, useNavigate, useParams } from "react-router";
+import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
+import { useLoaderData, useParams } from "react-router";
+import { useCompanySettings } from "~/hooks";
+import {
+  SUPPLIER_CONTACT_EMAIL_REQUIRED,
+  supplierContactValidator
+} from "~/modules/purchasing/purchasing.models";
 import {
   getSupplierContact,
-  supplierContactValidator,
   updateSupplierContact
-} from "~/modules/purchasing";
+} from "~/modules/purchasing/purchasing.service";
 import SupplierContactForm from "~/modules/purchasing/ui/Supplier/SupplierContactForm";
 import { getCustomFields, setCustomFields } from "~/utils/form";
 import { path } from "~/utils/path";
-import { supplierContactsQuery } from "~/utils/react-query";
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const { client } = await requirePermissions(request, {
@@ -56,7 +56,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 
 export async function action({ request, params }: ActionFunctionArgs) {
   assertIsPost(request);
-  const { client } = await requirePermissions(request, {
+  const { client, companyId } = await requirePermissions(request, {
     update: "purchasing"
   });
 
@@ -82,11 +82,18 @@ export async function action({ request, params }: ActionFunctionArgs) {
     throw badRequest("contactId is undefined from form data");
 
   const update = await updateSupplierContact(client, {
+    companyId,
     contactId,
     contact,
     supplierLocationId,
     customFields: setCustomFields(formData)
   });
+
+  if (update.error?.message === SUPPLIER_CONTACT_EMAIL_REQUIRED) {
+    return validationError({
+      fieldErrors: { email: SUPPLIER_CONTACT_EMAIL_REQUIRED }
+    });
+  }
 
   if (update.error) {
     throw redirect(
@@ -104,26 +111,13 @@ export async function action({ request, params }: ActionFunctionArgs) {
   );
 }
 
-export async function clientAction({
-  serverAction,
-  params
-}: ClientActionFunctionArgs) {
-  const { supplierId } = params;
-  if (supplierId) {
-    window.clientCache?.setQueryData(
-      supplierContactsQuery(supplierId).queryKey,
-      null
-    );
-  }
-  return await serverAction();
-}
-
 export default function EditSupplierContactRoute() {
   const { contact } = useLoaderData<typeof loader>();
-  const navigate = useNavigate();
 
   const { supplierId } = useParams();
   if (!supplierId) throw new Error("supplierId not found");
+  const dialog = useRouteDialog(path.to.supplierContacts(supplierId));
+  const companySettings = useCompanySettings();
 
   const initialValues = {
     id: contact?.id ?? undefined,
@@ -143,10 +137,12 @@ export default function EditSupplierContactRoute() {
 
   return (
     <SupplierContactForm
+      requireEmail={!!companySettings?.requireSupplierContactEmail}
       key={initialValues.id}
       supplierId={supplierId}
       initialValues={initialValues}
-      onClose={() => navigate(path.to.supplierContacts(supplierId))}
+      open={dialog.open}
+      onClose={dialog.close}
     />
   );
 }

@@ -5,6 +5,7 @@
 "use client";
 
 import { DateTimePicker, Hidden, Submit, ValidatedForm } from "@carbon/form";
+import { useAction } from "@carbon/query";
 import {
   Button,
   Modal,
@@ -32,7 +33,6 @@ import {
 import { Trans, useLingui } from "@lingui/react/macro";
 import { useLocale } from "@react-aria/i18n";
 import { useEffect, useState } from "react";
-import { useFetcher } from "react-router";
 import { setClockOutValidator } from "~/services/models";
 import { path } from "~/utils/path";
 
@@ -51,7 +51,16 @@ export function TimeCardWarning({ openClockEntry }: TimeCardWarningProps) {
   const { t } = useLingui();
   const { locale } = useLocale();
   const [showClockWarning, setShowClockWarning] = useState(false);
-  const fetcher = useFetcher();
+  const fetcher = useAction({
+    onSettled: (data) => {
+      if (data) {
+        if ((data as { success?: boolean }).success) {
+          toast.success(t`Updated successfully`);
+          setShowClockWarning(false);
+        }
+      }
+    }
+  });
 
   useEffect(() => {
     if (!openClockEntry) {
@@ -80,15 +89,6 @@ export function TimeCardWarning({ openClockEntry }: TimeCardWarningProps) {
     return () => clearInterval(interval);
   }, [openClockEntry]);
 
-  useEffect(() => {
-    if (fetcher.data && fetcher.state === "idle") {
-      if ((fetcher.data as { success?: boolean }).success) {
-        toast.success(t`Updated successfully`);
-        setShowClockWarning(false);
-      }
-    }
-  }, [fetcher.data, fetcher.state, t]);
-
   const handleClockAcknowledge = () => {
     if (openClockEntry) {
       sessionStorage.setItem(CLOCK_STORAGE_KEY, openClockEntry.id);
@@ -116,6 +116,13 @@ export function TimeCardWarning({ openClockEntry }: TimeCardWarningProps) {
         minute: "2-digit"
       }
     );
+    // A shift's length after clock in, never later than now: a time typed
+    // with only the hours changed then stays after the clock in.
+    const shiftEnd = clockedInAt.add({ hours: 8 });
+    const nowInZone = now(timeZone);
+    const defaultClockOut = (
+      shiftEnd.compare(nowInZone) < 0 ? shiftEnd : nowInZone
+    ).toAbsoluteString();
     const clockedInDaysAgo = formatRelativeCalendarDays(
       toCalendarDate(clockedInAt).toString(),
       today(timeZone).toString(),
@@ -143,6 +150,7 @@ export function TimeCardWarning({ openClockEntry }: TimeCardWarningProps) {
             validator={setClockOutValidator}
             method="post"
             action={path.to.timecard}
+            defaultValues={{ clockOut: defaultClockOut }}
             fetcher={fetcher}
           >
             <ModalBody>
@@ -163,6 +171,7 @@ export function TimeCardWarning({ openClockEntry }: TimeCardWarningProps) {
                   </Trans>
                 </p>
                 <Hidden name="intent" value="clockOut" />
+                <Hidden name="clockIn" value={openClockEntry.clockIn} />
                 <DateTimePicker
                   name="clockOut"
                   label={t`Clock out`}

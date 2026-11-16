@@ -9,6 +9,7 @@ import {
   storage
 } from "@carbon/files";
 import { MediaUploader, wasConvertedFromHeic } from "@carbon/files/media";
+import { useRevalidator } from "@carbon/query";
 import {
   Badge,
   HStack,
@@ -16,6 +17,7 @@ import {
   Spinner,
   Subheading,
   toast,
+  toastError,
   VStack
 } from "@carbon/react";
 import {
@@ -26,7 +28,6 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import { useCallback, useMemo, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { LuCloudUpload, LuFileText, LuX } from "react-icons/lu";
-import { useRevalidator } from "react-router";
 import { useUser } from "~/hooks";
 import { stripSpecialCharacters } from "~/utils/string";
 
@@ -122,7 +123,7 @@ export default function AttachmentsList({
               upsert: true
             });
           if (upload.error) {
-            toast.error(t`Failed to upload ${file.name}`);
+            toastError(t`Failed to upload ${file.name}`, upload.error);
           }
         }
         revalidator.revalidate();
@@ -147,7 +148,7 @@ export default function AttachmentsList({
         .company(company.id)
         .remove([a.path]);
       if (error) {
-        toast.error(error.message || t`Error removing file`);
+        toastError(t`Error removing file`, error);
       } else {
         revalidator.revalidate();
       }

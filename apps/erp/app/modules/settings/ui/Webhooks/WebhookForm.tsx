@@ -3,6 +3,7 @@
 // including ports, remain AGPLv3; serving them over a network requires releasing their source.
 
 import { Boolean, Input, Select, ValidatedForm } from "@carbon/form";
+import { useLoaderQuery } from "@carbon/query";
 import {
   Badge,
   Button,
@@ -17,7 +18,6 @@ import {
   HStack,
   Separator,
   toast,
-  useMount,
   VStack
 } from "@carbon/react";
 import { Trans, useLingui } from "@lingui/react/macro";
@@ -30,6 +30,7 @@ import { usePermissions } from "~/hooks";
 import { path } from "~/utils/path";
 import { webhookValidator } from "../../settings.models";
 import type { getWebhookTables } from "../../settings.service";
+import WebhookSigningSecret from "./WebhookSigningSecret";
 
 type WebhookFormProps = {
   initialValues: z.infer<typeof webhookValidator>;
@@ -129,6 +130,13 @@ const WebhookForm = ({
                 helperText={t`The endpoint that receives a POST request with the updated data when the table is updated`}
               />
 
+              {isEditing && (
+                <WebhookSigningSecret
+                  webhookId={initialValues.id!}
+                  isDisabled={!permissions.can("update", "settings")}
+                />
+              )}
+
               <Separator />
 
               <Boolean name="active" label={t`Active`} bordered />
@@ -153,12 +161,9 @@ const WebhookForm = ({
 export default WebhookForm;
 
 export const useWebhookTables = () => {
-  const tablesFetcher =
-    useFetcher<Awaited<ReturnType<typeof getWebhookTables>>>();
-
-  useMount(() => {
-    tablesFetcher.load(path.to.api.webhookTables);
-  });
+  const tablesFetcher = useLoaderQuery<
+    Awaited<ReturnType<typeof getWebhookTables>>
+  >(path.to.api.webhookTables);
 
   const tables = tablesFetcher.data?.data ?? [];
 

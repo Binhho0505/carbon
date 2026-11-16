@@ -598,5 +598,21 @@ export const fmcgProduction: ProductionData = {
         }
       ]
     }
+  ],
+  materialRequests: [
+    {
+      job: "in-progress",
+      operationOrder: 2,
+      item: "CN-FOOD-LUBRICANT",
+      note: "Bộ kit 2 thiếu CN-FOOD-LUBRICANT — cần một hộp dầu bôi trơn cấp thực phẩm tại máy trước khi chạy tiếp.",
+      status: "Open"
+    },
+    {
+      job: "in-progress",
+      operationOrder: 1,
+      item: "PKG-FOOD-SEAL",
+      note: "Cần thêm 4 cuộn màng niêm phong — hai cuộn bị rách khi lắp.",
+      status: "Resolved"
+    }
   ]
 };

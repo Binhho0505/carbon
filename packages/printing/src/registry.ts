@@ -22,7 +22,8 @@ export const documentTypeRegistry = [
       "Entity",
       "Job",
       "Split",
-      "StockTransfer"
+      "StockTransfer",
+      "PickingList"
     ],
     builtInRenderer: "zpl" as const,
     defaultFormat: "zpl" as const,
@@ -32,7 +33,7 @@ export const documentTypeRegistry = [
     id: "kanbanCard",
     displayName: "Kanban Card",
     sourceDocuments: ["Kanban"],
-    builtInRenderer: "pdf" as const,
+    builtInRenderer: "zpl" as const,
     defaultFormat: "pdf" as const,
     description: "Replenishment cards for kanban bins"
   },

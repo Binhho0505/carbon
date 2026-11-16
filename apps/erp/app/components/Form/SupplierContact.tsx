@@ -3,16 +3,16 @@
 // including ports, remain AGPLv3; serving them over a network requires releasing their source.
 
 import type { CreatableComboboxProps } from "@carbon/form";
-import { CreatableCombobox } from "@carbon/form";
-import { Avatar, HStack, useDisclosure } from "@carbon/react";
+import { CreatableCombobox, useControlField } from "@carbon/form";
+import { useLoaderQuery } from "@carbon/query";
+import { Avatar, HStack } from "@carbon/react";
 import { useLingui } from "@lingui/react/macro";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useFetcher } from "react-router";
-import type {
-  getSupplierContacts,
-  SupplierContact as SupplierContactType
-} from "~/modules/purchasing";
-import { SupplierContactForm } from "~/modules/purchasing/ui/Supplier";
+import { useEffect, useMemo, useRef } from "react";
+import { useCompanySettings, useDrawerItem } from "~/hooks";
+import type { getSupplierContacts } from "~/modules/purchasing/purchasing.service";
+import type { SupplierContact as SupplierContactType } from "~/modules/purchasing/types";
+import SupplierContactForm from "~/modules/purchasing/ui/Supplier/SupplierContactForm";
+import { isEmailableContact } from "~/modules/settings/party-contact";
 import { path } from "~/utils/path";
 import { useEmptyState } from "./emptyStates";
 
@@ -25,6 +25,10 @@ type SupplierContactSelectProps = Omit<
     supplier: { id: string; contact: SupplierContactType["contact"] } | null
   ) => void;
   inline?: boolean;
+  /** Show a warning when the selected contact has no email. */
+  warnIfNoEmail?: boolean;
+  /** Called when the "selected contact has no email" state changes. */
+  onMissingEmailChange?: (missing: boolean) => void;
 };
 
 const SupplierContactPreview = (
@@ -38,6 +42,7 @@ const SupplierContactPreview = (
       <Avatar
         size="xs"
         name={typeof contact.label === "string" ? contact.label : undefined}
+        decorative
       />
       <span>{contact.label}</span>
     </HStack>
@@ -48,38 +53,50 @@ const SupplierContact = ({
   onChange: propsOnChange,
   inline,
   supplier,
+  warnIfNoEmail,
+  onMissingEmailChange,
   ...props
 }: SupplierContactSelectProps) => {
   const { t } = useLingui();
-  const supplierContactsFetcher =
-    useFetcher<Awaited<ReturnType<typeof getSupplierContacts>>>();
+  const companySettings = useCompanySettings();
+  const supplierContactsFetcher = useLoaderQuery<
+    Awaited<ReturnType<typeof getSupplierContacts>>
+  >(supplier ? path.to.api.supplierContacts(supplier) : null);
 
-  const newContactModal = useDisclosure();
-  const [created, setCreated] = useState<string>("");
+  const create = useDrawerItem<string>();
   const triggerRef = useRef<HTMLButtonElement>(null);
 
-  const [namePart, ...titleParts] = created.split(" - ");
+  const [namePart, ...titleParts] = (create.item ?? "").split(" - ");
   const initialTitle = titleParts.join(" - ").trim();
   const nameTokens = namePart.trim().split(" ");
   const initialFirstName = nameTokens[0] || "";
   const initialLastName = nameTokens.slice(1).join(" ");
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: suppressed due to migration
-  useEffect(() => {
-    if (supplier) {
-      supplierContactsFetcher.load(path.to.api.supplierContacts(supplier));
-    }
-  }, [supplier]);
-
   const options = useMemo(
     () =>
       supplierContactsFetcher.data?.data?.map((c) => ({
         value: c.id,
-        label: c.contact?.fullName ?? c.contact?.email ?? "Unknown"
+        label: c.contact?.fullName || c.contact?.email || "Unknown"
       })) ?? [],
 
     [supplierContactsFetcher.data]
   );
+
+  const [value] = useControlField<string | undefined>(props.name);
+  const selected = supplierContactsFetcher.data?.data?.find(
+    (c) => c.id === value
+  );
+  const missingEmail =
+    !!warnIfNoEmail &&
+    !!selected &&
+    !isEmailableContact(selected.contact ?? {});
+
+  // A ref, so a parent passing an inline callback does not re-run the effect.
+  const onMissingEmailChangeRef = useRef(onMissingEmailChange);
+  onMissingEmailChangeRef.current = onMissingEmailChange;
+  useEffect(() => {
+    onMissingEmailChangeRef.current?.(missingEmail);
+  }, [missingEmail]);
 
   const onChange = (
     newValue: { label: string | JSX.Element; value: string } | null
@@ -94,7 +111,7 @@ const SupplierContact = ({
 
   const emptyMessage = useEmptyState(
     "supplierContact",
-    supplier ? { onCreate: () => newContactModal.onOpen() } : undefined
+    supplier ? { onCreate: () => create.open("") } : undefined
   );
 
   return (
@@ -109,24 +126,24 @@ const SupplierContact = ({
         emptyMessage={emptyMessage}
         onChange={onChange}
         onCreateOption={(option) => {
-          newContactModal.onOpen();
-          setCreated(option);
+          create.open(option);
         }}
       />
-      {newContactModal.isOpen && (
+      {missingEmail && (
+        <p className="text-sm text-destructive">
+          {t`This contact has no email address.`}
+        </p>
+      )}
+      {create.item !== null && (
         <SupplierContactForm
+          key={create.key}
+          open={create.isOpen}
           supplierId={supplier!}
           type="modal"
+          requireEmail={!!companySettings?.requireSupplierContactEmail}
           onClose={() => {
-            setCreated("");
-            newContactModal.onClose();
-            // Reload the per-supplier fetcher so a just-created contact appears.
-            if (supplier) {
-              supplierContactsFetcher.load(
-                path.to.api.supplierContacts(supplier)
-              );
-            }
-            triggerRef.current?.click();
+            create.close();
+            create.afterClose(() => triggerRef.current?.click());
           }}
           initialValues={{
             email: "",

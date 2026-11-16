@@ -3,12 +3,21 @@
 // including ports, remain AGPLv3; serving them over a network requires releasing their source.
 
 import { getCarbonServiceRole } from "@carbon/auth/client.server";
+import {
+  CHANGE_LOGGED_TABLES,
+  REALTIME_TABLES
+} from "@carbon/database/realtime-tables";
 import { requireBackupsEntitlement } from "@carbon/ee/backups.server";
 import { getLogger } from "@carbon/logger";
 import { chunkArray } from "@carbon/utils";
 import { NonRetriableError } from "inngest";
 import { sql } from "kysely";
+import {
+  groupConflictClause,
+  rebuildDerivedGroups
+} from "../../../backups/derived-groups";
 import { applyTableRenames } from "../../../backups/renames";
+import { removeBucketPrefix } from "../../../backups/storage";
 import { getJobDatabaseClient, type JobDatabase } from "../../../db";
 import { inngest } from "../../client";
 import type { Catalog, CompanyBackup, JobProgress } from "./company-backup";
@@ -26,7 +35,6 @@ import {
   isUserScopedIdentityTable,
   RESTORE_INTEGRATION,
   readBackup,
-  removeStoragePrefix,
   restoreAssetsFromBackup,
   type ScopeViolation,
   selectWipeableTables,
@@ -101,10 +109,11 @@ export async function wipeAndLoad(
   // dangle at remapped parents — cascade won't clear them under replica mode), but
   // they are NEVER reloaded: their source rows belong to the source's users.
   const byName = new Map(catalog.tables.map((t) => [t.name, t]));
-  const wipeTables = selectWipeableTables(catalog, { includeGroup, remap });
+  const wipeTables = selectWipeableTables(catalog, { includeGroup });
   const loadTables = wipeTables.filter(
     (t) =>
-      !isUserScopedIdentityTable(t) && (backup.data[t.name]?.length ?? 0) > 0
+      !(remap && isUserScopedIdentityTable(t)) &&
+      (backup.data[t.name]?.length ?? 0) > 0
   );
   const backupColumns = new Map(
     backup.manifest.tables.map((t) => [t.name, new Set(t.columns)])
@@ -113,8 +122,21 @@ export async function wipeAndLoad(
   // Foreign: assign a fresh id to every id-bearing row up front so FKs (and the
   // ids embedded in storage paths) can be rewritten in a single pass. See
   // `buildIdMaps` for what qualifies and why.
+  const keptEmployeeTypes = remap
+    ? await db
+        .selectFrom("employeeType")
+        .select(["id", "name"])
+        .where("companyId", "=", companyId)
+        .execute()
+    : [];
   const idMaps = remap
-    ? buildIdMaps(loadTables, backup.data)
+    ? buildIdMaps(loadTables, backup.data, {
+        source: backup.manifest.sourceCompanyId,
+        target: companyId,
+        employeeTypeIdsByName: new Map(
+          keptEmployeeTypes.map((t) => [t.name, t.id])
+        )
+      })
     : new Map<string, Map<string, string>>();
   const idRewrite = new Map<string, string>();
   if (remap) {
@@ -130,6 +152,15 @@ export async function wipeAndLoad(
     if (replicaMode) {
       await sql`SET LOCAL session_replication_role = 'replica'`.execute(trx);
     }
+    await sql`SET LOCAL app.inspection_release = 'on'`.execute(trx);
+
+    // The company's groups before the wipe: memberships survive an own
+    // restore, and any left pointing at a group that doesn't come back go.
+    const wipedGroups = await trx
+      .selectFrom("group")
+      .select("id")
+      .where("companyId", "=", companyId)
+      .execute();
 
     await onProgress?.({ phase: "wipe", done: 0, total: wipeTables.length });
     await wipeScopedData(
@@ -202,7 +233,7 @@ export async function wipeAndLoad(
                   columns.map((c) => sql`${bindValue(row[c.name], c)}`)
                 )})`
             )
-          )}
+          )}${groupConflictClause(table.name)}
         `.execute(trx);
       }
       inserted += rows.length;
@@ -226,11 +257,52 @@ export async function wipeAndLoad(
         targetGroupId
       );
       if (dangling.length > 0) {
-        log.warn("Restore: removed identity rows left dangling by the wipe", {
-          companyId,
-          deleted: dangling
-        });
+        log.warning(
+          "Restore: removed identity rows left dangling by the wipe",
+          {
+            companyId,
+            deleted: dangling
+          }
+        );
       }
+    }
+
+    await rebuildDerivedGroups(
+      trx,
+      companyId,
+      wipedGroups.map((g) => g.id)
+    );
+
+    // Every list an open client keeps a copy of has just been replaced. With
+    // triggers off nothing logged that, so say it here: a null row id tells
+    // the client to read the whole table again.
+    await trx
+      .insertInto("tableChange")
+      .values(
+        CHANGE_LOGGED_TABLES.map((table) => ({ companyId, table, rowId: null }))
+      )
+      .execute();
+
+    // The log only answers a client that asks, and an open tab asks when a
+    // broadcast tells it to. With triggers off none was sent: after a template
+    // was reverted, a tab kept the reverted parts in its pickers for up to an
+    // hour, and creating a job with one of them failed. Say on every table's
+    // topic that it changed in bulk (null ids): a list reads the log again and
+    // a page reloads. Sent with the transaction, so nothing hears of a restore
+    // that rolled back.
+    const realtime = await sql<{ present: boolean }>`
+      SELECT to_regprocedure('realtime.send(jsonb,text,text,boolean)') IS NOT NULL AS present
+    `.execute(trx);
+    if (realtime.rows[0]?.present) {
+      await sql`
+        SELECT realtime.send(
+          jsonb_build_object('table', t, 'op', 'UPDATE', 'ids', NULL, 'parents', NULL),
+          'UPDATE',
+          'company:' || ${companyId} || ':' || t,
+          true
+        )
+        FROM unnest(${[...REALTIME_TABLES]}::text[]) AS t
+      `.execute(trx);
     }
   });
 
@@ -321,6 +393,13 @@ async function readRestoreMarker(
     .eq("companyId", companyId)
     .filter("metadata->>restoreRunId", "eq", restoreRunId)
     .maybeSingle();
+  // An unread marker is not an absent one: read as absent, a retry would
+  // snapshot the restored data over the pre-restore copy.
+  if (marker.error) {
+    throw new Error(
+      `Failed to read the restore marker: ${marker.error.message}`
+    );
+  }
   if (!marker.data) return null;
   return {
     id: marker.data.id,
@@ -352,24 +431,44 @@ async function writeRestoreMarker(
     ...patch
   };
 
-  if (existing) {
-    await client
-      .from("externalIntegrationMapping")
-      .update({
+  const written = existing
+    ? await client
+        .from("externalIntegrationMapping")
+        .update({
+          metadata,
+          externalId: metadata.snapshotPath ?? ""
+        })
+        .eq("id", existing.id)
+        .eq("companyId", companyId)
+    : await client.from("externalIntegrationMapping").insert({
+        entityType: "restore",
+        entityId: restoreRunId,
+        integration: RESTORE_INTEGRATION,
+        externalId: metadata.snapshotPath ?? "",
         metadata,
-        externalId: metadata.snapshotPath ?? ""
-      })
-      .eq("id", existing.id)
-      .eq("companyId", companyId);
-  } else {
-    await client.from("externalIntegrationMapping").insert({
-      entityType: "restore",
-      entityId: restoreRunId,
-      integration: RESTORE_INTEGRATION,
-      externalId: metadata.snapshotPath ?? "",
-      metadata,
-      companyId,
-      createdBy: userId ?? ""
+        companyId,
+        createdBy: userId ?? ""
+      });
+  // The marker holds the snapshot path a revert needs: a lost write must stop
+  // the restore before the wipe, not be found out at revert time.
+  if (written.error) {
+    throw new Error(
+      `Failed to record the restore's state: ${written.error.message}`
+    );
+  }
+}
+
+/** A terminal "failed" write from an error path: never hides the error itself. */
+async function markRestoreFailed(
+  client: ServiceRole,
+  args: Parameters<typeof writeRestoreMarker>[1]
+): Promise<void> {
+  try {
+    await writeRestoreMarker(client, args);
+  } catch (markerErr) {
+    log.error("Failed to mark the restore failed", {
+      restoreRunId: args.restoreRunId,
+      error: markerErr
     });
   }
 }
@@ -381,8 +480,18 @@ function makeProgressReporter(
   companyId: string,
   restoreRunId: string
 ): (p: JobProgress) => Promise<void> {
+  // Progress is a nicety: a failed write is logged, never fails the restore.
   return throttleProgress((progress) =>
-    writeRestoreMarker(client, { companyId, restoreRunId, patch: { progress } })
+    writeRestoreMarker(client, {
+      companyId,
+      restoreRunId,
+      patch: { progress }
+    }).catch((err) =>
+      log.warning("Failed to record restore progress", {
+        restoreRunId,
+        error: err
+      })
+    )
   );
 }
 
@@ -578,10 +687,7 @@ export const companyRestoreFunction = inngest.createFunction(
           } catch (storageErr) {
             logger.warn("Restore: file restore failed (data is intact)", {
               restoreRunId,
-              error:
-                storageErr instanceof Error
-                  ? storageErr.message
-                  : String(storageErr)
+              error: storageErr
             });
           }
         }
@@ -604,7 +710,7 @@ export const companyRestoreFunction = inngest.createFunction(
         return { restoreRunId, rows, snapshotPath };
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
-        await writeRestoreMarker(client, {
+        await markRestoreFailed(client, {
           companyId,
           userId,
           restoreRunId,
@@ -663,7 +769,7 @@ export const companyRestoreFinalizeFunction = inngest.createFunction(
       const snapshotPath = marker?.metadata.snapshotPath;
 
       if (snapshotPath) {
-        await removeStoragePrefix(client, companyId, backupDir(snapshotPath));
+        await removeBucketPrefix(client, companyId, backupDir(snapshotPath));
       }
       await deleteRestoreMarker(client, companyId, restoreRunId);
 
@@ -750,7 +856,7 @@ export const companyRestoreRevertFunction = inngest.createFunction(
           (done, total) => report({ phase: "files", done, total })
         );
 
-        await removeStoragePrefix(client, companyId, backupDir(snapshotPath));
+        await removeBucketPrefix(client, companyId, backupDir(snapshotPath));
         await deleteRestoreMarker(client, companyId, restoreRunId);
 
         logger.info("Company restore reverted", {
@@ -763,7 +869,7 @@ export const companyRestoreRevertFunction = inngest.createFunction(
         const message = err instanceof Error ? err.message : String(err);
         // Leave the marker (with the snapshot still set) so the user can retry
         // the revert; surface the failure.
-        await writeRestoreMarker(client, {
+        await markRestoreFailed(client, {
           companyId,
           restoreRunId,
           patch: { status: "failed", error: `Revert failed: ${message}` }

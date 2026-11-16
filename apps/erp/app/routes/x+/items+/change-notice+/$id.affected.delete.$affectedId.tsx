@@ -7,11 +7,12 @@ import { requirePermissions } from "@carbon/auth/auth.server";
 import { flash } from "@carbon/auth/session.server";
 import type { ActionFunctionArgs } from "react-router";
 import { data } from "react-router";
-import { removeChangeNoticeAffectedItem } from "~/modules/items";
 import {
+  removeChangeNoticeAffectedItem,
   requireChangeNoticeChildRoute,
   requireEditableChangeNoticeRoute
-} from "~/modules/items/items.server";
+} from "~/modules/items/items.service";
+import { getDatabaseClient } from "~/services/database.server";
 
 export async function action({ request, params }: ActionFunctionArgs) {
   assertIsPost(request);
@@ -41,6 +42,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
   const remove = await removeChangeNoticeAffectedItem(
     client,
+    getDatabaseClient(),
     affectedId,
     companyId
   );

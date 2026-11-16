@@ -7,6 +7,7 @@ import { useCarbon } from "@carbon/auth";
 import { getCompanyPrivateBucket, storage } from "@carbon/files";
 import { convertHeicToJpeg, isHeic } from "@carbon/files/media";
 import { Array as ArrayInput, Input, ValidatedForm } from "@carbon/form";
+import { useAction, useRevalidator } from "@carbon/query";
 import type { JSONContent } from "@carbon/react";
 import {
   Alert,
@@ -19,6 +20,7 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
+  ClientOnly,
   Count,
   cn,
   DropdownMenu,
@@ -28,6 +30,7 @@ import {
   generateHTML,
   HStack,
   IconButton,
+  ImageZoomViewer,
   Label,
   Loading,
   MENU_ITEM_SHORTCUTS,
@@ -38,9 +41,11 @@ import {
   TooltipContent,
   TooltipTrigger,
   toast,
+  toastError,
   useDebounce,
   useDisclosure,
   useThrottle,
+  useViewport,
   VStack
 } from "@carbon/react";
 import { Editor } from "@carbon/react/Editor";
@@ -69,14 +74,11 @@ import {
   LuMaximize2,
   LuMinimize2,
   LuSquareFunction,
-  LuTriangleAlert
+  LuTrash,
+  LuTriangleAlert,
+  LuWorkflow
 } from "react-icons/lu";
-import {
-  useFetcher,
-  useFetchers,
-  useParams,
-  useRevalidator
-} from "react-router";
+import { useFetcher, useFetchers, useParams } from "react-router";
 import { z } from "zod";
 import {
   DateTime,
@@ -107,10 +109,10 @@ import {
 import AssemblyInstruction from "~/components/Form/AssemblyInstruction";
 import InspectionDocument from "~/components/Form/InspectionDocument";
 import Procedure from "~/components/Form/Procedure";
-import { SupplierProcessPreview } from "~/components/Form/SupplierProcess";
 import { getUnitHint } from "~/components/Form/UnitHint";
 import { useUnitOfMeasure } from "~/components/Form/UnitOfMeasure";
 import { OperationTypeIcon, ProcedureStepTypeIcon } from "~/components/Icons";
+import { MeasurementLimits } from "~/components/MeasurementLimits";
 import { ConfirmDelete } from "~/components/Modals";
 import {
   SlidePinOverlay,
@@ -126,6 +128,7 @@ import {
   SortableListItemToggle
 } from "~/components/SortableList";
 import { StepLinkEditor } from "~/components/StepLinkEditor";
+import { CompactEmpty } from "~/components/Table/components/Compact/CompactEmpty";
 import {
   useCurrencyDecimals,
   useImageUpload,
@@ -134,13 +137,9 @@ import {
 } from "~/hooks";
 import { useTags } from "~/hooks/useTags";
 import type {
-  OperationParameter,
-  OperationStep,
-  OperationStepSlide,
-  OperationTool,
   SlideAnnotation,
   SlideSize
-} from "~/modules/shared";
+} from "~/modules/shared/shared.models";
 import {
   methodOperationOrders,
   operationParameterValidator,
@@ -149,13 +148,19 @@ import {
   operationTypes,
   procedureStepType,
   standardFactorType
-} from "~/modules/shared";
+} from "~/modules/shared/shared.models";
+import type {
+  OperationParameter,
+  OperationStep,
+  OperationStepSlide,
+  OperationTool
+} from "~/modules/shared/types";
 import type { action as editMethodOperationParameterAction } from "~/routes/x+/items+/methods+/operation.parameter.$id";
 import type { action as newMethodOperationParameterAction } from "~/routes/x+/items+/methods+/operation.parameter.new";
 import type { action as editMethodOperationStepAction } from "~/routes/x+/items+/methods+/operation.step.$id";
 import type { action as editMethodOperationToolAction } from "~/routes/x+/items+/methods+/operation.tool.$id";
 import type { action as newMethodOperationToolAction } from "~/routes/x+/items+/methods+/operation.tool.new";
-import { useItems, useTools } from "~/stores";
+import { useItems } from "~/stores";
 import { getPrivateUrl, path } from "~/utils/path";
 import { methodOperationValidator } from "../../items.models";
 import type {
@@ -163,6 +168,7 @@ import type {
   ConfigurationRule,
   MakeMethod
 } from "../../types";
+import { OperationRowDetails, OperationRowTitle } from "./MethodRow";
 import type { ReleaseLockProps } from "./ReleaseLockAlert";
 import ReleaseLockAlert, { getReleaseLockFlags } from "./ReleaseLockAlert";
 
@@ -204,6 +210,10 @@ type BillOfProcessProps = {
   isDisabled?: boolean;
   // What to tell the user when isDisabled is what made this read-only.
   disabledReason?: ReactNode;
+  // Set when this edits a correction's operations: new operations are created
+  // inside the correction, and the card takes `title`.
+  methodCorrectionId?: string;
+  title?: ReactNode;
 } & ReleaseLockProps;
 
 type PendingWorkInstructions = {
@@ -259,7 +269,9 @@ const BillOfProcess = ({
   revisionStatus,
   releaseControl,
   isDisabled = false,
-  disabledReason
+  disabledReason,
+  methodCorrectionId,
+  title
 }: BillOfProcessProps) => {
   const permissions = usePermissions();
   const { t } = useLingui();
@@ -267,6 +279,7 @@ const BillOfProcess = ({
     revisionStatus,
     releaseControl
   });
+  const { isPhone } = useViewport();
   const isReadOnly =
     permissions.can("update", "parts") === false ||
     makeMethod.status !== "Draft" ||
@@ -277,7 +290,7 @@ const BillOfProcess = ({
 
   const { carbon } = useCarbon();
   const sortOrderFetcher = useFetcher<{}>();
-  const deleteOperationFetcher = useFetcher<{ success: boolean }>();
+  const deleteOperationFetcher = useAction();
   const { id: userId } = useUser();
 
   const [allItems] = useItems();
@@ -314,12 +327,10 @@ const BillOfProcess = ({
       }, {} as PendingWorkInstructions);
     });
   const [checkedState, setCheckedState] = useState<CheckedState>({});
-  const [orderState, setOrderState] = useState<OrderState>(() => {
-    return initialOperations.reduce((acc, op) => {
-      acc[op.id!] = op.order;
-      return acc;
-    }, {} as OrderState);
-  });
+  // Only the rows this session has reordered. Every other row takes its order
+  // from the loaded data: a copy of all of them taken at mount hid a reorder
+  // made anywhere else until the page was reloaded.
+  const [orderState, setOrderState] = useState<OrderState>({});
 
   const operationsById = new Map<
     string,
@@ -455,7 +466,8 @@ const BillOfProcess = ({
       ...initialOperation,
       id: operationId,
       order: newOrder,
-      makeMethodId
+      makeMethodId,
+      methodCorrectionId: methodCorrectionId ?? null
     };
 
     setTemporaryItems((prev) => ({
@@ -465,34 +477,37 @@ const BillOfProcess = ({
     setSelectedItemId(operationId);
   };
 
-  const onRemoveItem = async (id: string) => {
+  // One request for every saved row, so "Delete Selected" removes the checked
+  // rows together rather than racing one fetcher submit per row.
+  const onRemoveItems = (ids: string[]) => {
     if (isReadOnly) return;
 
-    const operation = operationsById.get(id);
-    if (!operation) return;
-
-    // Check if this is a temporary item (exists in temporaryItems state)
-    if (temporaryItems[id]) {
-      setTemporaryItems((prev) => {
-        const { [id]: _, ...rest } = prev;
-        return rest;
-      });
-    } else {
-      deleteOperationFetcher.submit(
-        { id },
-        {
-          method: "post",
-          action: path.to.methodOperationsDelete
-        }
+    const without = <T,>(state: Record<string, T>) =>
+      Object.fromEntries(
+        Object.entries(state).filter(([id]) => !ids.includes(id))
       );
+
+    // Temporary rows were never saved: dropping them from state is enough.
+    setTemporaryItems(without);
+    const savedIds = ids.filter((id) => !temporaryItems[id]);
+    if (savedIds.length > 0) {
+      const formData = new FormData();
+      for (const id of savedIds) formData.append("id", id);
+      deleteOperationFetcher.submit(formData, {
+        method: "post",
+        action: path.to.methodOperationsDelete
+      });
     }
 
     setSelectedItemId(null);
-    setOrderState((prev) => {
-      const { [id]: _, ...rest } = prev;
-      return rest;
-    });
+    setOrderState(without);
+    setCheckedState(without);
   };
+
+  const onRemoveItem = (id: string) => onRemoveItems([id]);
+  const checkedIds = items
+    .filter((item) => item.checked)
+    .map((item) => item.id);
 
   const [tabChangeRerender, setTabChangeRerender] = useState<number>(1);
   const renderListItem = ({
@@ -579,6 +594,7 @@ const BillOfProcess = ({
             <div>
               {!isReadOnly ? (
                 <Editor
+                  label={t`Work Instructions`}
                   initialValue={
                     workInstructions[item.id] ?? ({} as JSONContent)
                   }
@@ -814,11 +830,11 @@ const BillOfProcess = ({
   return (
     <Card>
       <HStack className="justify-between">
-        <CardHeader>
-          <CardTitle className="flex flex-row items-center gap-2">
-            <Trans>Bill of Process</Trans>
+        <CardHeader className="max-md:min-w-0">
+          <CardTitle className="flex flex-row items-center gap-2 max-md:flex max-md:flex-wrap max-md:gap-y-1">
+            {title ?? <Trans>Bill of Process</Trans>}
             {itemName && (
-              <span className="text-xs text-muted-foreground font-normal">
+              <span className="text-xs text-muted-foreground font-normal max-md:order-last max-md:min-w-0 max-md:basis-full max-md:truncate">
                 {itemName}
               </span>
             )}
@@ -848,6 +864,16 @@ const BillOfProcess = ({
 
         <CardAction>
           <div className="flex items-center gap-2">
+            {checkedIds.length > 1 && (
+              <Button
+                variant="destructive"
+                leftIcon={<LuTrash />}
+                isDisabled={isReadOnly}
+                onClick={() => onRemoveItems(checkedIds)}
+              >
+                <Trans>Delete Selected</Trans>
+              </Button>
+            )}
             <Button
               ref={addOperationButtonRef}
               variant="secondary"
@@ -889,6 +915,28 @@ const BillOfProcess = ({
           <ReleaseLockAlert isLocked={isReleaseLocked} className="mb-4" />
         )}
         <SortableList
+          label={t`Bill of Process`}
+          emptyState={
+            isPhone ? (
+              <CompactEmpty
+                className="py-10"
+                icon={<LuWorkflow />}
+                heading={<Trans>No operations yet</Trans>}
+                description={
+                  <Trans>Add the operations that make this item.</Trans>
+                }
+                primaryAction={
+                  <Button
+                    variant="secondary"
+                    isDisabled={isReadOnly || selectedItemId !== null}
+                    onClick={onAddItem}
+                  >
+                    <Trans>Add Operation</Trans>
+                  </Button>
+                }
+              />
+            ) : undefined
+          }
           isReadOnly={isReadOnly}
           items={items}
           onReorder={onReorder}
@@ -897,7 +945,7 @@ const BillOfProcess = ({
           renderItem={renderListItem}
         />
       </CardContent>
-      {configuratorDisclosure.isOpen && configuration && (
+      {configuration && (
         <ConfigurationEditor
           configuration={configuration}
           open={configuratorDisclosure.isOpen}
@@ -1093,6 +1141,8 @@ function OperationForm({
       <div>
         <Hidden name="id" />
         <Hidden name="makeMethodId" />
+        {/* Read on create only: an operation stays in its correction. */}
+        <Hidden name="methodCorrectionId" />
         <Hidden name="order" />
       </div>
 
@@ -1254,7 +1304,7 @@ function OperationForm({
           onChange={(newValue) => {
             setProcessData((d) => ({ ...d, description: newValue }));
           }}
-          className="col-span-2"
+          className="col-span-2 max-md:col-span-full"
           isConfigured={rulesByField.has(key("description"))}
           onConfigure={
             configurable && !temporaryItems[item.id]
@@ -1328,6 +1378,7 @@ function OperationForm({
                   </Badge>
                 )}
                 <IconButton
+                  aria-expanded={setupDisclosure.isOpen}
                   icon={<LuChevronRight />}
                   aria-label={
                     setupDisclosure.isOpen ? t`Collapse Setup` : t`Expand Setup`
@@ -1443,6 +1494,7 @@ function OperationForm({
                   </Badge>
                 )}
                 <IconButton
+                  aria-expanded={laborDisclosure.isOpen}
                   icon={<LuChevronRight />}
                   aria-label={
                     laborDisclosure.isOpen ? t`Collapse Labor` : t`Expand Labor`
@@ -1558,6 +1610,7 @@ function OperationForm({
                     </Badge>
                   )}
                   <IconButton
+                    aria-expanded={machineDisclosure.isOpen}
                     icon={<LuChevronRight />}
                     aria-label={
                       machineDisclosure.isOpen
@@ -1675,6 +1728,7 @@ function OperationForm({
                     </Badge>
                   )}
                   <IconButton
+                    aria-expanded={procedureDisclosure.isOpen}
                     icon={<LuChevronRight />}
                     aria-label={
                       procedureDisclosure.isOpen
@@ -1753,6 +1807,7 @@ function OperationForm({
                     </Badge>
                   )}
                   <IconButton
+                    aria-expanded={assemblyDisclosure.isOpen}
                     icon={<LuChevronRight />}
                     aria-label={
                       assemblyDisclosure.isOpen
@@ -1828,16 +1883,7 @@ function OperationForm({
           )}
         </>
       )}
-      <motion.div
-        className="flex w-full items-center justify-end p-2"
-        initial={{ opacity: 0, filter: "blur(4px)" }}
-        animate={{ opacity: 1, filter: "blur(0px)" }}
-        transition={{
-          type: "spring",
-          bounce: 0,
-          duration: 0.25
-        }}
-      >
+      <div className="flex w-full items-center justify-end p-2">
         <motion.div layout className="ml-auto mr-1 pt-2">
           <Submit
             isDisabled={isReadOnly || methodOperationFetcher.state !== "idle"}
@@ -1846,7 +1892,7 @@ function OperationForm({
             Save
           </Submit>
         </motion.div>
-      </motion.div>
+      </div>
     </ValidatedForm>
   );
 }
@@ -1890,7 +1936,8 @@ function AttributesForm({
 
   // Update sort order when steps change
   useEffect(() => {
-    if (steps && steps.length > 0) {
+    // Also when the last step is deleted: its id must leave the order.
+    if (steps) {
       const sorted = [...steps]
         .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
         .map((step) => step.id || "");
@@ -1989,21 +2036,22 @@ function AttributesForm({
   // operation tool row is created server-side on attach when it doesn't exist
   // yet. Tools picked while CREATING a step are buffered here and attached
   // right after the step is created (see the effect below).
-  const allTools = useTools();
   const operationTools = useMemo(() => {
     const opToolByToolId = new Map(
       (tools ?? []).flatMap((tl) =>
         tl.toolId ? [[tl.toolId, tl] as const] : []
       )
     );
-    return allTools.map((tool) => ({
-      id: tool.id,
-      name: tool.readableIdWithRevision,
-      secondary: tool.name ?? undefined,
-      quantity: opToolByToolId.get(tool.id)?.quantity ?? 1,
-      primary: opToolByToolId.has(tool.id)
-    }));
-  }, [tools, allTools]);
+    return allItems
+      .filter((item) => item.type === "Tool" || opToolByToolId.has(item.id))
+      .map((tool) => ({
+        id: tool.id,
+        name: tool.readableIdWithRevision,
+        secondary: tool.name ?? undefined,
+        quantity: opToolByToolId.get(tool.id)?.quantity ?? 1,
+        primary: opToolByToolId.has(tool.id)
+      }));
+  }, [tools, allItems]);
   const [draftTools, setDraftTools] = useState<string[]>([]);
 
   const onUploadImage = useImageUpload("parts");
@@ -2028,7 +2076,7 @@ function AttributesForm({
         .company(companyId)
         .upload(fileName, upload);
       if (result.error || !result.data) {
-        toast.error(t`Failed to upload image`);
+        toastError(t`Failed to upload image`, result.error);
         return;
       }
       setDraftSlides((prev) => [
@@ -2102,7 +2150,7 @@ function AttributesForm({
         .insert(slideRows);
       if (cancelled) return;
       if (error) {
-        toast.error(t`Failed to save slides`);
+        toastError(t`Failed to save slides`, error);
         return;
       }
       setDraftSlides([]);
@@ -2133,7 +2181,7 @@ function AttributesForm({
       );
       if (cancelled) return;
       if (error) {
-        toast.error(t`Failed to save parts`);
+        toastError(t`Failed to save parts`, error);
         return;
       }
       setDraftParts([]);
@@ -2247,9 +2295,13 @@ function AttributesForm({
                 <Input name="name" label={t`Name`} />
               </div>
 
-              <VStack spacing={2} className="w-full col-span-2">
+              <VStack
+                spacing={2}
+                className="w-full col-span-2 max-md:col-span-full"
+              >
                 <Label>Description</Label>
                 <Editor
+                  label={t`Description`}
                   initialValue={description}
                   onUpload={onUploadImage}
                   onChange={(value) => {
@@ -2306,7 +2358,11 @@ function AttributesForm({
                 </div>
               )}
               {type === "List" && (
-                <ArrayInput name="listValues" label={t`List Options`} />
+                <ArrayInput
+                  name="listValues"
+                  label={t`List Options`}
+                  isRequired
+                />
               )}
 
               <SlidesEditor
@@ -2527,16 +2583,15 @@ function AttributesListItem({
   const disclosure = useDisclosure();
   const deleteModalDisclosure = useDisclosure();
   const submitted = useRef(false);
-  const fetcher = useFetcher<typeof editMethodOperationStepAction>();
-  const duplicateFetcher = useFetcher();
-
-  // biome-ignore lint/correctness/useExhaustiveDependencies: suppressed due to migration
-  useEffect(() => {
-    if (submitted.current && fetcher.state === "idle") {
-      disclosure.onClose();
-      submitted.current = false;
+  const fetcher = useAction<typeof editMethodOperationStepAction>({
+    onSettled: () => {
+      if (submitted.current) {
+        disclosure.onClose();
+        submitted.current = false;
+      }
     }
-  }, [fetcher.state]);
+  });
+  const duplicateFetcher = useFetcher();
 
   const [type, setType] = useState<OperationStep["type"]>(attribute.type);
   const [numericControls, setNumericControls] = useState<string[]>(() => {
@@ -2606,9 +2661,13 @@ function AttributesListItem({
               <Input name="name" label={t`Name`} />
             </div>
 
-            <VStack spacing={2} className="w-full col-span-2">
+            <VStack
+              spacing={2}
+              className="w-full col-span-2 max-md:col-span-full"
+            >
               <Label>Description</Label>
               <Editor
+                label={t`Description`}
                 initialValue={description}
                 onUpload={onUploadImage}
                 onChange={(value) => {
@@ -2717,7 +2776,11 @@ function AttributesListItem({
               </div>
             )}
             {type === "List" && (
-              <ArrayInput name="listValues" label={t`List Options`} />
+              <ArrayInput
+                name="listValues"
+                label={t`List Options`}
+                isRequired
+              />
             )}
             <StepSlides step={attribute} isDisabled={isDisabled} />
             <StepParts
@@ -2781,27 +2844,15 @@ function AttributesListItem({
                 </HStack>
                 {attribute.type === "Measurement" && (
                   <span className="text-xs text-muted-foreground">
-                    {attribute.minValue !== null && attribute.maxValue !== null
-                      ? `Must be between ${attribute.minValue} and ${
-                          attribute.maxValue
-                        } ${
-                          unitOfMeasures.find(
-                            (u) => u.value === unitOfMeasureCode
-                          )?.label
-                        }`
-                      : attribute.minValue !== null
-                        ? `Must be > ${attribute.minValue} ${
-                            unitOfMeasures.find(
-                              (u) => u.value === unitOfMeasureCode
-                            )?.label
-                          }`
-                        : attribute.maxValue !== null
-                          ? `Must be < ${attribute.maxValue} ${
-                              unitOfMeasures.find(
-                                (u) => u.value === unitOfMeasureCode
-                              )?.label
-                            }`
-                          : null}
+                    <MeasurementLimits
+                      minValue={attribute.minValue}
+                      maxValue={attribute.maxValue}
+                      unit={
+                        unitOfMeasures.find(
+                          (u) => u.value === unitOfMeasureCode
+                        )?.label
+                      }
+                    />
                   </span>
                 )}
               </VStack>
@@ -2890,20 +2941,18 @@ function AttributesListItem({
           </div>
         </div>
       )}
-      {deleteModalDisclosure.isOpen && (
-        <ConfirmDelete
-          action={path.to.deleteMethodOperationStep(id)}
-          isOpen={deleteModalDisclosure.isOpen}
-          name={name}
-          text={`Are you sure you want to delete the ${name} attribute from this operation? This cannot be undone.`}
-          onCancel={() => {
-            deleteModalDisclosure.onClose();
-          }}
-          onSubmit={() => {
-            deleteModalDisclosure.onClose();
-          }}
-        />
-      )}
+      <ConfirmDelete
+        action={path.to.deleteMethodOperationStep(id)}
+        isOpen={deleteModalDisclosure.isOpen}
+        name={name}
+        text={`Are you sure you want to delete the ${name} attribute from this operation? This cannot be undone.`}
+        onCancel={() => {
+          deleteModalDisclosure.onClose();
+        }}
+        onSubmit={() => {
+          deleteModalDisclosure.onClose();
+        }}
+      />
     </div>
   );
 }
@@ -2994,7 +3043,7 @@ function StepTools({
 }) {
   const { t } = useLingui();
   const fetcher = useFetcher();
-  const allTools = useTools();
+  const [allItems] = useItems();
 
   // The whole tool LIBRARY is offered (keyed by tool item id) — an operation
   // needn't have a tool on its Tools tab first; picking one here creates the
@@ -3002,13 +3051,15 @@ function StepTools({
   const opToolByToolId = new Map(
     (tools ?? []).flatMap((tl) => (tl.toolId ? [[tl.toolId, tl] as const] : []))
   );
-  const stepTools = allTools.map((tool) => ({
-    id: tool.id,
-    name: tool.readableIdWithRevision,
-    secondary: tool.name ?? undefined,
-    quantity: opToolByToolId.get(tool.id)?.quantity ?? 1,
-    primary: opToolByToolId.has(tool.id)
-  }));
+  const stepTools = allItems
+    .filter((item) => item.type === "Tool" || opToolByToolId.has(item.id))
+    .map((tool) => ({
+      id: tool.id,
+      name: tool.readableIdWithRevision,
+      secondary: tool.name ?? undefined,
+      quantity: opToolByToolId.get(tool.id)?.quantity ?? 1,
+      primary: opToolByToolId.has(tool.id)
+    }));
 
   const linkedToolIds = (tools ?? [])
     .filter((tl) =>
@@ -3104,7 +3155,7 @@ function StepSlides({
         .company(companyId)
         .upload(fileName, upload);
       if (result.error || !result.data) {
-        toast.error(t`Failed to upload image`);
+        toastError(t`Failed to upload image`, result.error);
         return;
       }
       const fd = new FormData();
@@ -3331,15 +3382,14 @@ function ParametersListItem({
   const disclosure = useDisclosure();
   const deleteModalDisclosure = useDisclosure();
   const submitted = useRef(false);
-  const fetcher = useFetcher<typeof editMethodOperationParameterAction>();
-
-  // biome-ignore lint/correctness/useExhaustiveDependencies: suppressed due to migration
-  useEffect(() => {
-    if (submitted.current && fetcher.state === "idle") {
-      disclosure.onClose();
-      submitted.current = false;
+  const fetcher = useAction<typeof editMethodOperationParameterAction>({
+    onSettled: () => {
+      if (submitted.current) {
+        disclosure.onClose();
+        submitted.current = false;
+      }
     }
-  }, [fetcher.state]);
+  });
 
   const isUpdated = updatedBy !== null;
   const person = isUpdated ? updatedBy : createdBy;
@@ -3489,20 +3539,18 @@ function ParametersListItem({
           </div>
         </div>
       )}
-      {deleteModalDisclosure.isOpen && (
-        <ConfirmDelete
-          action={path.to.deleteMethodOperationParameter(id)}
-          isOpen={deleteModalDisclosure.isOpen}
-          name={key}
-          text={`Are you sure you want to delete the ${key} parameter from this operation? This cannot be undone.`}
-          onCancel={() => {
-            deleteModalDisclosure.onClose();
-          }}
-          onSubmit={() => {
-            deleteModalDisclosure.onClose();
-          }}
-        />
-      )}
+      <ConfirmDelete
+        action={path.to.deleteMethodOperationParameter(id)}
+        isOpen={deleteModalDisclosure.isOpen}
+        name={key}
+        text={`Are you sure you want to delete the ${key} parameter from this operation? This cannot be undone.`}
+        onCancel={() => {
+          deleteModalDisclosure.onClose();
+        }}
+        onSubmit={() => {
+          deleteModalDisclosure.onClose();
+        }}
+      />
     </div>
   );
 }
@@ -3518,9 +3566,10 @@ function OperationPreview({
   tools: OperationTool[];
 }) {
   const { t } = useLingui();
-  const allTools = useTools();
+  const [allItems] = useItems();
   const [current, setCurrent] = useState(0);
   const [slideIdx, setSlideIdx] = useState(0);
+  const [isViewingSlide, setIsViewingSlide] = useState(false);
 
   // Move to a step and reset to its first slide.
   const goToStep = (next: number) => {
@@ -3598,7 +3647,7 @@ function OperationPreview({
   )
     .map((pin, index) => {
       const tool = pin.toolId
-        ? allTools.find((x) => x.id === pin.toolId)
+        ? allItems.find((item) => item.id === pin.toolId)
         : undefined;
       return {
         pin,
@@ -3666,17 +3715,25 @@ function OperationPreview({
             ) : (
               <LuBox className="size-10 text-muted-foreground" />
             )}
-            <span className="pointer-events-none absolute left-2 top-2 rounded bg-background/80 px-1 text-[10px] font-semibold text-muted-foreground">
+            <span className="pointer-events-none absolute left-2 top-2 rounded bg-background/80 px-1 text-[0.625rem] font-semibold text-muted-foreground">
               3D
             </span>
           </>
         ) : slideImage ? (
           <div className="relative inline-block">
-            <img
-              src={slideImage}
-              alt={slide.caption ?? ""}
-              className="block max-h-[520px] w-auto max-w-full rounded-md"
-            />
+            <button
+              type="button"
+              aria-label={t`View full size`}
+              title={t`View full size`}
+              className="block cursor-zoom-in rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              onClick={() => setIsViewingSlide(true)}
+            >
+              <img
+                src={slideImage}
+                alt={slide.caption ?? ""}
+                className="block max-h-[520px] w-auto max-w-full rounded-md"
+              />
+            </button>
             <SlidePinOverlay pins={slide.annotations ?? []} />
           </div>
         ) : (
@@ -3690,12 +3747,31 @@ function OperationPreview({
         <p className="text-xs text-muted-foreground">{slide.caption}</p>
       ) : null}
 
+      <ImageZoomViewer
+        open={isViewingSlide && !!slideImage && !slide?.modelUploadId}
+        src={slideImage}
+        caption={slide?.caption}
+        annotations={slide?.annotations ?? []}
+        toolNameById={
+          isViewingSlide
+            ? new Map(
+                pinLegend.flatMap(({ pin, toolName }) =>
+                  pin.toolId && toolName
+                    ? [[pin.toolId, toolName] as const]
+                    : []
+                )
+              )
+            : undefined
+        }
+        onClose={() => setIsViewingSlide(false)}
+      />
+
       {pinLegend.length > 0 && (
         <div className="flex flex-col gap-1">
           {pinLegend.map(({ pin, index, toolId, toolName }) => (
             <div key={pin.id} className="flex items-start gap-2">
               <span
-                className="mt-px flex size-4 shrink-0 items-center justify-center rounded-full text-[9px] font-semibold text-white"
+                className="mt-px flex size-4 shrink-0 items-center justify-center rounded-full text-[0.5625rem] font-semibold text-white"
                 style={{ backgroundColor: pin.color ?? "#ef4444" }}
               >
                 {index + 1}
@@ -3753,7 +3829,7 @@ function OperationPreview({
                   <LuBox className="size-5 text-muted-foreground" />
                 )}
                 {s.modelUploadId && (
-                  <span className="pointer-events-none absolute bottom-0.5 right-0.5 rounded bg-background/80 px-0.5 text-[8px] font-semibold text-muted-foreground">
+                  <span className="pointer-events-none absolute bottom-0.5 right-0.5 rounded bg-background/80 px-0.5 text-[0.5rem] font-semibold text-muted-foreground">
                     3D
                   </span>
                 )}
@@ -3770,12 +3846,18 @@ function OperationPreview({
         {step.type ? <Badge variant="secondary">{step.type}</Badge> : null}
       </div>
       <p className="text-sm font-medium">{step.name ?? t`Step`}</p>
-      {descriptionHtml ? (
-        <div
-          className="prose prose-sm max-w-none text-sm dark:prose-invert"
-          dangerouslySetInnerHTML={{ __html: descriptionHtml }}
-        />
-      ) : null}
+      {/* generateHTML returns nothing on the server, so the server never
+          renders this block: rendering it during hydration would not match. */}
+      <ClientOnly>
+        {() =>
+          descriptionHtml ? (
+            <div
+              className="prose prose-sm max-w-none text-sm dark:prose-invert"
+              dangerouslySetInnerHTML={{ __html: descriptionHtml }}
+            />
+          ) : null
+        }
+      </ClientOnly>
 
       <div className="flex flex-col gap-1 border-t pt-3">
         <Subheading variant="heavy">
@@ -3783,7 +3865,7 @@ function OperationPreview({
         </Subheading>
         {stepTools.length > 0 ? (
           stepTools.map((tl, i) => {
-            const tool = allTools.find((x) => x.id === tl.toolId);
+            const tool = allItems.find((item) => item.id === tl.toolId);
             return (
               <div key={tl.id ?? i} className="flex items-center gap-2 py-0.5">
                 <LuHammer className="size-3 shrink-0 text-muted-foreground" />
@@ -3792,7 +3874,7 @@ function OperationPreview({
                     {tool?.readableIdWithRevision ?? tl.toolId}
                   </span>
                   {tool?.name ? (
-                    <span className="truncate text-[11px] text-muted-foreground">
+                    <span className="truncate text-[0.6875rem] text-muted-foreground">
                       {tool.name}
                     </span>
                   ) : null}
@@ -3931,19 +4013,19 @@ function ToolsListItem({
   const disclosure = useDisclosure();
   const deleteModalDisclosure = useDisclosure();
   const submitted = useRef(false);
-  const fetcher = useFetcher<typeof editMethodOperationToolAction>();
-
-  // biome-ignore lint/correctness/useExhaustiveDependencies: suppressed due to migration
-  useEffect(() => {
-    if (submitted.current && fetcher.state === "idle") {
-      disclosure.onClose();
-      submitted.current = false;
+  const fetcher = useAction<typeof editMethodOperationToolAction>({
+    onSettled: () => {
+      if (submitted.current) {
+        disclosure.onClose();
+        submitted.current = false;
+      }
     }
-  }, [fetcher.state]);
+  });
 
-  const tools = useTools();
-  const tool = tools.find((t) => t.id === toolId);
-  if (!tool || !id) return null;
+  const [items] = useItems();
+  const tool = items.find((item) => item.id === toolId);
+  if (!id) return null;
+  const toolLabel = tool?.readableIdWithRevision ?? toolId;
 
   const isUpdated = updatedBy !== null;
   const person = isUpdated ? updatedBy : createdBy;
@@ -3999,11 +4081,9 @@ function ToolsListItem({
                 <LuHammer className="size-4" />
               </div>
               <VStack spacing={0}>
-                <span className="text-sm font-medium">
-                  {tool.readableIdWithRevision}
-                </span>
+                <span className="text-sm font-medium">{toolLabel}</span>
                 <span className="text-xs text-muted-foreground">
-                  {tool.name}
+                  {tool?.name}
                 </span>
               </VStack>
               <span className="text-base text-muted-foreground text-right">
@@ -4048,20 +4128,18 @@ function ToolsListItem({
           </div>
         </div>
       )}
-      {deleteModalDisclosure.isOpen && (
-        <ConfirmDelete
-          action={path.to.deleteMethodOperationTool(id)}
-          isOpen={deleteModalDisclosure.isOpen}
-          name={tool.readableIdWithRevision}
-          text={`Are you sure you want to delete ${tool.readableIdWithRevision} from this operation? This cannot be undone.`}
-          onCancel={() => {
-            deleteModalDisclosure.onClose();
-          }}
-          onSubmit={() => {
-            deleteModalDisclosure.onClose();
-          }}
-        />
-      )}
+      <ConfirmDelete
+        action={path.to.deleteMethodOperationTool(id)}
+        isOpen={deleteModalDisclosure.isOpen}
+        name={toolLabel}
+        text={`Are you sure you want to delete ${toolLabel} from this operation? This cannot be undone.`}
+        onCancel={() => {
+          deleteModalDisclosure.onClose();
+        }}
+        onSubmit={() => {
+          deleteModalDisclosure.onClose();
+        }}
+      />
     </div>
   );
 }
@@ -4080,48 +4158,16 @@ function makeItem(
   return {
     id: operation.id!,
     title: (
-      <VStack spacing={0}>
-        <h3 className="font-semibold max-w-full truncate cursor-pointer">
-          {operation.description}
-        </h3>
-        {operation.operationType === "Outside Processing" && (
-          <SupplierProcessPreview
-            processId={operation.processId}
-            supplierProcessId={operation.operationSupplierProcessId}
-          />
-        )}
-      </VStack>
+      <OperationRowTitle
+        description={operation.description}
+        operationType={operation.operationType}
+        processId={operation.processId}
+        supplierProcessId={operation.operationSupplierProcessId}
+      />
     ),
     checked: false,
     order: operation.operationOrder,
-    details: (
-      <HStack spacing={1}>
-        {operation.operationType === "Outside Processing" ? (
-          <Badge>Outside Processing</Badge>
-        ) : (
-          <>
-            {(operation?.setupTime ?? 0) > 0 && (
-              <Badge variant="secondary">
-                <TimeTypeIcon type="Setup" className="h-3 w-3 mr-1" />
-                {operation.setupTime} {operation.setupUnit}
-              </Badge>
-            )}
-            {(operation?.laborTime ?? 0) > 0 && (
-              <Badge variant="secondary">
-                <TimeTypeIcon type="Labor" className="h-3 w-3 mr-1" />
-                {operation.laborTime} {operation.laborUnit}
-              </Badge>
-            )}
-            {(operation?.machineTime ?? 0) > 0 && (
-              <Badge variant="secondary">
-                <TimeTypeIcon type="Machine" className="h-3 w-3 mr-1" />
-                {operation.machineTime} {operation.machineUnit}
-              </Badge>
-            )}
-          </>
-        )}
-      </HStack>
-    ),
+    details: <OperationRowDetails operation={operation} />,
     data: operation
   };
 }

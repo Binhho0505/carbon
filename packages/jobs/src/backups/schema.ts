@@ -5,7 +5,7 @@
 import type { TableName } from "@carbon/database/audit.config";
 import type { KyselyDatabase } from "@carbon/database/client";
 import { type Kysely, sql } from "kysely";
-import { renameColumns, TABLE_RENAMES } from "./renames";
+import { renameColumns, renameLiveColumns, TABLE_RENAMES } from "./renames";
 
 /**
  * Schema introspection + backup-compatibility logic, shared by the backup jobs
@@ -25,25 +25,37 @@ export const BACKUP_VERSION = 1;
  * Tables whose contents must never travel in a backup — credentials,
  * integration tokens and webhook targets stay with the source company.
  * (`apiKeyRateLimit` dangles without its stripped `apiKey` and is an UNLOGGED
- * operational counter, never user data. `employeePin` holds console PIN
+ * operational counter, never user data. `tableChange` is the same kind of
+ * table: an UNLOGGED log of which rows changed, whose transaction ids mean
+ * nothing in another database. `employeePin` holds console PIN
  * hashes — a 4-digit PIN's bcrypt hash is brute-forced offline in minutes, so
  * it is a credential; being secret also keeps an in-place restore from wiping
  * every operator's PIN. `ssoConnection` / `ssoDomain` are the company's login
  * identity — `providerId` and a verified `domain` are unique across ALL
  * companies, so a copy collides with the source company or hands its domain to
- * another. `oauthCode` is a live auth code, and dangles without `oauthClient`.)
+ * another. `oauthCode` is a live auth code, and dangles without `oauthClient`.
+ * `pushSubscription` holds a browser's push endpoint and its encryption keys:
+ * a device credential that means nothing in another company, and being secret
+ * keeps an in-place restore from bringing back signed-out browsers or wiping
+ * the current ones. `integrationConnection`'s token lives in the vault, which
+ * a backup never carries, under a name built from the company and the row id
+ * (`get_connection_secret`); a restored row would read as an Active account
+ * with no token behind it, so every step using it would fail.)
  */
 export const SECRET_TABLES = [
   "apiKey",
   "apiKeyRateLimit",
+  "tableChange",
   "companyIntegration",
+  "integrationConnection",
   "employeePin",
   "webhook",
   "oauthClient",
   "oauthCode",
   "oauthToken",
   "ssoConnection",
-  "ssoDomain"
+  "ssoDomain",
+  "pushSubscription"
 ];
 
 /**
@@ -554,10 +566,11 @@ export function reportBackupCompatibility(
       }
     }
 
-    // A renamed table's columns are compared under their CURRENT names, so a
-    // column that moved with the table is not reported as both added and removed.
+    // A renamed table's (or renamed column's) values are compared under their
+    // CURRENT names, so a column that moved is not reported as both added and
+    // removed.
     const backupColumnNames = liveByName.has(backupTable.name)
-      ? backupTable.columns
+      ? renameLiveColumns(backupTable.name, backupTable.columns)
       : renameColumns(backupTable.name, backupTable.columns);
     const backupCols = new Set(backupColumnNames);
     for (const c of live.columns) {
@@ -614,4 +627,6 @@ export function compatibilityStatus(report: {
 
 // Scope predicates, the export closure guard and the opt-in exclusion/purge —
 // re-exported so `@carbon/jobs/backups` stays the one import surface.
+export { rebuildDerivedGroups } from "./derived-groups";
 export * from "./scope";
+export { listBucketFilesRecursive, removeBucketPrefix } from "./storage";

@@ -10,9 +10,10 @@ import {
   fileResponseHeaders,
   getCompanyPrivateBucket,
   getContentType,
+  imageTransformErrorMessage,
   isStorageNotFound,
   isUnsafeStoragePath,
-  LEGACY_PRIVATE_BUCKET,
+  PRIVATE_PREVIEW_ALIAS,
   storage,
   storageErrorStatus,
   TEMP_STAGING_BUCKET
@@ -75,12 +76,12 @@ export let loader = async ({ request, params }: LoaderFunctionArgs) => {
 
   // `public` and `temp-staging` are shared buckets legitimately served through
   // this route (DocumentPreview, staged CAD raw downloads); any other bucket id
-  // that isn't the caller's own company bucket (or legacy `private`) would be
-  // another tenant's private bucket — refuse it. The ownsPath check alone is
+  // that isn't the caller's own company bucket (or the stored-link alias
+  // `private`) would be another tenant's private bucket — refuse it. The ownsPath check alone is
   // not enough: a slash-bounded match allows `<otherCo>/x/<yourCo>/file`.
   const isPrivateBucket =
     bucket === getCompanyPrivateBucket(companyId) ||
-    bucket === LEGACY_PRIVATE_BUCKET;
+    bucket === PRIVATE_PREVIEW_ALIAS;
   if (
     !isPrivateBucket &&
     bucket !== "public" &&
@@ -90,8 +91,8 @@ export let loader = async ({ request, params }: LoaderFunctionArgs) => {
   }
 
   const serviceRole = await getCarbonServiceRole();
-  // A company-private request reads the company bucket with legacy fallback;
-  // any other bucket is read as-is.
+  // A company-private request reads the caller's company bucket; any other
+  // bucket is read as-is.
   const source: Pick<CompanyBucket, "download"> = isPrivateBucket
     ? storage(serviceRole).company(companyId)
     : storage(serviceRole).from(bucket);
@@ -107,9 +108,15 @@ export let loader = async ({ request, params }: LoaderFunctionArgs) => {
         contentType = transformed.data.type || "image/jpeg";
         return transformed;
       }
-      // No imgproxy (stale self-host stack) — fall through to the raw bytes;
-      // Safari can still render them.
-      logger.error(transformed.error);
+      // No imgproxy (off by default locally, or a stale self-host stack) —
+      // fall through to the raw bytes; Safari can still render them.
+      logger.error(
+        imageTransformErrorMessage(
+          transformed.error,
+          "Failed to transform HEIC file"
+        ),
+        { path, error: transformed.error }
+      );
     }
     // Use the original encoded path for the storage API call
     return source.download(path);

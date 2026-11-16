@@ -2,6 +2,7 @@
 // Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
 // including ports, remain AGPLv3; serving them over a network requires releasing their source.
 
+import { useAction } from "@carbon/query";
 import {
   Badge,
   Button,
@@ -31,10 +32,11 @@ import {
 } from "@carbon/react";
 import { getItemById, getItemReadableId } from "@carbon/utils";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 import { LuArrowRight, LuCirclePlus, LuEllipsisVertical } from "react-icons/lu";
-import { Link, Outlet, useFetcher, useNavigate } from "react-router";
+import { Link, Outlet, useNavigate } from "react-router";
 import { DateTime, EmployeeAvatar, Empty, ItemThumbnail } from "~/components";
+import { useQuantityFormatter } from "~/hooks";
 import { useItems } from "~/stores";
 import { path } from "~/utils/path";
 import type { WarehouseTransfer, WarehouseTransferLine } from "../../types";
@@ -130,6 +132,7 @@ function WarehouseTransferLineListItem({
   className?: string;
 }) {
   const { t } = useLingui();
+  const formatQuantity = useQuantityFormatter();
   const deleteModalDisclosure = useDisclosure();
 
   const [items] = useItems();
@@ -143,42 +146,49 @@ function WarehouseTransferLineListItem({
   const date = line.updatedAt ?? line.createdAt;
 
   return (
-    <div className={cn("border-b p-6", className)}>
-      <div className="flex flex-1 justify-between items-center w-full">
-        <HStack spacing={4} className="w-1/2">
-          <HStack spacing={4} className="flex-1">
-            <div className="flex items-center space-x-3">
-              <ItemThumbnail
-                size="sm"
-                thumbnailPath={line.item?.thumbnailPath}
-                type={(item.type as "Part") ?? "Part"}
-              />
-              <VStack spacing={0}>
-                <span className="text-sm font-medium truncate">
-                  {item.name}
-                </span>
-                <span className="text-xs text-muted-foreground truncate">
-                  {item.readableIdWithRevision}
-                </span>
-              </VStack>
-            </div>
-            <div className="flex items-center gap-2">
-              <Badge variant="secondary">
-                {Number(line.quantity).toLocaleString()}
-              </Badge>
-              {line.fromStorageUnit && (
-                <Badge variant="outline">{line.fromStorageUnit.name}</Badge>
-              )}
-              <LuArrowRight className="size-4" />
-              {line.toStorageUnit && (
-                <Badge variant="outline">{line.toStorageUnit.name}</Badge>
-              )}
-            </div>
-          </HStack>
-        </HStack>
-        <div className="flex items-center justify-end gap-2">
+    <div className={cn("@container border-b p-6 max-md:p-4", className)}>
+      {/* Sized by the line's own width, not the viewport: the content pane
+          it sits in is resizable. The item takes what the rest leaves, and
+          the quantity and bins drop below it on a narrow line. */}
+      <div className="flex items-start @xl:items-center gap-4 w-full">
+        <div className="flex flex-1 min-w-0 flex-col @xl:flex-row @xl:items-center gap-x-4 gap-y-3">
+          <div className="flex flex-1 min-w-0 items-center gap-3">
+            <ItemThumbnail
+              size="sm"
+              thumbnailPath={line.item?.thumbnailPath}
+              type={(item.type as "Part") ?? "Part"}
+            />
+            <VStack spacing={0} className="flex-1 min-w-0">
+              <span
+                className="text-sm font-medium truncate block w-full"
+                title={item.name}
+              >
+                {item.name}
+              </span>
+              <span
+                className="text-xs text-muted-foreground truncate block w-full"
+                title={item.readableIdWithRevision}
+              >
+                {item.readableIdWithRevision}
+              </span>
+            </VStack>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <Badge variant="secondary">
+              {formatQuantity(Number(line.quantity))}
+            </Badge>
+            {line.fromStorageUnit && (
+              <Badge variant="outline">{line.fromStorageUnit.name}</Badge>
+            )}
+            <LuArrowRight className="size-4 shrink-0" />
+            {line.toStorageUnit && (
+              <Badge variant="outline">{line.toStorageUnit.name}</Badge>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center justify-end gap-2 shrink-0">
           <HStack spacing={2}>
-            <span className="text-xs text-muted-foreground">
+            <span className="hidden @min-[42rem]:inline text-xs text-muted-foreground whitespace-nowrap">
               {isUpdated ? t`Updated` : t`Created`}{" "}
               <DateTime value={date} variant="relative" />
             </span>
@@ -222,87 +232,101 @@ function WarehouseTransferLineListItem({
         </div>
       </div>
 
-      {deleteModalDisclosure.isOpen && (
-        <DeleteWarehouseTransferLine
-          lineId={line.id}
-          warehouseTransferId={warehouseTransfer.id}
-          itemName={item.readableIdWithRevision}
-          onCancel={() => {
-            deleteModalDisclosure.onClose();
-          }}
-          onSubmit={() => {
-            deleteModalDisclosure.onClose();
-          }}
-        />
-      )}
+      <DeleteWarehouseTransferLine
+        isOpen={deleteModalDisclosure.isOpen}
+        lineId={line.id}
+        warehouseTransferId={warehouseTransfer.id}
+        itemName={item.readableIdWithRevision}
+        onCancel={() => {
+          deleteModalDisclosure.onClose();
+        }}
+        onSubmit={() => {
+          deleteModalDisclosure.onClose();
+        }}
+      />
     </div>
   );
 }
 
-function DeleteWarehouseTransferLine({
-  lineId,
-  warehouseTransferId,
-  itemName,
-  onCancel,
-  onSubmit
-}: {
+type DeleteWarehouseTransferLineProps = {
   lineId: string;
   warehouseTransferId: string;
   itemName: string;
+  isOpen?: boolean;
   onCancel: () => void;
   onSubmit: () => void;
-}) {
-  const fetcher = useFetcher<{ success: boolean }>();
-  const submitted = useRef(false);
+};
 
-  useEffect(() => {
-    if (submitted.current && fetcher.state === "idle") {
-      onSubmit();
-      submitted.current = false;
-    }
-  }, [fetcher.state, onSubmit]);
-
+function DeleteWarehouseTransferLine({
+  isOpen = true,
+  onCancel,
+  ...props
+}: DeleteWarehouseTransferLineProps) {
   return (
     <Modal
-      open
+      open={isOpen}
       onOpenChange={(open) => {
         if (!open) onCancel();
       }}
     >
       <ModalOverlay />
       <ModalContent>
-        <ModalHeader>
-          <ModalTitle>
-            <Trans>Delete Transfer Line</Trans>
-          </ModalTitle>
-        </ModalHeader>
-        <ModalBody>
-          Are you sure you want to delete this transfer line for {itemName}?
-          This cannot be undone.
-        </ModalBody>
-        <ModalFooter>
-          <Button variant="secondary" onClick={onCancel}>
-            <Trans>Cancel</Trans>
-          </Button>
-          <fetcher.Form
-            method="post"
-            action={path.to.warehouseTransferLine(warehouseTransferId, lineId)}
-            onSubmit={() => (submitted.current = true)}
-          >
-            <input type="hidden" name="type" value="delete" />
-            <input type="hidden" name="id" value={lineId} />
-            <Button
-              variant="destructive"
-              isLoading={fetcher.state !== "idle"}
-              isDisabled={fetcher.state !== "idle"}
-              type="submit"
-            >
-              Delete
-            </Button>
-          </fetcher.Form>
-        </ModalFooter>
+        <DeleteWarehouseTransferLineBody onCancel={onCancel} {...props} />
       </ModalContent>
     </Modal>
+  );
+}
+
+function DeleteWarehouseTransferLineBody({
+  lineId,
+  warehouseTransferId,
+  itemName,
+  onCancel,
+  onSubmit
+}: Omit<DeleteWarehouseTransferLineProps, "isOpen">) {
+  const fetcher = useAction<{ success: boolean }>({
+    onSettled: () => {
+      if (submitted.current) {
+        onSubmit();
+        submitted.current = false;
+      }
+    }
+  });
+  const submitted = useRef(false);
+
+  return (
+    <>
+      <ModalHeader>
+        <ModalTitle>
+          <Trans>Delete Transfer Line</Trans>
+        </ModalTitle>
+      </ModalHeader>
+      <ModalBody>
+        Are you sure you want to delete this transfer line for {itemName}? This
+        cannot be undone.
+      </ModalBody>
+      <ModalFooter>
+        <Button variant="secondary" onClick={onCancel}>
+          <Trans>Cancel</Trans>
+        </Button>
+        <fetcher.Form
+          method="post"
+          action={path.to.warehouseTransferLine(warehouseTransferId, lineId)}
+          onSubmit={() => (submitted.current = true)}
+        >
+          <input type="hidden" name="type" value="delete" />
+          <input type="hidden" name="id" value={lineId} />
+          <Button
+            variant="destructive"
+            isLoading={fetcher.state !== "idle"}
+            isDisabled={fetcher.state !== "idle"}
+            type="submit"
+          >
+            Delete
+          </Button>
+        </fetcher.Form>
+      </ModalFooter>
+    </>
   );
 }
 

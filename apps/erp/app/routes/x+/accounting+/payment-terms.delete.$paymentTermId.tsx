@@ -5,18 +5,17 @@
 import { error, notFound, success } from "@carbon/auth";
 import { requirePermissions } from "@carbon/auth/auth.server";
 import { flash } from "@carbon/auth/session.server";
+import { useRouteDialog } from "@carbon/react";
 import { redirect } from "@carbon/utils";
 import { useLingui } from "@lingui/react/macro";
-import type {
-  ActionFunctionArgs,
-  ClientActionFunctionArgs,
-  LoaderFunctionArgs
-} from "react-router";
-import { useLoaderData, useNavigate, useParams } from "react-router";
+import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
+import { useLoaderData, useParams } from "react-router";
 import { ConfirmDelete } from "~/components/Modals";
-import { deletePaymentTerm, getPaymentTerm } from "~/modules/accounting";
+import {
+  deletePaymentTerm,
+  getPaymentTerm
+} from "~/modules/accounting/accounting.service";
 import { getParams, path } from "~/utils/path";
-import { getCompanyId, paymentTermsQuery } from "~/utils/react-query";
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const { client } = await requirePermissions(request, {
@@ -48,7 +47,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
   if (!paymentTermId) {
     throw redirect(
       `${path.to.paymentTerms}?${getParams(request)}`,
-      await flash(request, error(params, "Failed to get an payment term id"))
+      await flash(request, error(null, "Failed to get an payment term id"))
     );
   }
 
@@ -72,30 +71,21 @@ export async function action({ request, params }: ActionFunctionArgs) {
   );
 }
 
-export async function clientAction({ serverAction }: ClientActionFunctionArgs) {
-  window.clientCache?.setQueryData(
-    paymentTermsQuery(getCompanyId()).queryKey,
-    null
-  );
-  return await serverAction();
-}
-
 export default function DeletePaymentTermRoute() {
   const { paymentTermId } = useParams();
   const { paymentTerm } = useLoaderData<typeof loader>();
-  const navigate = useNavigate();
+  const dialog = useRouteDialog(path.to.paymentTerms);
   const { t } = useLingui();
 
   if (!paymentTermId || !paymentTerm) return null; // TODO - handle this better (404?)
-
-  const onCancel = () => navigate(path.to.paymentTerms);
 
   return (
     <ConfirmDelete
       action={path.to.deletePaymentTerm(paymentTermId)}
       name={paymentTerm.name}
       text={t`Are you sure you want to delete the payment term: ${paymentTerm.name}? This cannot be undone.`}
-      onCancel={onCancel}
+      isOpen={dialog.open}
+      onCancel={dialog.close}
     />
   );
 }

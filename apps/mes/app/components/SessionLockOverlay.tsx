@@ -9,6 +9,7 @@ import {
   useControlField,
   ValidatedForm
 } from "@carbon/form";
+import { useAction } from "@carbon/query";
 import {
   Alert,
   AlertDescription,
@@ -17,7 +18,7 @@ import {
   Card,
   CardContent,
   Heading,
-  toast,
+  toastError,
   VStack
 } from "@carbon/react";
 import { Trans, useLingui } from "@lingui/react/macro";
@@ -27,7 +28,7 @@ import {
 } from "@simplewebauthn/browser";
 import { useEffect, useRef, useState } from "react";
 import { LuFingerprint, LuLock } from "react-icons/lu";
-import { Form, useFetcher, useLocation } from "react-router";
+import { Form, useLocation } from "react-router";
 import { z } from "zod";
 
 import { path } from "~/utils/path";
@@ -58,6 +59,7 @@ const overlayValidator = z.object({
  * rejected code is cleared so the user can retype without stale digits.
  */
 function UnlockCodeField({ result }: { result?: UnlockResult }) {
+  const { t } = useLingui();
   const [, setCode] = useControlField<string>("code");
   const lastResult = useRef(result);
 
@@ -67,7 +69,14 @@ function UnlockCodeField({ result }: { result?: UnlockResult }) {
     if (result?.success === false) setCode("");
   }, [result, setCode]);
 
-  return <InputOTP name="code" label="" autoFocus />;
+  return (
+    <InputOTP
+      name="code"
+      label=""
+      aria-label={t`Authenticator code`}
+      autoFocus
+    />
+  );
 }
 
 export default function SessionLockOverlay({
@@ -81,7 +90,13 @@ export default function SessionLockOverlay({
   const location = useLocation();
   const redirectTo = `${location.pathname}${location.search}`;
 
-  const fetcher = useFetcher<UnlockResult>();
+  const fetcher = useAction<UnlockResult>({
+    onSuccess: (data) => {
+      if (data?.success === true) {
+        onUnlocked?.();
+      }
+    }
+  });
 
   const [passkeySupported, setPasskeySupported] = useState(false);
   const [passkeyLoading, setPasskeyLoading] = useState(false);
@@ -89,13 +104,6 @@ export default function SessionLockOverlay({
   useEffect(() => {
     if (hasPasskeyAuth && browserSupportsWebAuthn()) setPasskeySupported(true);
   }, [hasPasskeyAuth]);
-
-  // A successful in-place unlock (TOTP or passkey) rotated the cookie already;
-  // clear the client lock so the overlay unmounts and the app (revalidated with
-  // the fresh session) shows through.
-  useEffect(() => {
-    if (fetcher.data?.success === true) onUnlocked?.();
-  }, [fetcher.data, onUnlocked]);
 
   const onUnlockWithPasskey = async () => {
     setPasskeyLoading(true);
@@ -119,7 +127,7 @@ export default function SessionLockOverlay({
       });
     } catch (e: any) {
       if (e?.name !== "NotAllowedError" && e?.name !== "AbortError") {
-        toast.error(t`Passkey unlock failed`);
+        toastError(t`Passkey unlock failed`, e);
       }
     } finally {
       setPasskeyLoading(false);

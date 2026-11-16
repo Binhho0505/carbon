@@ -2,6 +2,7 @@
 // Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
 // including ports, remain AGPLv3; serving them over a network requires releasing their source.
 
+import { useAction } from "@carbon/query";
 import {
   Button,
   Modal,
@@ -14,8 +15,7 @@ import {
   SHORTCUTS
 } from "@carbon/react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { useEffect, useRef } from "react";
-import { useFetcher } from "react-router";
+import { useRef } from "react";
 
 type ConfirmDeleteProps = {
   action?: string;
@@ -38,8 +38,25 @@ type ConfirmDeleteProps = {
 };
 
 const ConfirmDelete = ({
-  action,
   isOpen = true,
+  onCancel,
+  ...props
+}: ConfirmDeleteProps) => (
+  <Modal
+    open={isOpen}
+    onOpenChange={(open) => {
+      if (!open) onCancel();
+    }}
+  >
+    <ModalOverlay />
+    <ModalContent>
+      <ConfirmDeleteBody onCancel={onCancel} {...props} />
+    </ModalContent>
+  </Modal>
+);
+
+const ConfirmDeleteBody = ({
+  action,
   name,
   text,
   deleteText = "Delete",
@@ -48,71 +65,59 @@ const ConfirmDelete = ({
   isDisabled = false,
   onCancel,
   onSubmit
-}: ConfirmDeleteProps) => {
+}: Omit<ConfirmDeleteProps, "isOpen">) => {
   const { t } = useLingui();
-  const fetcher = useFetcher<{}>();
-  const submitted = useRef(false);
-  useEffect(() => {
-    if (fetcher.state === "idle" && submitted.current) {
-      onSubmit?.();
-      submitted.current = false;
+  const fetcher = useAction<{}>({
+    onSettled: () => {
+      if (submitted.current) {
+        onSubmit?.();
+        submitted.current = false;
+      }
     }
-  }, [fetcher.state, onSubmit]);
+  });
+  const submitted = useRef(false);
   return (
-    <Modal
-      open={isOpen}
-      onOpenChange={(open) => {
-        if (!open) onCancel();
-      }}
-    >
-      <ModalOverlay />
-      <ModalContent>
-        <ModalHeader>
-          <ModalTitle>{title ?? t`Delete ${name}`}</ModalTitle>
-        </ModalHeader>
+    <>
+      <ModalHeader>
+        <ModalTitle>{title ?? t`Delete ${name}`}</ModalTitle>
+      </ModalHeader>
 
-        <ModalBody>
-          <p className="text-sm text-muted-foreground">{text}</p>
-        </ModalBody>
+      <ModalBody>
+        <p className="text-sm text-muted-foreground">{text}</p>
+      </ModalBody>
 
-        <ModalFooter>
-          <Button variant="secondary" onClick={onCancel}>
-            <Trans>Cancel</Trans>
-          </Button>
-          <fetcher.Form
-            method="post"
-            action={action}
-            onSubmit={() => (submitted.current = true)}
+      <ModalFooter>
+        <Button variant="secondary" onClick={onCancel}>
+          <Trans>Cancel</Trans>
+        </Button>
+        <fetcher.Form
+          method="post"
+          action={action}
+          onSubmit={() => (submitted.current = true)}
+        >
+          {/* Drawer and Modal are both z-50 (Drawer.tsx:23, Modal.tsx:35), so
+              when this modal stacks over a drawer form the topmost-dialog
+              guard resolves by "later-mounted wins" (utils/dialog.ts). If
+              either z-index ever changes, re-verify ⌘Enter targets this
+              modal, not the drawer's Submit. */}
+          {fields &&
+            Object.entries(fields).flatMap(([key, value]) =>
+              (Array.isArray(value) ? value : [value]).map((v, i) => (
+                <input key={`${key}-${i}`} type="hidden" name={key} value={v} />
+              ))
+            )}
+          <Button
+            variant="destructive"
+            isLoading={!isDisabled && fetcher.state !== "idle"}
+            isDisabled={isDisabled || fetcher.state !== "idle"}
+            type="submit"
+            shortcut={SHORTCUTS.confirm}
           >
-            {/* Drawer and Modal are both z-50 (Drawer.tsx:23, Modal.tsx:35), so
-                when this modal stacks over a drawer form the topmost-dialog
-                guard resolves by "later-mounted wins" (utils/dialog.ts). If
-                either z-index ever changes, re-verify ⌘Enter targets this
-                modal, not the drawer's Submit. */}
-            {fields &&
-              Object.entries(fields).flatMap(([key, value]) =>
-                (Array.isArray(value) ? value : [value]).map((v, i) => (
-                  <input
-                    key={`${key}-${i}`}
-                    type="hidden"
-                    name={key}
-                    value={v}
-                  />
-                ))
-              )}
-            <Button
-              variant="destructive"
-              isLoading={!isDisabled && fetcher.state !== "idle"}
-              isDisabled={isDisabled || fetcher.state !== "idle"}
-              type="submit"
-              shortcut={SHORTCUTS.confirm}
-            >
-              {deleteText}
-            </Button>
-          </fetcher.Form>
-        </ModalFooter>
-      </ModalContent>
-    </Modal>
+            {deleteText}
+          </Button>
+        </fetcher.Form>
+      </ModalFooter>
+    </>
   );
 };
 

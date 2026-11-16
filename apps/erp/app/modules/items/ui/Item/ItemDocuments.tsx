@@ -3,8 +3,14 @@
 // including ports, remain AGPLv3; serving them over a network requires releasing their source.
 
 import { useCarbon } from "@carbon/auth";
-import { convertKbToString, downloadUrl, storage } from "@carbon/files";
+import {
+  convertKbToString,
+  downloadUrl,
+  getDocumentType,
+  storage
+} from "@carbon/files";
 import { getLogger } from "@carbon/logger";
+import { useRevalidator } from "@carbon/query";
 import {
   Card,
   CardAction,
@@ -25,15 +31,16 @@ import {
   Th,
   Thead,
   Tr,
-  toast
+  toast,
+  toastError
 } from "@carbon/react";
-import { MODEL_RAW_KEEP_MAX_BYTES } from "@carbon/utils";
+import { MODEL_RAW_KEEP_MAX_BYTES, requireAffected } from "@carbon/utils";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { FileObject } from "@supabase/storage-js";
 import type { ChangeEvent } from "react";
 import { useCallback } from "react";
 import { LuAxis3D, LuEllipsisVertical, LuUpload } from "react-icons/lu";
-import { Link, useFetchers, useRevalidator, useSubmit } from "react-router";
+import { Link, useFetchers, useSubmit } from "react-router";
 import {
   DateTime,
   DocumentPreview,
@@ -43,8 +50,7 @@ import {
 } from "~/components";
 import DocumentIcon from "~/components/DocumentIcon";
 import { useFileUpload, usePermissions, useUser } from "~/hooks";
-import type { ItemType, OptimisticFileObject } from "~/modules/shared";
-import { getDocumentType } from "~/modules/shared";
+import type { ItemType, OptimisticFileObject } from "~/modules/shared/types";
 import type { ModelUpload } from "~/types";
 import { downloadModelFile } from "~/utils/download";
 import { path } from "~/utils/path";
@@ -212,6 +218,16 @@ const ItemDocuments = ({
                     <HStack>
                       <DocumentIcon type={type} />
                       <span
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(
+                          e: React.KeyboardEvent<HTMLSpanElement>
+                        ) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            e.currentTarget.click();
+                          }
+                        }}
                         className="font-medium"
                         onClick={() => {
                           if (["PDF", "Image"].includes(type)) {
@@ -365,7 +381,7 @@ export const useItemDocuments = ({ itemId, type }: Props) => {
         .remove([getPath(file)]);
 
       if (error) {
-        toast.error(error.message || t`Error deleting file`);
+        toastError(t`Error deleting file`, error);
         return;
       }
 
@@ -378,12 +394,15 @@ export const useItemDocuments = ({ itemId, type }: Props) => {
   const deleteModel = useCallback(async () => {
     if (!carbon) return;
 
-    const { error } = await carbon
-      .from("item")
-      .update({ modelUploadId: null })
-      .eq("id", itemId);
+    const { error } = await requireAffected(
+      carbon
+        .from("item")
+        .update({ modelUploadId: null })
+        .eq("id", itemId)
+        .select("id")
+    );
     if (error) {
-      toast.error(t`Error removing model from item`);
+      toastError(t`Error removing model from item`, error);
       return;
     }
     toast.success(t`Model removed from item`);
@@ -409,7 +428,7 @@ export const useItemDocuments = ({ itemId, type }: Props) => {
       try {
         await downloadUrl(url, file.name);
       } catch (error) {
-        toast.error(t`Error downloading file`);
+        toastError(t`Error downloading file`, error);
         logger.error("Error", { error: error });
       }
     },

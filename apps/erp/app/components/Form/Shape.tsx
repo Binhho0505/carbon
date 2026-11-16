@@ -4,11 +4,10 @@
 
 import type { ComboboxProps } from "@carbon/form";
 import { Combobox, CreatableCombobox } from "@carbon/form";
-import { useDisclosure, useMount } from "@carbon/react";
-import { useMemo, useRef, useState } from "react";
-import { useFetcher } from "react-router";
-import { usePermissions } from "~/hooks";
-import type { getMaterialFormsList } from "~/modules/items";
+import { useLoaderQuery } from "@carbon/query";
+import { useMemo, useRef } from "react";
+import { useDrawerItem, usePermissions } from "~/hooks";
+import type { getMaterialFormsList } from "~/modules/items/items.service";
 import { MaterialShapeForm } from "~/modules/items/ui/MaterialShapes";
 import { path } from "~/utils/path";
 import { Enumerable } from "../Enumerable";
@@ -31,12 +30,11 @@ const Shape = (props: ShapeSelectProps) => {
   const options = useShape();
   const permissions = usePermissions();
 
-  const newShapeModal = useDisclosure();
-  const [created, setCreated] = useState<string>("");
+  const create = useDrawerItem<string>();
   const triggerRef = useRef<HTMLButtonElement>(null);
 
   const emptyMessage = useEmptyState("materialShape", {
-    onCreate: () => newShapeModal.onOpen()
+    onCreate: () => create.open("")
   });
 
   return permissions.can("create", "parts") ? (
@@ -49,21 +47,21 @@ const Shape = (props: ShapeSelectProps) => {
         label={props?.label ?? "Shape"}
         emptyMessage={emptyMessage}
         onCreateOption={(option) => {
-          newShapeModal.onOpen();
-          setCreated(option);
+          create.open(option);
         }}
       />
-      {newShapeModal.isOpen && (
+      {create.item !== null && (
         <MaterialShapeForm
+          key={create.key}
+          open={create.isOpen}
           type="modal"
           onClose={() => {
-            setCreated("");
-            newShapeModal.onClose();
-            triggerRef.current?.click();
+            create.close();
+            create.afterClose(() => triggerRef.current?.click());
           }}
           initialValues={{
-            name: created,
-            code: created.slice(0, 3).toUpperCase()
+            name: create.item,
+            code: create.item.slice(0, 3).toUpperCase()
           }}
         />
       )}
@@ -83,12 +81,9 @@ Shape.displayName = "Shape";
 export default Shape;
 
 export const useShape = () => {
-  const materialFormsLoader =
-    useFetcher<Awaited<ReturnType<typeof getMaterialFormsList>>>();
-
-  useMount(() => {
-    materialFormsLoader.load(path.to.api.materialForms);
-  });
+  const materialFormsLoader = useLoaderQuery<
+    Awaited<ReturnType<typeof getMaterialFormsList>>
+  >(path.to.api.materialForms);
 
   const options = useMemo(() => {
     return (materialFormsLoader.data?.data ?? []).map((c) => ({

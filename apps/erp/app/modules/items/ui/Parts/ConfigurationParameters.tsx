@@ -11,6 +11,7 @@ import {
   Submit,
   ValidatedForm
 } from "@carbon/form";
+import { useAction } from "@carbon/query";
 import {
   Button,
   Card,
@@ -32,7 +33,7 @@ import {
   ModalFooter,
   ModalHeader,
   ModalTitle,
-  toast,
+  toastError,
   useDisclosure,
   VStack
 } from "@carbon/react";
@@ -62,7 +63,7 @@ import { SortableContext, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { cva } from "class-variance-authority";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { createPortal, flushSync } from "react-dom";
 import {
   LuCirclePlus,
@@ -71,18 +72,18 @@ import {
   LuGripVertical,
   LuKeySquare
 } from "react-icons/lu";
-import { useFetcher, useFetchers, useParams, useSubmit } from "react-router";
+import { useFetchers, useParams, useSubmit } from "react-router";
 import { DateTime, EmployeeAvatar } from "~/components";
 import { ConfiguratorDataTypeIcon } from "~/components/Configurator/Icons";
 import { Enumerable } from "~/components/Enumerable";
 import { useShape } from "~/components/Form/Shape";
 import { ConfirmDelete } from "~/components/Modals";
-import type { ConfigurationParameter } from "~/modules/items";
 import {
   configurationParameterDataTypes,
   configurationParameterGroupValidator,
   configurationParameterValidator
-} from "~/modules/items";
+} from "~/modules/items/items.models";
+import type { ConfigurationParameter } from "~/modules/items/types";
 import type { action as configurationParameterAction } from "~/routes/x+/part+/$itemId.parameter";
 import { path } from "~/utils/path";
 import { capitalize } from "~/utils/string";
@@ -116,13 +117,13 @@ export default function ConfigurationParametersForm({
 
   const materialShapeOptions = useShape();
   const submit = useSubmit();
-  const fetcher = useFetcher<typeof configurationParameterAction>();
-
-  useEffect(() => {
-    if (fetcher.data?.success === false) {
-      toast.error(t`Failed to update configuration parameter`);
+  const fetcher = useAction<typeof configurationParameterAction>({
+    onError: (data) => {
+      if (data?.success === false) {
+        toastError(t`Failed to update configuration parameter`, data.error);
+      }
     }
-  }, [fetcher.data, t]);
+  });
 
   const groupDisclosure = useDisclosure();
   const deleteGroupDisclosure = useDisclosure();
@@ -176,9 +177,7 @@ export default function ConfigurationParametersForm({
   const sensors = useSensors(
     useSensor(MouseSensor),
     useSensor(TouchSensor),
-    useSensor(KeyboardSensor, {
-      coordinateGetter
-    })
+    useSensor(KeyboardSensor, KEYBOARD_SENSOR_OPTIONS)
   );
 
   return (
@@ -293,7 +292,10 @@ export default function ConfigurationParametersForm({
                 type="button"
                 variant="secondary"
                 leftIcon={<LuFolderOpen />}
-                onClick={groupDisclosure.onOpen}
+                onClick={() => {
+                  setSelectedGroup(null);
+                  groupDisclosure.onOpen();
+                }}
               >
                 <Trans>Add Group</Trans>
               </Button>
@@ -369,90 +371,76 @@ export default function ConfigurationParametersForm({
           </div>
         </CardContent>
       </Card>
-      {deleteGroupDisclosure.isOpen && selectedGroup && (
+      {selectedGroup && (
         <ConfirmDelete
           action={path.to.deleteConfigurationParameterGroup(
             itemId,
             selectedGroup.id
           )}
-          isOpen
+          isOpen={deleteGroupDisclosure.isOpen}
           name={selectedGroup.name ?? ""}
           text={t`Are you sure you want to delete ${selectedGroup.name}?`}
-          onCancel={() => {
-            deleteGroupDisclosure.onClose();
-            setSelectedGroup(null);
-          }}
-          onSubmit={() => {
-            deleteGroupDisclosure.onClose();
-            setSelectedGroup(null);
-          }}
+          onCancel={deleteGroupDisclosure.onClose}
+          onSubmit={deleteGroupDisclosure.onClose}
         />
       )}
-      {groupDisclosure.isOpen && (
-        <Modal
-          open={groupDisclosure.isOpen}
-          onOpenChange={(open) => {
-            if (!open) {
-              groupDisclosure.onClose();
-              setSelectedGroup(null);
-            }
-          }}
-        >
-          <ModalContent>
-            <ValidatedForm
-              action={path.to.configurationParameterGroup(itemId)}
-              method="post"
-              validator={configurationParameterGroupValidator}
-              fetcher={fetcher}
-              defaultValues={{
-                id: selectedGroup?.id,
-                name: selectedGroup?.name
-              }}
-              onSubmit={() => {
-                setSelectedGroup(null);
-                groupDisclosure.onClose();
-              }}
-            >
-              <ModalHeader>
-                <ModalTitle>
-                  {selectedGroup ? (
-                    <Trans>Edit Group</Trans>
-                  ) : (
-                    <Trans>Add Group</Trans>
-                  )}
-                </ModalTitle>
-              </ModalHeader>
-              <ModalBody>
-                <Hidden name="id" />
-                <Input name="name" label={t`Name`} />
-              </ModalBody>
-              <ModalFooter>
-                <Button
-                  variant="secondary"
-                  type="button"
-                  onClick={groupDisclosure.onClose}
-                >
-                  <Trans>Cancel</Trans>
-                </Button>
-                <Submit
-                  isDisabled={
-                    fetcher.state !== "idle" &&
-                    fetcher.formAction ===
-                      path.to.configurationParameterGroup(itemId)
-                  }
-                  isLoading={
-                    fetcher.state !== "idle" &&
-                    fetcher.formAction ===
-                      path.to.configurationParameterGroup(itemId)
-                  }
-                >
-                  <Trans>Save</Trans>
-                </Submit>
-              </ModalFooter>
-            </ValidatedForm>
-          </ModalContent>
-        </Modal>
-      )}
+      <Modal
+        open={groupDisclosure.isOpen}
+        onOpenChange={(open) => {
+          if (!open) groupDisclosure.onClose();
+        }}
+      >
+        <ModalContent>
+          <ValidatedForm
+            action={path.to.configurationParameterGroup(itemId)}
+            method="post"
+            validator={configurationParameterGroupValidator}
+            fetcher={fetcher}
+            defaultValues={{
+              id: selectedGroup?.id,
+              name: selectedGroup?.name
+            }}
+            onSubmit={groupDisclosure.onClose}
+          >
+            <ModalHeader>
+              <ModalTitle>
+                {selectedGroup ? (
+                  <Trans>Edit Group</Trans>
+                ) : (
+                  <Trans>Add Group</Trans>
+                )}
+              </ModalTitle>
+            </ModalHeader>
+            <ModalBody>
+              <Hidden name="id" />
+              <Input name="name" label={t`Name`} />
+            </ModalBody>
+            <ModalFooter>
+              <Button
+                variant="secondary"
+                type="button"
+                onClick={groupDisclosure.onClose}
+              >
+                <Trans>Cancel</Trans>
+              </Button>
+              <Submit
+                isDisabled={
+                  fetcher.state !== "idle" &&
+                  fetcher.formAction ===
+                    path.to.configurationParameterGroup(itemId)
+                }
+                isLoading={
+                  fetcher.state !== "idle" &&
+                  fetcher.formAction ===
+                    path.to.configurationParameterGroup(itemId)
+                }
+              >
+                <Trans>Save</Trans>
+              </Submit>
+            </ModalFooter>
+          </ValidatedForm>
+        </ModalContent>
+      </Modal>
     </>
   );
 
@@ -829,7 +817,14 @@ function ConfigurableParameter({
   const disclosure = useDisclosure();
   const deleteParameterDisclosure = useDisclosure();
   const submitted = useRef(false);
-  const fetcher = useFetcher<typeof configurationParameterAction>();
+  const fetcher = useAction<typeof configurationParameterAction>({
+    onSettled: () => {
+      if (submitted.current) {
+        disclosure.onClose();
+        submitted.current = false;
+      }
+    }
+  });
 
   const {
     attributes,
@@ -853,13 +848,6 @@ function ConfigurableParameter({
     transform: CSS.Transform.toString(transform),
     transition
   };
-
-  useEffect(() => {
-    if (submitted.current && fetcher.state === "idle") {
-      disclosure.onClose();
-      submitted.current = false;
-    }
-  }, [disclosure, fetcher.state]);
 
   const isUpdated = parameter.updatedBy !== null;
   const person = isUpdated ? parameter.updatedBy : parameter.createdBy;
@@ -1088,23 +1076,21 @@ function ConfigurableParameter({
           )}
         </div>
       )}
-      {deleteParameterDisclosure.isOpen && (
-        <ConfirmDelete
-          action={path.to.deleteConfigurationParameter(
-            parameter.itemId,
-            parameter.id
-          )}
-          isOpen={deleteParameterDisclosure.isOpen}
-          name={parameter.label}
-          text={t`Are you sure you want to delete the ${parameter.label} parameter? This will not update any formulas that are using this parameter.`}
-          onCancel={() => {
-            deleteParameterDisclosure.onClose();
-          }}
-          onSubmit={() => {
-            deleteParameterDisclosure.onClose();
-          }}
-        />
-      )}
+      <ConfirmDelete
+        action={path.to.deleteConfigurationParameter(
+          parameter.itemId,
+          parameter.id
+        )}
+        isOpen={deleteParameterDisclosure.isOpen}
+        name={parameter.label}
+        text={t`Are you sure you want to delete the ${parameter.label} parameter? This will not update any formulas that are using this parameter.`}
+        onCancel={() => {
+          deleteParameterDisclosure.onClose();
+        }}
+        onSubmit={() => {
+          deleteParameterDisclosure.onClose();
+        }}
+      />
     </div>
   );
 }
@@ -1336,3 +1322,8 @@ export function hasDraggableData<T extends Active | Over>(
 
   return false;
 }
+
+// Declared after `coordinateGetter`. A module constant: a new options object
+// makes a new sensor, and with it new listeners for every draggable on every
+// render.
+const KEYBOARD_SENSOR_OPTIONS = { coordinateGetter };

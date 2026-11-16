@@ -8,6 +8,7 @@ import {
   TextArea,
   ValidatedForm
 } from "@carbon/form";
+import { useAction } from "@carbon/query";
 import {
   Alert,
   AlertDescription,
@@ -24,9 +25,9 @@ import {
   VStack
 } from "@carbon/react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { useEffect, useRef, useState } from "react";
+import { useNumberFormatter } from "@react-aria/i18n";
+import { type RefObject, useRef, useState } from "react";
 import { LuTriangleAlert } from "react-icons/lu";
-import { useFetcher } from "react-router";
 import {
   finishValidator,
   nonScrapQuantityValidator,
@@ -38,7 +39,9 @@ import type {
   ProductionEvent,
   ProductionQuantity
 } from "~/services/types";
+import { OriginInput } from "~/utils/origin";
 import { path } from "~/utils/path";
+import { unissuedTrackedMaterials } from "~/utils/trackedMaterials";
 import ScrapReason from "./ScrapReason";
 
 // Fractional quantities for weight/length UoMs, capped at the 2 decimals
@@ -50,35 +53,64 @@ const QUANTITY_FORMAT_OPTIONS: Intl.NumberFormatOptions = {
 
 export function QuantityModal({
   allStepsRecorded = true,
+  isFirstOpenOperation = false,
   laborProductionEvent,
   machineProductionEvent,
   materials = [],
   operation,
   parentIsSerial = false,
   parentIsBatch = false,
+  requireTrackedMaterialsIssued = false,
   setupProductionEvent,
   trackedEntityId,
   trackedEntityReadableId,
   type,
+  returnFocusRef,
+  open = true,
   onClose
 }: {
   allStepsRecorded?: boolean;
+  // The operation is the last of its make method, so it also consumes the
+  // tracked materials that have no operation.
+  isFirstOpenOperation?: boolean;
   laborProductionEvent: ProductionEvent | undefined;
   machineProductionEvent: ProductionEvent | undefined;
   materials?: JobMaterial[];
   operation: OperationWithDetails;
   parentIsSerial?: boolean;
   parentIsBatch?: boolean;
+  // The company refuses completion until the serial and batch materials are
+  // scanned in, so the warning becomes a block.
+  requireTrackedMaterialsIssued?: boolean;
   setupProductionEvent: ProductionEvent | undefined;
   trackedEntityId: string;
   // Serial parents: the selected unit's serial number, shown in the scrap
   // confirmation so the operator knows exactly which unit is being scrapped.
   trackedEntityReadableId?: string;
   type: "scrap" | "rework" | "complete" | "finish";
+  // Where focus goes on close when the control that opened the modal is gone
+  // (an item in a sheet that closed as the modal opened).
+  returnFocusRef?: RefObject<HTMLElement | null>;
+  open?: boolean;
   onClose: () => void;
 }) {
   const { t } = useLingui();
-  const fetcher = useFetcher<ProductionQuantity>();
+  const numberFormatter = useNumberFormatter(QUANTITY_FORMAT_OPTIONS);
+  // The modal opens from state, not a DialogTrigger, so Radix has no trigger
+  // to return focus to and it falls to <body>. Remember the opener instead.
+  const [opener] = useState(() =>
+    typeof document === "undefined"
+      ? null
+      : (document.activeElement as HTMLElement | null)
+  );
+  // The action's redirect keeps the page the operation was opened from.
+  const fetcher = useAction<ProductionQuantity>({
+    onSettled: () => {
+      if (submitted.current) {
+        onClose();
+      }
+    }
+  });
   const [quantity, setQuantity] = useState(parentIsSerial ? 1 : 0);
   const [confirmedUnissued, setConfirmedUnissued] = useState(false);
   const submitted = useRef(false);
@@ -95,17 +127,11 @@ export function QuantityModal({
     reworked: operation.quantityReworked ?? 0
   };
 
-  useEffect(() => {
-    if (submitted.current && fetcher.state === "idle") {
-      onClose();
-    }
-  }, [fetcher.state, onClose]);
-
   const titleMap = {
     scrap: t`Log scrap for ${operation.itemReadableId}`,
     rework: t`Log rework for ${operation.itemReadableId}`,
     complete: t`Log completed for ${operation.itemReadableId}`,
-    finish: t`Finish ${operation.itemReadableId}`
+    finish: t`Mark ${operation.itemReadableId} as Done`
   };
 
   // operationQuantity is Math.ceil'd upstream (recalculate/get-method), so a 1.5-unit
@@ -119,7 +145,7 @@ export function QuantityModal({
     scrap: t`Select a scrap quantity and reason`,
     rework: t`Select a rework quantity`,
     complete: t`Select a completion quantity`,
-    finish: t`Are you sure you want to finish this operation? This will end all active production events for this operation.`
+    finish: t`Are you sure you want to mark this operation as done? This will end all active production events for this operation.`
   };
 
   const actionMap = {
@@ -133,7 +159,7 @@ export function QuantityModal({
     scrap: t`Log Scrap`,
     rework: t`Log Rework`,
     complete: t`Log Completed`,
-    finish: isOperationComplete ? t`Finish` : t`Finish Anyways`
+    finish: isOperationComplete ? t`Mark as Done` : t`Mark as Done Anyways`
   };
 
   const validatorMap = {
@@ -147,24 +173,36 @@ export function QuantityModal({
     ? 1
     : baseline.complete + quantity;
 
-  const hasUnissuedTrackedMaterials = materials.some(
-    (material) =>
-      (material.requiresSerialTracking || material.requiresBatchTracking) &&
-      material.jobOperationId === operation.id &&
-      (material?.quantityIssued ?? 0) <
-        (material?.quantity ?? 0) * totalPartsAfterCompletion
-  );
+  const missing = unissuedTrackedMaterials({
+    materials,
+    operationId: operation.id,
+    jobMakeMethodId: operation.jobMakeMethodId,
+    isFirstOpenOperation: requireTrackedMaterialsIssued && isFirstOpenOperation,
+    unitsAfterCompletion: totalPartsAfterCompletion
+  });
+  const hasUnissuedTrackedMaterials = missing.length > 0;
+  const blockedByUnissued =
+    requireTrackedMaterialsIssued && type === "complete";
 
   return (
     <Modal
-      open
+      open={open}
       onOpenChange={(open) => {
         if (!open) {
           onClose();
         }
       }}
     >
-      <ModalContent>
+      <ModalContent
+        onCloseAutoFocus={(event) => {
+          event.preventDefault();
+          const target =
+            opener?.isConnected && opener !== document.body
+              ? opener
+              : returnFocusRef?.current;
+          target?.focus();
+        }}
+      >
         <ValidatedForm
           action={actionMap[type]}
           method="post"
@@ -204,37 +242,75 @@ export function QuantityModal({
             <Hidden name="setupProductionEventId" />
             <Hidden name="laborProductionEventId" />
             <Hidden name="machineProductionEventId" />
+            <OriginInput />
             <VStack spacing={2}>
-              {hasUnissuedTrackedMaterials && type === "complete" && (
+              {hasUnissuedTrackedMaterials && blockedByUnissued && (
                 <Alert variant="destructive">
                   <LuTriangleAlert className="h-4 w-4" />
                   <AlertTitle>
-                    <Trans>Unissued serial/batch materials</Trans>
+                    <Trans>Scan in these parts first</Trans>
                   </AlertTitle>
                   <AlertDescription>
-                    <Trans>
-                      There are serial or batch tracked materials on the bill of
-                      material that have not been fully issued. Completing
-                      without issuing may result in incorrect traceability
-                      records.
-                    </Trans>
+                    <ul className="flex flex-col gap-1">
+                      {missing.map((material) => {
+                        const issued = numberFormatter.format(
+                          material.quantityIssued ?? 0
+                        );
+                        const required = numberFormatter.format(
+                          (material.quantity ?? 0) * totalPartsAfterCompletion
+                        );
+                        return (
+                          <li
+                            key={material.id}
+                            className="flex items-center justify-between gap-4"
+                          >
+                            <span className="font-medium">
+                              {material.itemReadableId}
+                            </span>
+                            <span className="tabular-nums">
+                              <Trans>
+                                {issued} of {required}
+                              </Trans>
+                            </span>
+                          </li>
+                        );
+                      })}
+                    </ul>
                   </AlertDescription>
-                  <label className="col-start-2 flex items-center gap-2 mt-2 cursor-pointer">
-                    <Checkbox
-                      isChecked={confirmedUnissued}
-                      onCheckedChange={(checked) =>
-                        setConfirmedUnissued(checked === true)
-                      }
-                      className="bg-primary"
-                    />
-                    <span className="text-sm">
-                      <Trans>
-                        I understand and want to complete without issuing
-                      </Trans>
-                    </span>
-                  </label>
                 </Alert>
               )}
+              {hasUnissuedTrackedMaterials &&
+                !blockedByUnissued &&
+                type === "complete" && (
+                  <Alert variant="destructive">
+                    <LuTriangleAlert className="h-4 w-4" />
+                    <AlertTitle>
+                      <Trans>Unissued serial/batch materials</Trans>
+                    </AlertTitle>
+                    <AlertDescription>
+                      <Trans>
+                        There are serial or batch tracked materials on the bill
+                        of material that have not been fully issued. Completing
+                        without issuing may result in incorrect traceability
+                        records.
+                      </Trans>
+                    </AlertDescription>
+                    <label className="col-start-2 flex items-center gap-2 mt-2 cursor-pointer">
+                      <Checkbox
+                        isChecked={confirmedUnissued}
+                        onCheckedChange={(checked) =>
+                          setConfirmedUnissued(checked === true)
+                        }
+                        className="bg-primary"
+                      />
+                      <span className="text-sm">
+                        <Trans>
+                          I understand and want to complete without issuing
+                        </Trans>
+                      </span>
+                    </label>
+                  </Alert>
+                )}
 
               {type === "finish" && !isOperationComplete && (
                 <Alert variant="destructive">
@@ -310,7 +386,7 @@ export function QuantityModal({
                       <AlertDescription>
                         <Trans>
                           This unit will be permanently scrapped and a
-                          replacement serial number will be created.
+                          replacement unit will be created.
                         </Trans>
                       </AlertDescription>
                     </Alert>
@@ -359,7 +435,7 @@ export function QuantityModal({
                 isSubmitting ||
                 (type === "complete" &&
                   hasUnissuedTrackedMaterials &&
-                  !confirmedUnissued)
+                  (blockedByUnissued || !confirmedUnissued))
               }
             >
               {actionButtonMap[type]}

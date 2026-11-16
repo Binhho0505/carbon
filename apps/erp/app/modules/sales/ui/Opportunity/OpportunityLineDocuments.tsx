@@ -3,8 +3,14 @@
 // including ports, remain AGPLv3; serving them over a network requires releasing their source.
 
 import { useCarbon } from "@carbon/auth";
-import { convertKbToString, downloadUrl, storage } from "@carbon/files";
+import {
+  convertKbToString,
+  downloadUrl,
+  getDocumentType,
+  storage
+} from "@carbon/files";
 import { getLogger } from "@carbon/logger";
+import { useRevalidator } from "@carbon/query";
 import {
   Card,
   CardAction,
@@ -31,6 +37,7 @@ import {
   Thead,
   Tr,
   toast,
+  toastError,
   VStack
 } from "@carbon/react";
 import { MODEL_RAW_KEEP_MAX_BYTES } from "@carbon/utils";
@@ -39,7 +46,7 @@ import type { FileObject } from "@supabase/storage-js";
 import type { ChangeEvent } from "react";
 import { useCallback } from "react";
 import { LuEllipsisVertical, LuUpload } from "react-icons/lu";
-import { Link, useFetchers, useRevalidator, useSubmit } from "react-router";
+import { Link, useFetchers, useSubmit } from "react-router";
 import {
   DateTime,
   DocumentPreview,
@@ -50,8 +57,7 @@ import {
 import DocumentIcon from "~/components/DocumentIcon";
 import { Enumerable } from "~/components/Enumerable";
 import { useFileUpload, usePermissions, useUser } from "~/hooks";
-import type { OptimisticFileObject } from "~/modules/shared";
-import { getDocumentType } from "~/modules/shared";
+import type { OptimisticFileObject } from "~/modules/shared/types";
 import type { ModelUpload } from "~/types";
 import { downloadModelFile } from "~/utils/download";
 import { path } from "~/utils/path";
@@ -109,7 +115,7 @@ const useOpportunityLineDocuments = ({
         .remove([getPath(file, bucket as "opportunity-line" | "parts")]);
 
       if (error) {
-        toast.error(error.message || "Error deleting file");
+        toastError("Error deleting file", error);
         return;
       }
 
@@ -148,22 +154,34 @@ const useOpportunityLineDocuments = ({
       ]);
 
       if (salesRfqLineResult.error) {
-        toast.error(t`Error removing model from RFQ line`);
+        toastError(
+          t`Error removing model from RFQ line`,
+          salesRfqLineResult.error
+        );
         return;
       }
 
       if (quoteLineResult.error) {
-        toast.error(t`Error removing model from quote line`);
+        toastError(
+          t`Error removing model from quote line`,
+          quoteLineResult.error
+        );
         return;
       }
 
       if (salesOrderLineResult.error) {
-        toast.error(t`Error removing model from sales order line`);
+        toastError(
+          t`Error removing model from sales order line`,
+          salesOrderLineResult.error
+        );
         return;
       }
 
       if (salesInvoiceLineResult.error) {
-        toast.error(t`Error removing model from sales invoice line`);
+        toastError(
+          t`Error removing model from sales invoice line`,
+          salesInvoiceLineResult.error
+        );
         return;
       }
 
@@ -196,7 +214,7 @@ const useOpportunityLineDocuments = ({
       try {
         await downloadUrl(url, file.name);
       } catch (error) {
-        toast.error(t`Error downloading file`);
+        toastError(t`Error downloading file`, error);
         logger.error("Failed to process file operation", { error });
       }
     },
@@ -311,7 +329,7 @@ const useOpportunityLineDocuments = ({
           });
 
         if (uploadError) {
-          toast.error(t`Failed to upload file to new location`);
+          toastError(t`Failed to upload file to new location`, uploadError);
           return;
         }
 
@@ -321,7 +339,7 @@ const useOpportunityLineDocuments = ({
           .remove([sourcePath]);
 
         if (deleteError) {
-          toast.error(t`Failed to delete file from old location`);
+          toastError(t`Failed to delete file from old location`, deleteError);
           return;
         }
 
@@ -332,7 +350,7 @@ const useOpportunityLineDocuments = ({
         );
         revalidator.revalidate();
       } catch (error) {
-        toast.error(t`Error moving file`);
+        toastError(t`Error moving file`, error);
         logger.error("Failed to process file operation", { error });
       }
     },
@@ -523,6 +541,25 @@ const OpportunityLineDocuments = ({
                 )}
               {allFiles.map((file) => {
                 const type = getDocumentType(file.name);
+                const openFile = () => {
+                  if (["PDF", "Image"].includes(type)) {
+                    const bucket =
+                      (file as any).bucket === "parts"
+                        ? "parts"
+                        : "opportunity-line";
+                    window.open(
+                      path.to.file.previewFile(
+                        `${"private"}/${getPath(
+                          file,
+                          bucket as "opportunity-line" | "parts"
+                        )}`
+                      ),
+                      "_blank"
+                    );
+                  } else {
+                    download(file);
+                  }
+                };
                 return (
                   <Tr key={file.id}>
                     <Td>
@@ -530,23 +567,13 @@ const OpportunityLineDocuments = ({
                         <DocumentIcon type={type} />
                         <span
                           className="font-medium cursor-pointer"
-                          onClick={() => {
-                            if (["PDF", "Image"].includes(type)) {
-                              const bucket =
-                                (file as any).bucket === "parts"
-                                  ? "parts"
-                                  : "opportunity-line";
-                              window.open(
-                                path.to.file.previewFile(
-                                  `${"private"}/${getPath(
-                                    file,
-                                    bucket as "opportunity-line" | "parts"
-                                  )}`
-                                ),
-                                "_blank"
-                              );
-                            } else {
-                              download(file);
+                          role="button"
+                          tabIndex={0}
+                          onClick={openFile}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              openFile();
                             }
                           }}
                         >

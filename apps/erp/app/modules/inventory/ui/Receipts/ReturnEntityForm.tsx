@@ -2,12 +2,14 @@
 // Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
 // including ports, remain AGPLv3; serving them over a network requires releasing their source.
 
+import { useAction } from "@carbon/query";
 import { Combobox, HStack, VStack } from "@carbon/react";
 import { round } from "@carbon/utils";
 import { useLingui } from "@lingui/react/macro";
 import type { ReactNode } from "react";
 import { useEffect, useMemo } from "react";
 import { useFetcher } from "react-router";
+import type { action as trackingAction } from "~/routes/x+/receipt+/lines.tracking";
 import { path } from "~/utils/path";
 import type { Receipt, ReceiptLine } from "../../types";
 
@@ -51,8 +53,24 @@ export function ReturnEntityForm({
   const candidatesFetcher = useFetcher<{
     candidates: CandidateEntity[];
     assigned: AssignedRow[];
+    error: string | null;
   }>();
-  const assignFetcher = useFetcher<{ error?: string }>();
+  const assignFetcher = useAction<typeof trackingAction>({
+    onError: () => {
+      // Shown under the picker instead of as a toast.
+    },
+    onSettled: (data) => {
+      if (data) {
+        reload();
+      }
+    }
+  });
+
+  const assignResult = assignFetcher.data;
+  const assignError =
+    assignResult && "error" in assignResult
+      ? assignResult.error?.message
+      : null;
 
   const reload = () => {
     if (line.lineId) {
@@ -66,14 +84,6 @@ export function ReturnEntityForm({
   useEffect(() => {
     reload();
   }, [line.lineId]);
-
-  // Refresh assignment state after each assign/remove settles
-  // biome-ignore lint/correctness/useExhaustiveDependencies: refetch on settle
-  useEffect(() => {
-    if (assignFetcher.state === "idle" && assignFetcher.data) {
-      reload();
-    }
-  }, [assignFetcher.state]);
 
   const candidates = candidatesFetcher.data?.candidates;
 
@@ -89,7 +99,18 @@ export function ReturnEntityForm({
     return map;
   }, [candidatesFetcher.data?.assigned]);
 
-  if (!line.lineId || (candidates && candidates.length === 0)) {
+  if (candidatesFetcher.data?.error) {
+    return (
+      <span className="text-xs text-destructive">
+        {candidatesFetcher.data.error}
+      </span>
+    );
+  }
+
+  if (
+    !line.lineId ||
+    (candidates && candidates.length === 0 && assignedByEntityId.size === 0)
+  ) {
     // Blind return: nothing shipped on record — standard serial/batch entry
     return <>{children}</>;
   }
@@ -145,6 +166,7 @@ export function ReturnEntityForm({
           {t`Returned batch`}
         </label>
         <Combobox
+          aria-label={t`Returned batch`}
           size="sm"
           value={current ?? ""}
           options={options}
@@ -153,10 +175,8 @@ export function ReturnEntityForm({
             if (value) assign(value, null, current);
           }}
         />
-        {assignFetcher.data?.error && (
-          <span className="text-xs text-destructive">
-            {assignFetcher.data.error}
-          </span>
+        {assignError && (
+          <span className="text-xs text-destructive">{assignError}</span>
         )}
       </VStack>
     );
@@ -177,6 +197,7 @@ export function ReturnEntityForm({
       </label>
       {Array.from({ length: slots }, (_, index) => {
         const current = assignedByIndex.get(index);
+        const slotNumber = index + 1;
         const usedElsewhere = new Set(
           [...assignedByIndex.entries()]
             .filter(([i]) => i !== index)
@@ -188,6 +209,7 @@ export function ReturnEntityForm({
               {index + 1}
             </span>
             <Combobox
+              aria-label={t`Returned serial number ${slotNumber}`}
               size="sm"
               value={current ?? ""}
               options={options.filter((o) => !usedElsewhere.has(o.value))}
@@ -199,10 +221,8 @@ export function ReturnEntityForm({
           </HStack>
         );
       })}
-      {assignFetcher.data?.error && (
-        <span className="text-xs text-destructive">
-          {assignFetcher.data.error}
-        </span>
+      {assignError && (
+        <span className="text-xs text-destructive">{assignError}</span>
       )}
     </VStack>
   );

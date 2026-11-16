@@ -21,9 +21,11 @@ import { getLogger } from "@carbon/logger";
 import { redirectExternal } from "@carbon/utils";
 import type { LoaderFunctionArgs } from "react-router";
 import { data } from "react-router";
-import { upsertCompanyIntegration } from "~/modules/settings/settings.server";
-import { getIntegration } from "~/modules/settings/settings.service";
-import { oAuthCallbackSchema } from "~/modules/shared";
+import {
+  getIntegration,
+  upsertCompanyIntegration
+} from "~/modules/settings/settings.service";
+import { oAuthCallbackSchema } from "~/modules/shared/shared.models";
 import { path } from "~/utils/path";
 
 export const config = {
@@ -150,7 +152,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
       );
     }
   } catch (err) {
-    console.error("QuickBooks OAuth Error:", err);
+    logger.error("QuickBooks OAuth code exchange failed", { error: err });
     return data(
       { error: "Failed to exchange code for token" },
       { status: 500 }

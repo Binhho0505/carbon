@@ -4,6 +4,7 @@
 
 import type { Json } from "@carbon/database";
 import { InputControlled, Select, ValidatedForm } from "@carbon/form";
+import { toastServiceError, useAction } from "@carbon/query";
 import {
   Badge,
   Button,
@@ -13,13 +14,12 @@ import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-  toast,
   VStack
 } from "@carbon/react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { Suspense, useCallback, useEffect } from "react";
+import { Suspense, useCallback, useState } from "react";
 import { LuCopy, LuKeySquare, LuLink } from "react-icons/lu";
-import { Await, Link, useFetcher, useParams } from "react-router";
+import { Await, Link, useParams } from "react-router";
 import { z } from "zod";
 import { zfd } from "zod-form-data";
 import { MethodBadge, MethodIcon, TrackingTypeIcon } from "~/components";
@@ -33,30 +33,38 @@ import CustomFormInlineFields from "~/components/Form/CustomFormInlineFields";
 import { ItemThumbnailUpload } from "~/components/ItemThumnailUpload";
 import { useCompanySettings, useRouteData } from "~/hooks";
 import { useResolved } from "~/hooks/useResolved";
-import { methodType } from "~/modules/shared";
+import { methodType } from "~/modules/shared/shared.models";
 import type { action } from "~/routes/x+/items+/update";
 import { useSuppliers } from "~/stores";
 import type { ListItem } from "~/types";
 import { path } from "~/utils/path";
 import { copyToClipboard } from "~/utils/string";
 import { itemTrackingTypes } from "../../items.models";
+import type { ItemUsedIn } from "../../items.service";
 import type {
-  Consumable,
+  ConsumableSummary,
   ItemFile,
   PickMethod,
   SupplierPart
 } from "../../types";
-import { FileBadge, ItemDescription } from "../Item";
+import {
+  FileBadge,
+  ItemDescription,
+  SourcingTypeProperty,
+  useIsComponentOfBuyAndMake
+} from "../Item";
 
 type ConsumablePropertiesProps = {
   data?: {
     itemId: string;
     locations: ListItem[];
-    consumableSummary: Consumable;
+    consumableSummary: ConsumableSummary;
     files: Promise<ItemFile[]>;
     supplierParts: SupplierPart[];
     pickMethods: PickMethod[];
     tags: { name: string }[];
+    // Set by the bill of material tree, which knows the selected line's parent.
+    isComponentOfBuyAndMake?: boolean;
   };
 };
 
@@ -88,7 +96,7 @@ const ConsumableProperties = ({ data }: ConsumablePropertiesProps) => {
   // When `data` is injected (subassembly context), this hook won't match a
   // route and returns undefined — harmless, hooks must be called unconditionally.
   const routeDataFromRoute = useRouteData<{
-    consumableSummary: Consumable;
+    consumableSummary: ConsumableSummary;
     files: Promise<ItemFile[]>;
     supplierParts: SupplierPart[];
     pickMethods: PickMethod[];
@@ -111,6 +119,7 @@ const ConsumableProperties = ({ data }: ConsumablePropertiesProps) => {
         } | null;
       }>
     >;
+    usedIn?: Promise<Pick<ItemUsedIn, "methodMaterials">>;
   }>(path.to.consumable(itemId));
   const supersession = useResolved(
     routeDataFromRoute?.supersession,
@@ -121,6 +130,11 @@ const ConsumableProperties = ({ data }: ConsumablePropertiesProps) => {
     routeDataFromRoute?.supersededBy,
     null,
     itemId
+  );
+  const isComponentOfBuyAndMake = useIsComponentOfBuyAndMake(
+    routeDataFromRoute?.usedIn,
+    itemId,
+    data?.isComponentOfBuyAndMake
   );
   const routeData = data ?? routeDataFromRoute;
 
@@ -137,12 +151,21 @@ const ConsumableProperties = ({ data }: ConsumablePropertiesProps) => {
   //     ? optimisticAssignment
   //     : routeData?.consumableSummary?.assignee;
 
-  const fetcher = useFetcher<typeof action>();
-  useEffect(() => {
-    if (fetcher.data?.error) {
-      toast.error(fetcher.data.error.message);
+  const fetcher = useAction<typeof action>({
+    onError: (data) => {
+      toastServiceError(data);
     }
-  }, [fetcher.data]);
+  });
+  // A refused change leaves the tracking type select showing the refused
+  // value; a new key remounts it on the stored value. It has its own fetcher,
+  // so a refusal of another field never resets it.
+  const [trackingRefusals, setTrackingRefusals] = useState(0);
+  const trackingFetcher = useAction<typeof action>({
+    onError: (data) => {
+      toastServiceError(data);
+      setTrackingRefusals((count) => count + 1);
+    }
+  });
   // biome-ignore lint/correctness/useExhaustiveDependencies: suppressed due to migration
   const onUpdate = useCallback(
     (
@@ -151,6 +174,7 @@ const ConsumableProperties = ({ data }: ConsumablePropertiesProps) => {
         | "description"
         | "replenishmentSystem"
         | "defaultMethodType"
+        | "sourcingType"
         | "itemTrackingType"
         | "itemPostingGroupId"
         | "consumableId"
@@ -164,10 +188,13 @@ const ConsumableProperties = ({ data }: ConsumablePropertiesProps) => {
       formData.append("items", itemId);
       formData.append("field", field);
       formData.append("value", value?.toString() ?? "");
-      fetcher.submit(formData, {
-        method: "post",
-        action: path.to.bulkUpdateItems
-      });
+      (field === "itemTrackingType" ? trackingFetcher : fetcher).submit(
+        formData,
+        {
+          method: "post",
+          action: path.to.bulkUpdateItems
+        }
+      );
     },
 
     [itemId]
@@ -368,6 +395,7 @@ const ConsumableProperties = ({ data }: ConsumablePropertiesProps) => {
       </ValidatedForm>
 
       <ValidatedForm
+        key={`itemTrackingType-${trackingRefusals}`}
         defaultValues={{
           itemTrackingType:
             routeData?.consumableSummary?.itemTrackingType ?? undefined
@@ -438,6 +466,13 @@ const ConsumableProperties = ({ data }: ConsumablePropertiesProps) => {
           }}
         />
       </ValidatedForm>
+
+      <SourcingTypeProperty
+        isComponentOfBuyAndMake={isComponentOfBuyAndMake}
+        replenishmentSystem={routeData?.consumableSummary?.replenishmentSystem}
+        value={routeData?.consumableSummary?.sourcingType}
+        onChange={(value) => onUpdate("sourcingType", value)}
+      />
 
       <ValidatedForm
         defaultValues={{

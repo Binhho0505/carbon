@@ -5,6 +5,7 @@
 import type { Json } from "@carbon/database";
 import { getQuoteDisplayId } from "@carbon/documents/utils";
 import { DatePicker, InputControlled, ValidatedForm } from "@carbon/form";
+import { toastServiceError, useAction } from "@carbon/query";
 import {
   Button,
   Copy,
@@ -14,25 +15,18 @@ import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-  toast,
   VStack
 } from "@carbon/react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { useCallback, useEffect } from "react";
-import {
-  LuCopy,
-  LuInfo,
-  LuKeySquare,
-  LuLink,
-  LuRefreshCcw
-} from "react-icons/lu";
+import { useCallback } from "react";
+import { LuCopy, LuKeySquare, LuLink, LuRefreshCcw } from "react-icons/lu";
 import { useFetcher, useParams } from "react-router";
 import { z } from "zod";
 import { zfd } from "zod-form-data";
 import {
   Assignee,
-  DateTime,
   EmployeeAvatar,
+  ExchangeRateUpdatedAt,
   useOptimisticAssignment
 } from "~/components";
 import {
@@ -61,13 +55,11 @@ const QuoteProperties = () => {
     quote: Quotation;
   }>(path.to.quote(quoteId));
 
-  const fetcher = useFetcher<typeof action>();
-  useEffect(() => {
-    if (fetcher.data?.error) {
-      toast.error(fetcher.data.error.message);
+  const fetcher = useAction<typeof action>({
+    onError: (data) => {
+      toastServiceError(data);
     }
-  }, [fetcher.data]);
-
+  });
   const { company } = useUser();
   const exchangeRateFetcher = useFetcher<typeof exchangeRateAction>();
 
@@ -360,7 +352,6 @@ const QuoteProperties = () => {
               onUpdate("locationId", value.value);
             }
           }}
-          termId="quote"
         />
       </ValidatedForm>
 
@@ -437,13 +428,9 @@ const QuoteProperties = () => {
                 Exchange Rate
               </span>
               {routeData?.quote?.exchangeRateUpdatedAt && (
-                <DateTime
+                <ExchangeRateUpdatedAt
                   value={routeData?.quote?.exchangeRateUpdatedAt}
-                  variant="absolute"
-                  side="bottom"
-                >
-                  <LuInfo className="h-4 w-4 text-muted-foreground" />
-                </DateTime>
+                />
               )}
             </HStack>
             <HStack className="w-full justify-between">

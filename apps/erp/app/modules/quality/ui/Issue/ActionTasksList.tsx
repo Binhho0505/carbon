@@ -2,13 +2,13 @@
 // Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
 // including ports, remain AGPLv3; serving them over a network requires releasing their source.
 
-import { toast } from "@carbon/react";
+import { toastServiceError, useAction } from "@carbon/query";
 import { useLingui } from "@lingui/react/macro";
-import { useCallback, useEffect } from "react";
-import { useFetcher, useParams } from "react-router";
+import { useCallback } from "react";
+import { useParams } from "react-router";
 import { ActionTaskList } from "~/components/ActionTasks/ActionTaskList";
 import { useRouteData } from "~/hooks";
-import type { IssueActionTask } from "~/modules/quality";
+import type { IssueActionTask } from "~/modules/quality/types";
 import type { ListItem } from "~/types";
 import { path } from "~/utils/path";
 import { TaskItem } from "./IssueTask";
@@ -33,11 +33,11 @@ export function ActionTasksList({
     requiredActions: ListItem[];
     nonConformance: { requiredActionIds: string[] | null };
   }>(path.to.issue(id));
-  const addFetcher = useFetcher<{ error: { message: string } | null }>();
-
-  useEffect(() => {
-    if (addFetcher.data?.error) toast.error(addFetcher.data.error.message);
-  }, [addFetcher.data]);
+  const addFetcher = useAction<{ error: { message: string } | null }>({
+    onError: (data) => {
+      toastServiceError(data);
+    }
+  });
 
   const existingIds = routeData?.nonConformance?.requiredActionIds ?? [];
 

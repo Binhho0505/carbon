@@ -11,6 +11,7 @@ import {
   MenuItem,
   useDisclosure
 } from "@carbon/react";
+import { asColor } from "@carbon/utils";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { ColumnDef } from "@tanstack/react-table";
 import { memo, useMemo, useState } from "react";
@@ -41,38 +42,39 @@ import {
 import { Enumerable } from "~/components/Enumerable";
 import { useCustomerTypes } from "~/components/Form/CustomerType";
 import { ConfirmDelete } from "~/components/Modals";
+import type { InfiniteOptions } from "~/components/Table";
 import { useCompanySettings, usePermissions } from "~/hooks";
 import { useCustomColumns } from "~/hooks/useCustomColumns";
 import { usePeople } from "~/stores";
 import { path } from "~/utils/path";
-import type { Customer, CustomerStatus } from "../../types";
+import type { CustomerListItem, CustomerStatus } from "../../types";
 
 type CustomersTableProps = {
-  data: Customer[];
+  data: CustomerListItem[];
   count: number;
+  infinite: InfiniteOptions;
   customerStatuses: CustomerStatus[];
   tags: { name: string }[];
 };
 
 const CustomersTable = memo(
-  ({ data, count, customerStatuses, tags }: CustomersTableProps) => {
+  ({ data, count, infinite, customerStatuses, tags }: CustomersTableProps) => {
     const { t } = useLingui();
     const navigate = useNavigate();
     const permissions = usePermissions();
     const [people] = usePeople();
     const deleteModal = useDisclosure();
-    const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
-      null
-    );
+    const [selectedCustomer, setSelectedCustomer] =
+      useState<CustomerListItem | null>(null);
 
     const customerTypes = useCustomerTypes();
     const companySettings = useCompanySettings();
     const showCustomerReadableId =
       companySettings?.showCustomerReadableId ?? false;
 
-    const customColumns = useCustomColumns<Customer>("customer");
-    const columns = useMemo<ColumnDef<Customer>[]>(() => {
-      const idColumn: ColumnDef<Customer> = {
+    const customColumns = useCustomColumns<CustomerListItem>("customer");
+    const columns = useMemo<ColumnDef<CustomerListItem>[]>(() => {
+      const idColumn: ColumnDef<CustomerListItem> = {
         accessorKey: "readableId",
         header: t`ID`,
         cell: ({ row }) => (
@@ -84,7 +86,7 @@ const CustomersTable = memo(
           icon: <LuHash />
         }
       };
-      const defaultColumns: ColumnDef<Customer>[] = [
+      const defaultColumns: ColumnDef<CustomerListItem>[] = [
         ...(showCustomerReadableId ? [idColumn] : []),
         {
           accessorKey: "name",
@@ -97,19 +99,35 @@ const CustomersTable = memo(
             </div>
           ),
           meta: {
+            mobile: "P1",
             icon: <LuBookMarked />
           }
         },
         {
           accessorKey: "status",
           header: t`Status`,
-          cell: (item) => <Enumerable value={item.getValue<string>()} />,
+          cell: (item) => (
+            <Enumerable
+              value={item.getValue<string>()}
+              color={asColor(
+                customerStatuses?.find(
+                  (status) => status.name === item.getValue<string>()
+                )?.color
+              )}
+            />
+          ),
           meta: {
+            mobile: "P2",
             filter: {
               type: "static",
               options: customerStatuses?.map((status) => ({
                 value: status.name,
-                label: <Enumerable value={status.name ?? ""} />
+                label: (
+                  <Enumerable
+                    value={status.name ?? ""}
+                    color={asColor(status.color)}
+                  />
+                )
               }))
             },
             pluralHeader: t`Statuses`,
@@ -127,6 +145,7 @@ const CustomersTable = memo(
             return <Enumerable value={customerType ?? ""} />;
           },
           meta: {
+            mobile: "P2",
             icon: <LuShapes />,
             filter: {
               type: "static",
@@ -278,7 +297,7 @@ const CustomersTable = memo(
     ]);
 
     const renderContextMenu = useMemo(
-      () => (row: Customer) => (
+      () => (row: CustomerListItem) => (
         <>
           <MenuItem
             shortcut={MENU_ITEM_SHORTCUTS.edit}
@@ -306,8 +325,10 @@ const CustomersTable = memo(
 
     return (
       <>
-        <Table<Customer>
+        <Table<CustomerListItem>
+          getRowLabel={(row) => row.name ?? undefined}
           count={count}
+          infinite={infinite}
           columns={columns}
           data={data}
           defaultColumnPinning={{
@@ -363,11 +384,9 @@ const CustomersTable = memo(
             text={t`Are you sure you want to delete ${selectedCustomer.name!}? This cannot be undone.`}
             onCancel={() => {
               deleteModal.onClose();
-              setSelectedCustomer(null);
             }}
             onSubmit={() => {
               deleteModal.onClose();
-              setSelectedCustomer(null);
             }}
           />
         )}

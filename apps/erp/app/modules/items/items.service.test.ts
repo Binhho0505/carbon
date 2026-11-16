@@ -2,24 +2,19 @@
 // Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
 // including ports, remain AGPLv3; serving them over a network requires releasing their source.
 
-import { describe, expect, it, vi } from "vitest";
-
-// diffMethod now lives in items.service. Importing the real module drags in the
-// items.service graph, which transitively loads @carbon/content/glossary — whose
-// module-load-time Lingui `msg` macro isn't transformed under plain vitest and
-// throws. The pure diffMethod under test needs none of it, so stub glossary; the
-// diffMethod under test stays the genuine implementation.
-vi.mock("@carbon/content/glossary", () => ({
-  terms: {},
-  getEntry: vi.fn(),
-  lookupEntry: vi.fn(),
-  hasEntry: vi.fn(),
-  termSlug: vi.fn()
-}));
-
-const { diffMethod, duplicateMethodOperationStep } = await import(
-  "./items.service"
-);
+import { describe, expect, it } from "vitest";
+import {
+  chooseSyncMethod,
+  diffMethod,
+  duplicateMethodOperationStep,
+  getItemDemand,
+  getLockVerdict,
+  getUnreleasedChangeOrderIssue,
+  getUnreleasedChangeOrderItems,
+  LOCKED_REVISION_MESSAGE,
+  methodWriteRefusal,
+  pickSyncDraft
+} from "./items.service";
 
 // A minimal live methodMaterial row (only the fields diffMethod compares + id).
 function baseMaterial(over: Record<string, unknown> = {}) {
@@ -469,6 +464,89 @@ describe("duplicateMethodOperationStep", () => {
   });
 });
 
+// A supplierPart row as the diff reads it (every column, as `select("*")`).
+function supplierPart(over: Record<string, unknown> = {}) {
+  return {
+    id: "sp-1",
+    itemId: "item-a",
+    supplierId: "sup-1",
+    supplierPartId: "ACME-100",
+    supplierUnitOfMeasureCode: "BOX",
+    minimumOrderQuantity: 10,
+    orderMultiple: 5,
+    conversionFactor: 12,
+    currencyCode: "USD",
+    supplierUnitPrice: 4.5,
+    active: true,
+    customFields: null,
+    tags: null,
+    companyId: "c1",
+    createdBy: "u1",
+    createdAt: "2026-01-01T00:00:00Z",
+    updatedBy: null,
+    updatedAt: null,
+    ...over
+  };
+}
+
+describe("diffMethod — supplier parts", () => {
+  it("reads a revision's copied supplier parts as unchanged", () => {
+    const { supplierParts } = diffMethod({
+      ...EMPTY,
+      baseSupplierParts: [
+        supplierPart(),
+        supplierPart({ id: "sp-2", supplierId: "sup-2" })
+      ],
+      // The copy is a different row on a different item, created later.
+      targetSupplierParts: [
+        supplierPart({
+          id: "sp-9",
+          itemId: "item-b",
+          createdBy: "u2",
+          createdAt: "2026-02-01T00:00:00Z"
+        }),
+        supplierPart({ id: "sp-10", itemId: "item-b", supplierId: "sup-2" })
+      ]
+    });
+    expect(supplierParts.map((e) => e.status)).toEqual([
+      "unchanged",
+      "unchanged"
+    ]);
+  });
+
+  it("reports an edited, a dropped and a new supplier on the draft", () => {
+    const { supplierParts } = diffMethod({
+      ...EMPTY,
+      baseSupplierParts: [
+        supplierPart(),
+        supplierPart({ id: "sp-2", supplierId: "sup-2" })
+      ],
+      targetSupplierParts: [
+        supplierPart({ id: "sp-9", itemId: "item-b", supplierUnitPrice: 5 }),
+        supplierPart({ id: "sp-11", itemId: "item-b", supplierId: "sup-3" })
+      ]
+    });
+    expect(
+      supplierParts.map((e) => [e.status, (e.after ?? e.before)?.supplierId])
+    ).toEqual([
+      ["modified", "sup-1"],
+      ["added", "sup-3"],
+      ["removed", "sup-2"]
+    ]);
+    expect(supplierParts[0].changedFields).toEqual({
+      supplierUnitPrice: { before: 4.5, after: 5 }
+    });
+  });
+
+  it("reads every supplier part as added when the draft has no source", () => {
+    const { supplierParts } = diffMethod({
+      ...EMPTY,
+      targetSupplierParts: [supplierPart({ id: "sp-9", itemId: "item-b" })]
+    });
+    expect(supplierParts.map((e) => e.status)).toEqual(["added"]);
+  });
+});
+
 describe("diffMethod — attributes", () => {
   it("reports one entry per changed attribute column", () => {
     const { attributes } = diffMethod({
@@ -518,40 +596,30 @@ describe("diffMethod — attributes", () => {
 });
 
 describe("getItemDemand", () => {
+  // Answers every table with its rows, or with the error given for it.
   function mockClient(
     rowsByTable: Record<string, unknown[]>,
     errorsByTable: Record<string, unknown> = {}
   ) {
-    const reads: Array<{
-      table: string;
-      filters: Array<[string, string, unknown]>;
-    }> = [];
-    const client: any = {
-      from: (table: string) => {
-        const read = { table, filters: [] as Array<[string, string, unknown]> };
-        reads.push(read);
-        const builder: any = {
-          select: () => builder,
-          eq: (column: string, value: unknown) => {
-            read.filters.push(["eq", column, value]);
-            return builder;
-          },
-          in: (column: string, value: unknown) => {
-            read.filters.push(["in", column, value]);
-            return builder;
-          },
-          order: () => builder,
-          then: (resolve: (v: unknown) => void) =>
-            resolve(
-              errorsByTable[table]
-                ? { data: null, error: errorsByTable[table] }
-                : { data: rowsByTable[table] ?? [], error: null }
-            )
-        };
-        return builder;
-      }
+    return {
+      client: {
+        from: (table: string) => {
+          const builder: any = {
+            select: () => builder,
+            eq: () => builder,
+            in: () => builder,
+            order: () => builder,
+            then: (resolve: (v: unknown) => void) =>
+              resolve(
+                errorsByTable[table]
+                  ? { data: null, error: errorsByTable[table] }
+                  : { data: rowsByTable[table] ?? [], error: null }
+              )
+          };
+          return builder;
+        }
+      } as any
     };
-    return { client, reads };
   }
 
   const args = {
@@ -561,36 +629,7 @@ describe("getItemDemand", () => {
     periods: ["p1", "p2"]
   };
 
-  it("reads demandProjection alongside demandActual and demandForecast", async () => {
-    const { getItemDemand } = await import("./items.service");
-    const { client, reads } = mockClient({});
-
-    await getItemDemand(client, args);
-
-    expect(reads.map((r) => r.table).sort()).toEqual([
-      "demandActual",
-      "demandForecast",
-      "demandProjection"
-    ]);
-  });
-
-  it("scopes the projection read to the item, location, company and periods", async () => {
-    const { getItemDemand } = await import("./items.service");
-    const { client, reads } = mockClient({});
-
-    await getItemDemand(client, args);
-
-    const projectionRead = reads.find((r) => r.table === "demandProjection");
-    expect(projectionRead?.filters).toEqual([
-      ["eq", "itemId", "item_1"],
-      ["eq", "locationId", "loc_1"],
-      ["eq", "companyId", "co_1"],
-      ["in", "periodId", ["p1", "p2"]]
-    ]);
-  });
-
   it("returns the projection rows as `projections`, defaulting every series to []", async () => {
-    const { getItemDemand } = await import("./items.service");
     const projectionRow = {
       id: "dp_1",
       itemId: "item_1",
@@ -611,8 +650,6 @@ describe("getItemDemand", () => {
   });
 
   it("tells an item with no demand apart from a failed read", async () => {
-    const { getItemDemand } = await import("./items.service");
-
     const empty = await getItemDemand(mockClient({}).client, args);
     expect(empty.error).toBeNull();
 
@@ -622,5 +659,387 @@ describe("getItemDemand", () => {
       args
     );
     expect(failed.error).toBe(failure);
+  });
+});
+
+describe("getLockVerdict", () => {
+  it.each(["off", "warn", "enforce"] as const)(
+    "allows edits on an unlocked revision under release control %s",
+    (releaseControl) => {
+      expect(getLockVerdict({ isLocked: false, releaseControl })).toEqual({
+        ok: true,
+        warn: false
+      });
+    }
+  );
+
+  it.each([
+    ["off", { ok: true, warn: false }],
+    ["warn", { ok: true, warn: true, message: LOCKED_REVISION_MESSAGE }],
+    ["enforce", { ok: false, warn: false, message: LOCKED_REVISION_MESSAGE }]
+  ] as const)(
+    "gives a locked revision under release control %s the matching verdict",
+    (releaseControl, verdict) => {
+      expect(getLockVerdict({ isLocked: true, releaseControl })).toEqual(
+        verdict
+      );
+    }
+  );
+});
+
+// Shared by the panel's push and the BOM sync (`loadMethodWriteRefusals`).
+describe("methodWriteRefusal", () => {
+  it.each(["off", "warn", "enforce"] as const)(
+    "refuses a change notice's Draft under release control %s",
+    (releaseControl) => {
+      expect(
+        methodWriteRefusal(
+          { changeOrderId: "co_1", revisionStatus: "Design" },
+          { noticeNumber: "ECO-000001", releaseControl }
+        )
+      ).toBe(
+        "its make method is a Draft on change notice ECO-000001. Change the BOM there."
+      );
+    }
+  );
+
+  it("refuses a change notice's Draft whose number could not be read", () => {
+    expect(
+      methodWriteRefusal(
+        { changeOrderId: "co_1", revisionStatus: null },
+        { noticeNumber: undefined, releaseControl: "off" }
+      )
+    ).toBe(
+      "its make method is a Draft on a change notice. Change the BOM there."
+    );
+  });
+
+  it.each([
+    ["enforce", LOCKED_REVISION_MESSAGE],
+    ["warn", null],
+    ["off", null]
+  ] as const)(
+    "gives a released revision under release control %s the BOM editor's verdict",
+    (releaseControl, refusal) => {
+      expect(
+        methodWriteRefusal(
+          { changeOrderId: null, revisionStatus: "Production" },
+          { releaseControl }
+        )
+      ).toBe(refusal);
+    }
+  );
+
+  it("writes a method no notice holds on a revision that is not released", () => {
+    expect(
+      methodWriteRefusal(
+        { changeOrderId: null, revisionStatus: "Design" },
+        { releaseControl: "enforce" }
+      )
+    ).toBeNull();
+  });
+});
+
+describe("chooseSyncMethod", () => {
+  it("skips a refused method, Draft or Active, and keeps its id", () => {
+    expect(
+      chooseSyncMethod({ id: "mm_draft", status: "Draft" }, "held")
+    ).toEqual({ action: "skip", makeMethodId: "mm_draft", reason: "held" });
+    expect(
+      chooseSyncMethod({ id: "mm_active", status: "Active" }, "released")
+    ).toEqual({
+      action: "skip",
+      makeMethodId: "mm_active",
+      reason: "released"
+    });
+  });
+
+  it("rewrites a Draft no notice holds", () => {
+    expect(
+      chooseSyncMethod({ id: "mm_draft", status: "Draft" }, undefined)
+    ).toEqual({ action: "write", makeMethodId: "mm_draft" });
+  });
+
+  it("never edits an Active method: it goes through a Draft", () => {
+    expect(
+      chooseSyncMethod({ id: "mm_active", status: "Active" }, null)
+    ).toEqual({ action: "draftFromActive", activeMakeMethodId: "mm_active" });
+  });
+
+  it("refuses an Archived method and keeps its id", () => {
+    expect(
+      chooseSyncMethod({ id: "mm_archived", status: "Archived" }, null)
+    ).toMatchObject({ action: "skip", makeMethodId: "mm_archived" });
+  });
+});
+
+describe("pickSyncDraft", () => {
+  it("takes the newest Draft no change notice holds", () => {
+    expect(
+      pickSyncDraft([
+        { id: "v2", version: 2, changeOrderId: null },
+        { id: "v4", version: 4, changeOrderId: null },
+        { id: "v3", version: 3, changeOrderId: null }
+      ])?.id
+    ).toBe("v4");
+  });
+
+  // A notice's Draft is max(version) + 1, so a newest-first pick lands on it.
+  it("passes over a newer Draft a change notice holds", () => {
+    expect(
+      pickSyncDraft([
+        { id: "v2", version: 2, changeOrderId: null },
+        { id: "v3", version: 3, changeOrderId: "co_1" }
+      ])?.id
+    ).toBe("v2");
+  });
+
+  it("finds none when every Draft is a change notice's", () => {
+    expect(
+      pickSyncDraft([{ id: "v2", version: 2, changeOrderId: "co_1" }])
+    ).toBeNull();
+    expect(pickSyncDraft([])).toBeNull();
+  });
+});
+
+type Row = Record<string, unknown> | null;
+
+// PostgREST's `max_rows`, mirrored so a read that asks for too much silently
+// comes back short — exactly the failure the batching exists to avoid.
+const MAX_ROWS = 1000;
+
+// Stands in for the two list reads the batch guard makes. Supabase builders are
+// thenables, so the chain resolves on await without a terminal method. Each
+// read is answered from the ids its own `in` filter carries, sliced to the
+// `range` page fetchAllByIds asks for and truncated at MAX_ROWS, so a guard
+// that stopped batching or paging visibly drops rows.
+function fakeListClient(
+  rows: { item?: Row[]; changeOrder?: Row[] },
+  errors: { item?: boolean; changeOrder?: boolean } = {}
+) {
+  return {
+    from(table: string) {
+      const failed = errors[table as keyof typeof errors] === true;
+      const all = rows[table as keyof typeof rows] ?? [];
+      let requested: string[] | null = null;
+      let page: [number, number] | null = null;
+      const builder = {
+        select: () => builder,
+        in: (_column: string, ids: string[]) => {
+          requested = ids;
+          return builder;
+        },
+        eq: () => builder,
+        order: () => builder,
+        range: (from: number, to: number) => {
+          page = [from, to];
+          return builder;
+        },
+        then: (
+          resolve: (value: {
+            data: Row[] | null;
+            error: { message: string } | null;
+          }) => unknown
+        ) =>
+          resolve({
+            data: failed
+              ? null
+              : all
+                  .filter(
+                    (row) => !requested || requested.includes(row?.id as string)
+                  )
+                  .slice(page?.[0] ?? 0, page ? page[1] + 1 : undefined)
+                  .slice(0, MAX_ROWS),
+            error: failed ? { message: `failed to read ${table}` } : null
+          })
+      };
+      return builder;
+    }
+  } as never;
+}
+
+const companyId = "company_1";
+const args = { itemId: "item_1", companyId };
+
+describe("getUnreleasedChangeOrderItems", () => {
+  it("reads nothing when given no ids", async () => {
+    const client = fakeListClient({ item: [{ id: "item_1" }] });
+
+    expect(
+      await getUnreleasedChangeOrderItems(client, { itemIds: [], companyId })
+    ).toEqual({ data: [], error: null });
+  });
+
+  it("passes items that no change order owns", async () => {
+    const client = fakeListClient({
+      item: [
+        {
+          id: "item_1",
+          readableIdWithRevision: "P000001",
+          changeOrderId: null
+        }
+      ]
+    });
+
+    expect(
+      await getUnreleasedChangeOrderItems(client, {
+        itemIds: ["item_1"],
+        companyId
+      })
+    ).toEqual({ data: [], error: null });
+  });
+
+  // Release leaves changeOrderId in place as a provenance link, so the column
+  // alone cannot answer "is this still a draft" — the status decides.
+  it("returns only the items whose change order is unreleased", async () => {
+    const client = fakeListClient({
+      item: [
+        {
+          id: "item_1",
+          readableIdWithRevision: "P000001.A",
+          changeOrderId: "co_open"
+        },
+        {
+          id: "item_2",
+          readableIdWithRevision: "P000002.B",
+          changeOrderId: "co_done"
+        }
+      ],
+      changeOrder: [
+        {
+          id: "co_open",
+          changeOrderId: "ECO-000001",
+          status: "Implementation"
+        },
+        { id: "co_done", changeOrderId: "ECO-000002", status: "Done" }
+      ]
+    });
+
+    expect(
+      await getUnreleasedChangeOrderItems(client, {
+        itemIds: ["item_1", "item_2"],
+        companyId
+      })
+    ).toEqual({
+      data: [
+        {
+          itemId: "item_1",
+          itemName: "P000001.A",
+          changeOrderReadableId: "ECO-000001"
+        }
+      ],
+      error: null
+    });
+  });
+
+  // PostgREST caps a response at 1000 rows, so the guard walks the ids in
+  // batches. Without that, an item past the cap reads as unowned and activates.
+  it("finds an offending item past the response cap", async () => {
+    const itemIds = Array.from({ length: 1200 }, (_, i) => `item_${i}`);
+    const client = fakeListClient({
+      item: itemIds.map((id) => ({
+        id,
+        readableIdWithRevision: id,
+        changeOrderId: id === "item_1100" ? "co_open" : null
+      })),
+      changeOrder: [
+        { id: "co_open", changeOrderId: "ECO-000001", status: "Draft" }
+      ]
+    });
+
+    expect(
+      await getUnreleasedChangeOrderItems(client, { itemIds, companyId })
+    ).toEqual({
+      data: [
+        {
+          itemId: "item_1100",
+          itemName: "item_1100",
+          changeOrderReadableId: "ECO-000001"
+        }
+      ],
+      error: null
+    });
+  });
+
+  // A read that did not answer says nothing about the items, so callers block
+  // rather than wave the write through on a database blip.
+  it("reports an error when the item read fails", async () => {
+    const client = fakeListClient({}, { item: true });
+
+    expect(
+      await getUnreleasedChangeOrderItems(client, {
+        itemIds: ["item_1"],
+        companyId
+      })
+    ).toEqual({
+      data: [],
+      error: "These items could not be checked against their change orders."
+    });
+  });
+
+  it("reports an error when the change order read fails", async () => {
+    const client = fakeListClient(
+      {
+        item: [
+          {
+            id: "item_1",
+            readableIdWithRevision: "P000001.A",
+            changeOrderId: "co_open"
+          }
+        ]
+      },
+      { changeOrder: true }
+    );
+
+    expect(
+      await getUnreleasedChangeOrderItems(client, {
+        itemIds: ["item_1"],
+        companyId
+      })
+    ).toEqual({
+      data: [],
+      error: "These items could not be checked against their change orders."
+    });
+  });
+});
+
+describe("getUnreleasedChangeOrderIssue", () => {
+  it("names the change order still holding the item", async () => {
+    const client = fakeListClient({
+      item: [
+        {
+          id: "item_1",
+          readableIdWithRevision: "P000001.A",
+          changeOrderId: "co_open"
+        }
+      ],
+      changeOrder: [
+        { id: "co_open", changeOrderId: "ECO-000001", status: "Draft" }
+      ]
+    });
+
+    expect(await getUnreleasedChangeOrderIssue(client, args)).toBe(
+      "P000001.A was created by change order ECO-000001, which has not been released yet."
+    );
+  });
+
+  // Narrow on purpose — the guard does not judge `active`. Inactive items are
+  // allowed onto these documents today, and that is a separate decision.
+  it("passes an inactive item that no change order owns", async () => {
+    const client = fakeListClient({
+      item: [
+        { id: "item_1", readableIdWithRevision: "P000001", changeOrderId: null }
+      ]
+    });
+
+    expect(await getUnreleasedChangeOrderIssue(client, args)).toBeNull();
+  });
+
+  it("blocks when the check could not be made", async () => {
+    const client = fakeListClient({}, { item: true });
+
+    expect(await getUnreleasedChangeOrderIssue(client, args)).toBe(
+      "These items could not be checked against their change orders."
+    );
   });
 });

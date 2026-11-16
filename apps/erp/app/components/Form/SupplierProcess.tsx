@@ -4,12 +4,12 @@
 
 import type { ComboboxProps } from "@carbon/form";
 import { CreatableCombobox, FieldEmptyState } from "@carbon/form";
-import { useDisclosure } from "@carbon/react";
+import { useLoaderQuery } from "@carbon/query";
+import { afterDialogCloses, useDisclosure } from "@carbon/react";
 import { useLingui } from "@lingui/react/macro";
-import { useEffect, useMemo, useRef } from "react";
-import { useFetcher } from "react-router";
-import type { getSupplierProcessesByProcess } from "~/modules/purchasing";
-import { SupplierProcessForm } from "~/modules/purchasing/ui/Supplier";
+import { useMemo, useRef } from "react";
+import type { getSupplierProcessesByProcess } from "~/modules/purchasing/purchasing.service";
+import SupplierProcessForm from "~/modules/purchasing/ui/Supplier/SupplierProcessForm";
 import { useSuppliers } from "~/stores";
 import { path } from "~/utils/path";
 import { useEmptyState } from "./emptyStates";
@@ -63,12 +63,14 @@ const SupplierProcess = ({
           newSupplierProcessModal.onOpen();
         }}
       />
-      {newSupplierProcessModal.isOpen && processId && (
+      {newSupplierProcessModal.openCount > 0 && processId && (
         <SupplierProcessForm
+          key={`supplier-process-${newSupplierProcessModal.openCount}`}
+          open={newSupplierProcessModal.isOpen}
           type="modal"
           onClose={() => {
             newSupplierProcessModal.onClose();
-            triggerRef.current?.click();
+            afterDialogCloses(() => triggerRef.current?.click());
           }}
           initialValues={{
             processId,
@@ -88,17 +90,12 @@ export default SupplierProcess;
 
 export const useSupplierProcesses = (args: { processId?: string }) => {
   const { processId } = args;
-  const fetcher =
-    useFetcher<Awaited<ReturnType<typeof getSupplierProcessesByProcess>>>();
+  const fetcher = useLoaderQuery<
+    Awaited<ReturnType<typeof getSupplierProcessesByProcess>>
+  >(processId ? path.to.api.supplierProcesses(processId) : null);
 
   // An empty processId would build a URL with an empty segment that matches no
   // route — the resulting 404 bubbles to the root error boundary.
-  useEffect(() => {
-    if (processId) {
-      fetcher.load(path.to.api.supplierProcesses(processId));
-    }
-  }, [processId]);
-
   const supplierProcesses = useMemo(
     () => (fetcher.data?.data ? fetcher.data?.data : []),
     [fetcher.data]

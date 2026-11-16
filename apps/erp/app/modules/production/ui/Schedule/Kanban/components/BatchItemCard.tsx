@@ -2,6 +2,7 @@
 // Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
 // including ports, remain AGPLv3; serving them over a network requires releasing their source.
 
+import { useAction } from "@carbon/query";
 import {
   Badge,
   BarProgress,
@@ -16,12 +17,14 @@ import {
   DropdownMenuTrigger,
   HStack,
   IconButton,
-  MENU_ITEM_SHORTCUTS
+  MENU_ITEM_SHORTCUTS,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger
 } from "@carbon/react";
 import { useSortable } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
 import { useLingui } from "@lingui/react/macro";
-import { useState } from "react";
+import { memo } from "react";
 import {
   LuCircleCheck,
   LuEllipsisVertical,
@@ -31,18 +34,24 @@ import {
   LuPrinter,
   LuSquareUser,
   LuTrash,
+  LuTriangleAlert,
   LuUsers,
   LuX
 } from "react-icons/lu";
-import { useFetcher } from "react-router";
 import { CustomerAvatar, OperationStatusIcon } from "~/components";
 import { ConfirmDelete } from "~/components/Modals";
+import { MoveToSubmenu } from "~/components/MoveToSubmenu";
 import { useDateFormatter } from "~/hooks";
+import { useDrawerItem } from "~/hooks/useDrawerItem";
 import { path } from "~/utils/path";
-import { KANBAN_CARD_SHELL } from "../cardShell";
+import {
+  KANBAN_CARD_SHELL,
+  type SortableCardProps,
+  sortableCardProps
+} from "../cardShell";
 import { useKanban } from "../context/KanbanContext";
+import { DUE_URGENCY_BORDER, getBatchDueUrgency } from "../dueUrgency";
 import type { BatchItem, OperationItem } from "../types";
-import { useScheduleToday } from "../useScheduleToday";
 import { CardMaterialChips, CardSummaryRows } from "./CardSummaryRows";
 
 // The order a batch summary reports its members' statuses in: the most "live"
@@ -78,41 +87,42 @@ function rollupStatus(members: OperationItem[]): OperationItem["status"] {
 // card's information design — the same display-setting rows (status, progress,
 // due date, customer, duration, materials) rolled up across members — rather
 // than dropping them; the member list sits beneath that summary.
-export function BatchItemCard({
-  item,
-  isOverlay
-}: {
+type BatchItemCardProps = {
   item: BatchItem;
   isOverlay?: boolean;
-}) {
+};
+
+export function BatchItemCard(props: BatchItemCardProps) {
+  const sortable = useSortable({
+    id: props.item.id,
+    data: { type: "item", item: props.item },
+    attributes: { roleDescription: "item" },
+    disabled: props.item.batchStatus === "Completing"
+  });
+  return <BatchItemCardBody {...props} {...sortableCardProps(sortable)} />;
+}
+
+const BatchItemCardBody = memo(function BatchItemCardBody({
+  item,
+  isOverlay,
+  setNodeRef,
+  attributes,
+  listeners,
+  transform,
+  transition,
+  isDragging
+}: BatchItemCardProps & SortableCardProps) {
   const { t } = useLingui();
   const { formatRelativeTime } = useDateFormatter();
-  const { displaySettings } = useKanban();
-  const scheduleToday = useScheduleToday();
-  const fetcher = useFetcher();
+  const { displaySettings, scheduleToday, moveTo } = useKanban();
+  const fetcher = useAction();
   const isCompleting = item.batchStatus === "Completing";
   // Planned = composed but not yet on the floor. Visually distinct (dashed
   // border, outline badge) but still draggable — work-center reassignment is
   // legal pre-release.
   const isPlanned = item.batchStatus === "Planned";
-  const {
-    setNodeRef,
-    attributes,
-    listeners,
-    transform,
-    transition,
-    isDragging
-  } = useSortable({
-    id: item.id,
-    data: { type: "item", item },
-    attributes: { roleDescription: "item" },
-    disabled: isCompleting
-  });
 
-  const style = {
-    transition,
-    transform: CSS.Translate.toString(transform)
-  };
+  const style = { transition, transform };
 
   const members = item.members;
   const totalQty = members.reduce((sum, m) => sum + (m.quantity ?? 0), 0);
@@ -136,16 +146,28 @@ export function BatchItemCard({
     0
   );
   const totalDuration = members.reduce((sum, m) => sum + (m.duration ?? 0), 0);
-  // The earliest member due date is the batch's binding constraint.
+  // The earliest dated member deadline is the batch's binding constraint. Only
+  // Hard and Soft Deadline carry a due date; an ASAP or No Deadline member can
+  // still hold a stale one. With no dated member, show the first member's type.
   const earliest = members.reduce<OperationItem | undefined>((acc, m) => {
-    if (!m.dueDate) return acc;
+    if (
+      !m.dueDate ||
+      m.deadlineType === "ASAP" ||
+      m.deadlineType === "No Deadline"
+    )
+      return acc;
     if (!acc?.dueDate || m.dueDate < acc.dueDate) return m;
     return acc;
   }, undefined);
-  const isOverdue =
-    earliest?.deadlineType !== "No Deadline" && earliest?.dueDate
-      ? earliest.dueDate < scheduleToday
-      : false;
+  const deadline = earliest ?? members[0];
+  const isOverdue = earliest?.dueDate
+    ? earliest.dueDate < scheduleToday
+    : false;
+  // The batch runs as one, so any member the scheduler projects late makes the
+  // whole run late — flag it the way the operation card does.
+  const conflictedMembers = members.filter((m) => m.hasConflict);
+  const hasConflict = conflictedMembers.length > 0;
+  const urgency = getBatchDueUrgency(members, scheduleToday);
   const distinctCustomers = [
     ...new Set(members.map((m) => m.customerId).filter(Boolean))
   ] as string[];
@@ -162,7 +184,7 @@ export function BatchItemCard({
 
   // Removing a member sends its operation back to the schedule to run on its
   // own — easy to trigger by accident on a dense board, so it's confirmed.
-  const [removing, setRemoving] = useState<OperationItem | null>(null);
+  const removing = useDrawerItem<OperationItem>();
 
   return (
     <>
@@ -172,6 +194,7 @@ export function BatchItemCard({
         className={cn(
           "max-w-[330px]",
           KANBAN_CARD_SHELL,
+          urgency && DUE_URGENCY_BORDER[urgency],
           isPlanned && "border-dashed",
           isOverlay && "ring-2 ring-primary",
           isDragging && "ring-2 ring-primary opacity-30"
@@ -189,6 +212,36 @@ export function BatchItemCard({
               </span>
             </HStack>
             <HStack spacing={1} className="flex-shrink-0 -mr-2">
+              {hasConflict && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="inline-flex">
+                      <LuTriangleAlert
+                        aria-hidden
+                        className="h-4 w-4 text-red-500 flex-shrink-0"
+                      />
+                      {/* The tooltip is pointer-only; this reads the warning
+                          as part of the card for keyboard and screen readers. */}
+                      <span className="sr-only">
+                        {conflictedMembers
+                          .map(
+                            (m) =>
+                              `${m.jobReadableId}: ${m.conflictReason ?? t`Scheduling conflict`}`
+                          )
+                          .join("; ")}
+                      </span>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {conflictedMembers.map((m) => (
+                      <div key={m.id}>
+                        {m.jobReadableId}:{" "}
+                        {m.conflictReason ?? t`Scheduling conflict`}
+                      </div>
+                    ))}
+                  </TooltipContent>
+                </Tooltip>
+              )}
               {!isCompleting && (
                 <IconButton
                   aria-label={t`Move batch`}
@@ -238,6 +291,12 @@ export function BatchItemCard({
                       {t`Dissolve batch`}
                     </DropdownMenuItem>
                   )}
+                  {moveTo && !isCompleting && (
+                    <MoveToSubmenu
+                      getTargets={() => moveTo.targetsFor(item.id)}
+                      onMove={(columnId) => moveTo.onMove(item.id, columnId)}
+                    />
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             </HStack>
@@ -285,8 +344,8 @@ export function BatchItemCard({
             showDuration={displaySettings.showDuration && totalDuration > 0}
             duration={totalDuration}
             showDueDate={displaySettings.showDueDate}
-            deadlineType={earliest?.deadlineType}
-            dueDate={earliest?.dueDate}
+            deadlineType={deadline?.deadlineType}
+            dueDate={deadline?.dueDate}
             isOverdue={isOverdue}
             formatRelativeTime={formatRelativeTime}
           />
@@ -334,8 +393,8 @@ export function BatchItemCard({
                     icon={<LuX />}
                     variant="ghost"
                     size="sm"
-                    className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive"
-                    onClick={() => setRemoving(m)}
+                    className="md:opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 text-muted-foreground hover:text-destructive"
+                    onClick={() => removing.open(m)}
                   />
                 )}
               </HStack>
@@ -343,24 +402,25 @@ export function BatchItemCard({
           ))}
         </CardContent>
       </Card>
-      {removing && (
+      {removing.item && (
         <ConfirmDelete
           action={path.to.priorityBatchingUpdate}
+          isOpen={removing.isOpen}
           title={t`Remove from batch`}
-          name={removing.jobReadableId ?? t`operation`}
+          name={removing.item.jobReadableId ?? t`operation`}
           text={t`Remove ${
-            removing.jobReadableId ?? "this operation"
+            removing.item.jobReadableId ?? "this operation"
           } from this batch? Its operation goes back to the schedule to run on its own.`}
           deleteText={t`Remove`}
           fields={{
             intent: "remove",
             batchId: item.batchId,
-            jobOperationIds: removing.id
+            jobOperationIds: removing.item.id
           }}
-          onCancel={() => setRemoving(null)}
-          onSubmit={() => setRemoving(null)}
+          onCancel={removing.close}
+          onSubmit={removing.close}
         />
       )}
     </>
   );
-}
+});

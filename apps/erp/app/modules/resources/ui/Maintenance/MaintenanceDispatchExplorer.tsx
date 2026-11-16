@@ -3,6 +3,7 @@
 // including ports, remain AGPLv3; serving them over a network requires releasing their source.
 
 import { DateTimePicker, Hidden, Submit, ValidatedForm } from "@carbon/form";
+import { useAction } from "@carbon/query";
 import {
   Button,
   Count,
@@ -26,13 +27,14 @@ import {
   ModalTitle,
   ScrollArea,
   Skeleton,
+  toast,
   useDisclosure,
   VStack
 } from "@carbon/react";
 import { formatDate } from "@carbon/utils";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { useLocale } from "@react-aria/i18n";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { flushSync } from "react-dom";
 import {
   LuBox,
@@ -45,13 +47,15 @@ import {
   LuSearch,
   LuTrash
 } from "react-icons/lu";
-import { Link, useFetcher, useParams } from "react-router";
+import { Link, useParams } from "react-router";
 import { Employee, TextArea, WorkCenter } from "~/components/Form";
 import { ConfirmDelete } from "~/components/Modals";
 import { LevelLine } from "~/components/TreeView";
 import { usePermissions, useRouteData } from "~/hooks";
 import { getLinkToItemDetails } from "~/modules/items/ui/Item/ItemForm";
-import type { MethodItemType } from "~/modules/shared";
+import type { MethodItemType } from "~/modules/shared/types";
+import type { action as editEventAction } from "~/routes/x+/maintenance+/$dispatchId.event.$eventId";
+import type { action as newEventAction } from "~/routes/x+/maintenance+/$dispatchId.event.new";
 import { useItems } from "~/stores/items";
 import { path } from "~/utils/path";
 import {
@@ -117,7 +121,6 @@ export function MaintenanceDispatchExplorer({
   };
 
   const onDeleteCancel = () => {
-    setSelectedChild(null);
     deleteDisclosure.onClose();
   };
 
@@ -129,7 +132,6 @@ export function MaintenanceDispatchExplorer({
   };
 
   const onEditClose = () => {
-    setSelectedChild(null);
     editDisclosure.onClose();
   };
 
@@ -178,6 +180,7 @@ export function MaintenanceDispatchExplorer({
               <LuSearch className="h-4 w-4" />
             </InputLeftElement>
             <Input
+              aria-label={t`Search maintenance dispatches`}
               placeholder={t`Search...`}
               value={filterText}
               onChange={(e) => setFilterText(e.target.value)}
@@ -198,7 +201,7 @@ export function MaintenanceDispatchExplorer({
           ))}
         </VStack>
       </VStack>
-      {deleteDisclosure.isOpen && selectedChild?.id && (
+      {selectedChild?.id && (
         <ConfirmDelete
           action={getDeleteAction()}
           name={getDeleteName()}
@@ -210,16 +213,14 @@ export function MaintenanceDispatchExplorer({
           onSubmit={onDeleteCancel}
         />
       )}
-      {editDisclosure.isOpen &&
-        selectedChild?.id &&
-        selectedChild.type === "event" && (
-          <EditTimecardModal
-            open={editDisclosure.isOpen}
-            onClose={onEditClose}
-            dispatchId={dispatchId}
-            event={selectedChild}
-          />
-        )}
+      {selectedChild?.id && selectedChild.type === "event" && (
+        <EditTimecardModal
+          open={editDisclosure.isOpen}
+          onClose={onEditClose}
+          dispatchId={dispatchId}
+          event={selectedChild}
+        />
+      )}
     </ScrollArea>
   );
 }
@@ -256,6 +257,8 @@ function MaintenanceExplorerItem({
     <>
       <div className="flex h-8 items-center overflow-hidden rounded-sm px-2 gap-2 text-sm w-full hover:bg-accent">
         <button
+          type="button"
+          aria-expanded={isExpanded}
           className="flex flex-grow cursor-pointer items-center overflow-hidden font-medium"
           onClick={(e) => {
             e.stopPropagation();
@@ -281,9 +284,7 @@ function MaintenanceExplorerItem({
             variant="ghost"
             icon={<LuCirclePlus />}
             className="ml-auto"
-            onClick={() => {
-              newModal.onOpen();
-            }}
+            onClick={newModal.onOpen}
           />
         )}
       </div>
@@ -313,13 +314,14 @@ function MaintenanceExplorerItem({
         </div>
       )}
 
-      {newModal.isOpen && node.key === "items" && (
+      {node.key === "items" && (
         <MaintenanceAddPartModal
+          open={newModal.isOpen}
           dispatchId={dispatchId}
           onClose={newModal.onClose}
         />
       )}
-      {newModal.isOpen && node.key === "events" && (
+      {node.key === "events" && (
         <NewTimecardModal
           open={newModal.isOpen}
           onClose={newModal.onClose}
@@ -381,7 +383,7 @@ function MaintenanceExplorerChildItem({
               icon={<LuEllipsisVertical />}
               variant="ghost"
               size="sm"
-              className="absolute right-1 top-1 flex-shrink-0 opacity-0 group-hover/child:opacity-100 data-[state=open]:opacity-100 text-foreground/70 hover:text-foreground"
+              className="absolute right-1 top-1 flex-shrink-0 md:opacity-0 group-hover/child:opacity-100 group-focus-within/child:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100 text-foreground/70 hover:text-foreground"
             />
           </DropdownMenuTrigger>
           <DropdownMenuContent>
@@ -424,15 +426,6 @@ function NewTimecardModal({
   onClose: () => void;
   dispatchId: string;
 }) {
-  const { t } = useLingui();
-  const fetcher = useFetcher();
-
-  useEffect(() => {
-    if (fetcher.state === "idle" && fetcher.data?.success === true) {
-      onClose();
-    }
-  }, [fetcher.state, fetcher.data, onClose]);
-
   return (
     <Modal
       open={open}
@@ -441,42 +434,62 @@ function NewTimecardModal({
       }}
     >
       <ModalContent>
-        <ValidatedForm
-          method="post"
-          action={path.to.newMaintenanceDispatchEvent(dispatchId)}
-          validator={maintenanceDispatchEventValidator}
-          fetcher={fetcher}
-        >
-          <ModalHeader>
-            <ModalTitle>
-              <Trans>Add Timecard</Trans>
-            </ModalTitle>
-          </ModalHeader>
-          <ModalBody>
-            <Hidden name="maintenanceDispatchId" value={dispatchId} />
-            <VStack spacing={4}>
-              <Employee name="employeeId" label={t`Employee`} />
-              <WorkCenter
-                name="workCenterId"
-                label={t`Work Center`}
-                termId="work-center"
-              />
-              <DateTimePicker name="startTime" label={t`Start Time`} />
-              <DateTimePicker name="endTime" label={t`End Time`} />
-              <TextArea name="notes" label={t`Notes`} />
-            </VStack>
-          </ModalBody>
-          <ModalFooter>
-            <Button variant="secondary" onClick={onClose}>
-              <Trans>Cancel</Trans>
-            </Button>
-            <Submit>
-              <Trans>Add</Trans>
-            </Submit>
-          </ModalFooter>
-        </ValidatedForm>
+        <NewTimecardBody onClose={onClose} dispatchId={dispatchId} />
       </ModalContent>
     </Modal>
+  );
+}
+
+function NewTimecardBody({
+  onClose,
+  dispatchId
+}: {
+  onClose: () => void;
+  dispatchId: string;
+}) {
+  const { t } = useLingui();
+  const fetcher = useAction<typeof newEventAction>({
+    onSuccess: ({ data }) => {
+      if (data?.warning) toast.error(data.warning);
+      onClose();
+    }
+  });
+
+  return (
+    <ValidatedForm
+      method="post"
+      action={path.to.newMaintenanceDispatchEvent(dispatchId)}
+      validator={maintenanceDispatchEventValidator}
+      fetcher={fetcher}
+    >
+      <ModalHeader>
+        <ModalTitle>
+          <Trans>Add Timecard</Trans>
+        </ModalTitle>
+      </ModalHeader>
+      <ModalBody>
+        <Hidden name="maintenanceDispatchId" value={dispatchId} />
+        <VStack spacing={4}>
+          <Employee name="employeeId" label={t`Employee`} />
+          <WorkCenter
+            name="workCenterId"
+            label={t`Work Center`}
+            termId="work-center"
+          />
+          <DateTimePicker name="startTime" label={t`Start Time`} />
+          <DateTimePicker name="endTime" label={t`End Time`} />
+          <TextArea name="notes" label={t`Notes`} />
+        </VStack>
+      </ModalBody>
+      <ModalFooter>
+        <Button variant="secondary" onClick={onClose}>
+          <Trans>Cancel</Trans>
+        </Button>
+        <Submit>
+          <Trans>Add</Trans>
+        </Submit>
+      </ModalFooter>
+    </ValidatedForm>
   );
 }
 
@@ -492,13 +505,12 @@ function EditTimecardModal({
   event: MaintenanceDispatchEvent & { type: "event" };
 }) {
   const { t } = useLingui();
-  const fetcher = useFetcher();
-
-  useEffect(() => {
-    if (fetcher.state === "idle" && fetcher.data?.success === true) {
+  const fetcher = useAction<typeof editEventAction>({
+    onSuccess: ({ data }) => {
+      if (data?.warning) toast.error(data.warning);
       onClose();
     }
-  }, [fetcher.state, fetcher.data, onClose]);
+  });
 
   return (
     <Modal

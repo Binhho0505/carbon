@@ -13,11 +13,14 @@
 
 import { today } from "@internationalized/date";
 import type { PoolClient } from "pg";
+import { defense } from "./data/defense/index.ts";
 import { fmcg } from "./data/fmcg/index.ts";
 import { motor } from "./data/motor/index.ts";
+import { motorLine } from "./data/motor-line/index.ts";
 import { precision } from "./data/precision/index.ts";
 import { robotics } from "./data/robotics/index.ts";
 import { satellite } from "./data/satellite/index.ts";
+import { ensureUnitsOfMeasure } from "./helpers/units-of-measure.ts";
 import { ensureSequences } from "./sql.ts";
 import { selectTiers } from "./tiers/index.ts";
 import {
@@ -37,6 +40,8 @@ export const DATASETS: Record<DatasetKey, Dataset> = {
   robotics,
   precision,
   motor,
+  "motor-line": motorLine,
+  defense,
   fmcg
 };
 
@@ -124,17 +129,28 @@ export async function applyDatasetTiers(
   } = opts;
 
   const anchor = today(timeZone);
-  const ctx = await buildCtx(client, companyId, userId, dataset, anchor, (m) =>
-    log(`  ${m}`)
+  const ctx = await buildCtx(
+    client,
+    companyId,
+    userId,
+    dataset,
+    anchor,
+    timeZone,
+    (m) => log(`  ${m}`)
   );
   const selected = selectTiers(tiers ?? null);
 
   // Suppresses dispatch_event_batch (pgmq + pg_net). Sync interceptors
   // still run, so the satellite rows we depend on are still created.
   await client.query(`SET LOCAL "app.sync_in_progress" = 'true'`);
+  // Lets tier 01 date the accounting cutover at the dataset's first seeded
+  // period even when the company already has one; check_accounting_config_locked
+  // refuses that change in any other transaction.
+  await client.query(`SET LOCAL "app.dataset_apply" = 'true'`);
 
   // Must run before resetSequences, and before any nextSequence() call.
   await ensureSequences(client, companyId);
+  await ensureUnitsOfMeasure(client, companyId, dataset);
 
   if (wipeFirst) {
     log("Wiping existing business data...");

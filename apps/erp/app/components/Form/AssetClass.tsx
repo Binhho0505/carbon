@@ -4,10 +4,11 @@
 
 import type { CreatableComboboxProps } from "@carbon/form";
 import { CreatableCombobox } from "@carbon/form";
-import { useDisclosure, useMount } from "@carbon/react";
-import { useMemo, useRef, useState } from "react";
+import { useLoaderQuery } from "@carbon/query";
+import { useMemo, useRef } from "react";
 import { useFetcher } from "react-router";
-import type { getFixedAssetClassesList } from "~/modules/accounting";
+import { useDrawerItem } from "~/hooks";
+import type { getFixedAssetClassesList } from "~/modules/accounting/accounting.service";
 import AssetClassForm from "~/modules/accounting/ui/FixedAssets/AssetClassForm";
 import type { loader as newAssetClassLoader } from "~/routes/x+/accounting+/asset-classes.new";
 import { path } from "~/utils/path";
@@ -31,8 +32,7 @@ const AssetClassPreview = (
 };
 
 const AssetClass = ({ inline = false, ...props }: AssetClassSelectProps) => {
-  const newAssetClassModal = useDisclosure();
-  const [created, setCreated] = useState<string>("");
+  const create = useDrawerItem<string>();
   const triggerRef = useRef<HTMLButtonElement>(null);
   const defaultsFetcher = useFetcher<typeof newAssetClassLoader>();
 
@@ -45,7 +45,7 @@ const AssetClass = ({ inline = false, ...props }: AssetClassSelectProps) => {
   const emptyMessage = useEmptyState("assetClass", {
     onCreate: () => {
       defaultsFetcher.load(path.to.newAssetClass);
-      newAssetClassModal.onOpen();
+      create.open("");
     }
   });
 
@@ -63,21 +63,21 @@ const AssetClass = ({ inline = false, ...props }: AssetClassSelectProps) => {
         inline={inline ? AssetClassPreview : undefined}
         onCreateOption={(option) => {
           defaultsFetcher.load(path.to.newAssetClass);
-          newAssetClassModal.onOpen();
-          setCreated(option);
+          create.open(option);
         }}
       />
-      {newAssetClassModal.isOpen && (
+      {create.item !== null && (
         <AssetClassForm
+          key={create.key}
+          open={create.isOpen}
           type="modal"
           onClose={() => {
-            setCreated("");
-            newAssetClassModal.onClose();
-            triggerRef.current?.click();
+            create.close();
+            create.afterClose(() => triggerRef.current?.click());
           }}
           taxDepreciationEnabled={taxDepreciationEnabled}
           initialValues={{
-            name: created,
+            name: create.item,
             description: "",
             depreciationMethod: "Straight Line" as const,
             usefulLifeMonths: 60,
@@ -103,12 +103,9 @@ AssetClass.displayName = "AssetClass";
 export default AssetClass;
 
 export const useAssetClasses = () => {
-  const assetClassFetcher =
-    useFetcher<Awaited<ReturnType<typeof getFixedAssetClassesList>>>();
-
-  useMount(() => {
-    assetClassFetcher.load(path.to.api.assetClasses);
-  });
+  const assetClassFetcher = useLoaderQuery<
+    Awaited<ReturnType<typeof getFixedAssetClassesList>>
+  >(path.to.api.assetClasses);
 
   const assetClasses = useMemo(
     () => assetClassFetcher.data?.data ?? [],

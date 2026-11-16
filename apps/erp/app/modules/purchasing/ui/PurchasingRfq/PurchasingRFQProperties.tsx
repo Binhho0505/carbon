@@ -4,11 +4,8 @@
 
 import type { Json } from "@carbon/database";
 import { CreatableMultiSelect, DatePicker, ValidatedForm } from "@carbon/form";
+import { toastServiceError, useAction } from "@carbon/query";
 import {
-  Avatar,
-  AvatarGroup,
-  AvatarGroupList,
-  AvatarOverflowIndicator,
   Button,
   Copy,
   HStack,
@@ -16,17 +13,20 @@ import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-  toast,
   useDisclosure,
   VStack
 } from "@carbon/react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { LuCopy, LuKeySquare, LuLink } from "react-icons/lu";
-import { useFetcher, useParams } from "react-router";
+import { useParams } from "react-router";
 import { z } from "zod";
 import { zfd } from "zod-form-data";
-import { Assignee, useOptimisticAssignment } from "~/components";
+import {
+  Assignee,
+  SupplierAvatarGroup,
+  useOptimisticAssignment
+} from "~/components";
 import { Employee, Location } from "~/components/Form";
 import CustomFormInlineFields from "~/components/Form/CustomFormInlineFields";
 import { usePermissions, useRouteData } from "~/hooks";
@@ -63,21 +63,11 @@ const PurchasingRFQProperties = () => {
 
   const renderSuppliersInlinePreview = useCallback(
     (value: string[], _options: unknown, maxPreview = 5) => (
-      <AvatarGroup limit={maxPreview} className="relative z-10">
-        <AvatarGroupList>
-          {value.map((supplier, index: number) => (
-            <Avatar
-              key={index}
-              name={
-                allSuppliers.find((s) => s.id === supplier)?.name ?? supplier
-              }
-            />
-          ))}
-        </AvatarGroupList>
-        <AvatarOverflowIndicator />
-      </AvatarGroup>
+      <div className="relative z-10">
+        <SupplierAvatarGroup supplierIds={value} size="sm" limit={maxPreview} />
+      </div>
     ),
-    [allSuppliers]
+    []
   );
 
   // Get current supplier IDs from the RFQ
@@ -89,13 +79,11 @@ const PurchasingRFQProperties = () => {
     );
   }, [routeData?.suppliers]);
 
-  const fetcher = useFetcher<typeof action>();
-  useEffect(() => {
-    if (fetcher.data?.error) {
-      toast.error(fetcher.data.error.message);
+  const fetcher = useAction<typeof action>({
+    onError: (data) => {
+      toastServiceError(data);
     }
-  }, [fetcher.data]);
-
+  });
   // biome-ignore lint/correctness/useExhaustiveDependencies: suppressed due to migration
   const onUpdate = useCallback(
     (field: keyof PurchasingRFQ, value: string | null) => {
@@ -259,17 +247,16 @@ const PurchasingRFQProperties = () => {
             onUpdateSuppliers(selected);
           }}
           onCreateOption={(option) => {
-            newSupplierModal.onOpen();
             setCreated(option);
+            newSupplierModal.onOpen();
           }}
         />
-        {newSupplierModal.isOpen && (
+        {newSupplierModal.openCount > 0 && (
           <SupplierForm
+            key={newSupplierModal.openCount}
+            open={newSupplierModal.isOpen}
             type="modal"
-            onClose={() => {
-              setCreated("");
-              newSupplierModal.onClose();
-            }}
+            onClose={newSupplierModal.onClose}
             initialValues={{
               name: created
             }}

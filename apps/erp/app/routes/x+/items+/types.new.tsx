@@ -6,18 +6,14 @@ import { assertIsPost, error, success } from "@carbon/auth";
 import { requirePermissions } from "@carbon/auth/auth.server";
 import { flash } from "@carbon/auth/session.server";
 import { validationError, validator } from "@carbon/form";
-import { useCloseRoute } from "@carbon/react";
+import { useRouteDialog } from "@carbon/react";
 import { redirect } from "@carbon/utils";
-import type {
-  ActionFunctionArgs,
-  ClientActionFunctionArgs,
-  LoaderFunctionArgs
-} from "react-router";
+import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import { data } from "react-router";
-import { materialTypeValidator, upsertMaterialType } from "~/modules/items";
+import { materialTypeValidator } from "~/modules/items/items.models";
+import { upsertMaterialType } from "~/modules/items/items.service";
 import MaterialTypeForm from "~/modules/items/ui/MaterialTypes/MaterialTypeForm";
 import { getParams, path } from "~/utils/path";
-import { getCompanyId, materialTypesQuery } from "~/utils/react-query";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   await requirePermissions(request, {
@@ -63,10 +59,7 @@ export async function action({ request }: ActionFunctionArgs) {
   if (!materialTypeId) {
     return data(
       {},
-      await flash(
-        request,
-        error(insertMaterialType, "Failed to insert material type")
-      )
+      await flash(request, error(null, "Failed to insert material type"))
     );
   }
 
@@ -78,32 +71,8 @@ export async function action({ request }: ActionFunctionArgs) {
       );
 }
 
-export async function clientAction({
-  request,
-  serverAction
-}: ClientActionFunctionArgs) {
-  const formData = await request.clone().formData();
-  const validation = await validator(materialTypeValidator).validate(formData);
-
-  if (!validation.error) {
-    const companyId = getCompanyId();
-    const { materialSubstanceId, materialFormId } = validation.data;
-
-    if (companyId && materialSubstanceId && materialFormId) {
-      // Invalidate the cache for this specific combination
-      window.clientCache?.setQueryData(
-        materialTypesQuery(materialSubstanceId, materialFormId, companyId)
-          .queryKey,
-        null
-      );
-    }
-  }
-
-  return await serverAction();
-}
-
 export default function NewMaterialTypesRoute() {
-  const closeRoute = useCloseRoute();
+  const dialog = useRouteDialog();
   const initialValues = {
     name: "",
     code: "",
@@ -113,7 +82,8 @@ export default function NewMaterialTypesRoute() {
 
   return (
     <MaterialTypeForm
-      onClose={() => closeRoute()}
+      open={dialog.open}
+      onClose={dialog.close}
       initialValues={initialValues}
     />
   );

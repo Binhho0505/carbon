@@ -4,12 +4,11 @@
 
 import type { ComboboxProps } from "@carbon/form";
 import { Combobox, CreatableCombobox } from "@carbon/form";
-import { useDisclosure, useMount } from "@carbon/react";
-import { useMemo, useRef, useState } from "react";
-import { useFetcher } from "react-router";
-import { usePermissions } from "~/hooks";
-import type { getShippingMethodsList } from "~/modules/inventory";
-import { ShippingMethodForm } from "~/modules/inventory";
+import { useLoaderQuery } from "@carbon/query";
+import { useMemo, useRef } from "react";
+import { useDrawerItem, usePermissions } from "~/hooks";
+import type { getShippingMethodsList } from "~/modules/inventory/inventory.service";
+import ShippingMethodForm from "~/modules/inventory/ui/ShippingMethods/ShippingMethodForm";
 import { path } from "~/utils/path";
 import { useEmptyState } from "./emptyStates";
 
@@ -19,12 +18,11 @@ const ShippingMethod = (props: ShippingMethodSelectProps) => {
   const options = useShippingMethod();
   const permissions = usePermissions();
 
-  const newShippingMethodModal = useDisclosure();
-  const [created, setCreated] = useState<string>("");
+  const create = useDrawerItem<string>();
   const triggerRef = useRef<HTMLButtonElement>(null);
 
   const emptyMessage = useEmptyState("shippingMethod", {
-    onCreate: () => newShippingMethodModal.onOpen()
+    onCreate: () => create.open("")
   });
 
   return permissions.can("create", "inventory") ? (
@@ -36,20 +34,20 @@ const ShippingMethod = (props: ShippingMethodSelectProps) => {
         {...props}
         label={props?.label ?? "Shipping Method"}
         onCreateOption={(option) => {
-          newShippingMethodModal.onOpen();
-          setCreated(option);
+          create.open(option);
         }}
       />
-      {newShippingMethodModal.isOpen && (
+      {create.item !== null && (
         <ShippingMethodForm
+          key={create.key}
+          open={create.isOpen}
           type="modal"
           onClose={() => {
-            setCreated("");
-            newShippingMethodModal.onClose();
-            triggerRef.current?.click();
+            create.close();
+            create.afterClose(() => triggerRef.current?.click());
           }}
           initialValues={{
-            name: created,
+            name: create.item,
             carrier: "" as "FedEx"
           }}
         />
@@ -70,12 +68,9 @@ ShippingMethod.displayName = "ShippingMethod";
 export default ShippingMethod;
 
 export const useShippingMethod = () => {
-  const shippingMethodFetcher =
-    useFetcher<Awaited<ReturnType<typeof getShippingMethodsList>>>();
-
-  useMount(() => {
-    shippingMethodFetcher.load(path.to.api.shippingMethods);
-  });
+  const shippingMethodFetcher = useLoaderQuery<
+    Awaited<ReturnType<typeof getShippingMethodsList>>
+  >(path.to.api.shippingMethods);
 
   const options = useMemo(() => {
     return (shippingMethodFetcher.data?.data ?? []).map((c) => ({

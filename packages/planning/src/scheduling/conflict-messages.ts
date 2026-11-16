@@ -51,7 +51,9 @@ export type LatePlacementCause =
   /** Nothing delayed it — there simply isn't enough time before the due date. */
   | { kind: "no-runway" }
   /** Outside processing turnaround runs past the due date. */
-  | { kind: "outside-processing" };
+  | { kind: "outside-processing" }
+  /** Runs in a released batch, whose window is shared with the other jobs in it. */
+  | { kind: "batch"; batchReadableId: string | null };
 
 /**
  * Classify why a placed operation finishes late. `waitedMs` is how long the
@@ -154,6 +156,7 @@ export function composePlacementNote(
         : "Starts after an earlier operation in this job finishes";
     case "no-runway":
     case "outside-processing":
+    case "batch":
       return null;
   }
 }
@@ -197,6 +200,27 @@ export function composeBehindTarget(
   return null;
 }
 
+/**
+ * Why gated work waits when people ARE qualified: every one of them is on the
+ * manning board, and the board is a commitment, so none is free to float
+ * here. Either they are assigned to other stations, or the ones assigned
+ * here cannot cover the work on the days they are assigned.
+ */
+export function composeNoFreeOperator(
+  abilityName: string,
+  qualifiedCount: number,
+  assignedHere = false
+): string {
+  if (assignedHere) {
+    return `No free operator for ${abilityName}: the qualified people assigned here can't cover it on their assigned days`;
+  }
+  const people =
+    qualifiedCount === 1
+      ? "the 1 person qualified is"
+      : `all ${qualifiedCount} people qualified are`;
+  return `No free operator for ${abilityName}: ${people} assigned to other stations on the manning board`;
+}
+
 export function composeLateConflict(
   finishDate: string, // "YYYY-MM-DD"
   jobDueDate: string, // "YYYY-MM-DD"
@@ -228,6 +252,10 @@ export function composeLateConflict(
       return `${late} — not enough time remains before the due date`;
     case "outside-processing":
       return `${late} — outside processing pushes it past the due date`;
+    case "batch":
+      return `${late} — it runs in ${
+        cause.batchReadableId ? `batch ${cause.batchReadableId}` : "a batch"
+      }, scheduled with the other jobs in it`;
   }
 }
 

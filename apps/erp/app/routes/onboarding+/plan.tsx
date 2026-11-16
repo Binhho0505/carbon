@@ -25,7 +25,7 @@ import { useMemo } from "react";
 import { LuMoveLeft, LuPhoneCall } from "react-icons/lu";
 import type { ActionFunctionArgs } from "react-router";
 import { Form, useFetcher, useLoaderData } from "react-router";
-import { getCompany, getPlans } from "~/modules/settings";
+import { getCompany, getPlans } from "~/modules/settings/settings.service";
 import { path } from "~/utils/path";
 
 const logger = getLogger("erp", "plan");
@@ -156,7 +156,7 @@ export default function OnboardingPlan() {
     [locale]
   );
 
-  logger.info({ companyId });
+  logger.info("Showing the plans", { companyId });
   const fetcher = useFetcher<typeof action>();
 
   // Starter/Business come from the DB (self-checkout via Stripe). Enterprise is

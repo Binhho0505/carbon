@@ -3,6 +3,7 @@
 // including ports, remain AGPLv3; serving them over a network requires releasing their source.
 
 import { Select, ValidatedForm } from "@carbon/form";
+import { toastServiceError, useAction } from "@carbon/query";
 import {
   Badge,
   Button,
@@ -12,29 +13,26 @@ import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-  toast,
   VStack
 } from "@carbon/react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { useCallback, useEffect } from "react";
+import { useCallback } from "react";
 import { LuCopy, LuKeySquare, LuLink } from "react-icons/lu";
-import { useFetcher, useParams } from "react-router";
+import { useParams } from "react-router";
 import { z } from "zod";
 import Assignee, { useOptimisticAssignment } from "~/components/Assignee";
 import { Enumerable } from "~/components/Enumerable";
 import { Ability, InputControlled, Tags } from "~/components/Form";
 import { usePermissions, useRouteData } from "~/hooks";
 import { useTags } from "~/hooks/useTags";
-import type { Training } from "~/modules/resources";
 import {
   trainingFrequency,
-  trainingStatus,
   trainingType
-} from "~/modules/resources";
-import type { action } from "~/routes/x+/items+/update";
+} from "~/modules/resources/resources.models";
+import type { Training } from "~/modules/resources/types";
+import type { action } from "~/routes/x+/training+/update";
 import { path } from "~/utils/path";
 import { copyToClipboard } from "~/utils/string";
-import TrainingStatus from "./TrainingStatus";
 
 const TrainingProperties = () => {
   const { t } = useLingui();
@@ -46,13 +44,11 @@ const TrainingProperties = () => {
     tags: Array<{ name: string }>;
   }>(path.to.training(id));
 
-  const fetcher = useFetcher<typeof action>();
-  useEffect(() => {
-    if (fetcher.data?.error) {
-      toast.error(fetcher.data.error.message);
+  const fetcher = useAction<typeof action>({
+    onError: (data) => {
+      toastServiceError(data);
     }
-  }, [fetcher.data]);
-
+  });
   // biome-ignore lint/correctness/useExhaustiveDependencies: suppressed due to migration
   const onUpdate = useCallback(
     (
@@ -158,10 +154,32 @@ const TrainingProperties = () => {
             </Tooltip>
           </HStack>
         </HStack>
-        <span className="text-sm tracking-tight">
-          {routeData?.training?.name}
-        </span>
       </VStack>
+
+      <ValidatedForm
+        defaultValues={{
+          name: routeData?.training?.name ?? ""
+        }}
+        validator={z.object({
+          name: z.string()
+        })}
+        className="w-full"
+        isReadOnly={!permissions.can("update", "people")}
+      >
+        <InputControlled
+          label={t`Name`}
+          name="name"
+          inline
+          size="sm"
+          value={routeData?.training?.name ?? ""}
+          onBlur={(e) => {
+            const name = e.target.value.trim();
+            if (name && name !== routeData?.training?.name) {
+              onUpdate("name", name);
+            }
+          }}
+        />
+      </ValidatedForm>
 
       <Assignee
         id={id}
@@ -170,36 +188,6 @@ const TrainingProperties = () => {
         variant="inline"
         isReadOnly={!permissions.can("update", "resources")}
       />
-
-      <ValidatedForm
-        defaultValues={{
-          status: routeData?.training?.status ?? undefined
-        }}
-        validator={z.object({
-          status: z.string().min(1, { message: "Status is required" })
-        })}
-        className="w-full"
-      >
-        <span className="text-sm tracking-tight">
-          <Select
-            label={t`Status`}
-            name="status"
-            inline={(value) => (
-              <TrainingStatus
-                status={value as "Draft" | "Active" | "Archived"}
-              />
-            )}
-            options={trainingStatus.map((status) => ({
-              value: status,
-              label: <TrainingStatus status={status} />
-            }))}
-            value={routeData?.training?.status ?? ""}
-            onChange={(value) => {
-              onUpdate("status", value?.value ?? null);
-            }}
-          />
-        </span>
-      </ValidatedForm>
 
       <ValidatedForm
         defaultValues={{

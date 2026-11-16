@@ -209,7 +209,7 @@ export const WAREHOUSES: WarehouseSpec[] = [
   { key: "QC", name: "Incoming Inspection Hold", requiresBin: true }
 ];
 
-export const STORAGE_TYPES = ["Shelf", "Bin", "Rack"];
+export const STORAGE_TYPES = ["Shelf", "Bin", "Rack", "Quarantine"];
 
 // Names here are the contract for OPENING_STOCK[].shelf — a mismatch is a hard
 // error, so the racking rows are listed rather than generated.
@@ -225,7 +225,12 @@ export const SHELVES: ShelfSpec[] = [
   { name: "B3-L2", warehouse: "Main", storageType: "Bin", parent: "Rack-1" },
   { name: "B3-L3", warehouse: "Main", storageType: "Bin", parent: "Rack-1" },
   // Bar, plate and tube live on cantilever racking, not in bins.
-  { name: "Bar-Stock", warehouse: "Main", storageType: "Shelf" }
+  { name: "Bar-Stock", warehouse: "Main", storageType: "Shelf" },
+  // Non-nettable (its storage type is): stock held here pending a quality
+  // decision is not planned against or picked.
+  { name: "MRB-Hold", warehouse: "Main", storageType: "Quarantine" },
+  // Non-nettable: inspected goods-in receipts wait here for their lot's decision.
+  { name: "QC-Inspection", warehouse: "QC", storageType: "Quarantine" }
 ];
 
 export const PRINTER_ROUTE: PrinterRouteSpec = {
@@ -317,48 +322,63 @@ export const CUSTOMER_CONTACTS = [
     lastName: "Kestenbaum",
     email: "akestenbaum@solsticemedical.com",
     title: "NPI Program Manager"
+  },
+  {
+    customer: "Dominion Ag Equipment",
+    firstName: "Grace",
+    lastName: "Holloway",
+    email: "gholloway@dominionag.com",
+    title: "Maintenance Planner",
+    sharesLocation: true as const
   }
 ];
 
 export const SUPPLIERS = [
   {
     name: "Rock River Metals",
+    stage: "Production" as const,
     type: "Materials",
     phone: "+1-815-555-0110",
     website: "https://rockrivermetals.com"
   },
   {
     name: "Bluestem Alloys",
+    stage: "Production" as const,
     type: "Materials",
     phone: "+1-262-555-0220",
     website: "https://bluestemalloys.com"
   },
   {
     name: "Fastline Industrial Supply",
+    stage: "Qualified" as const,
     type: "Hardware",
     phone: "+1-847-555-0330",
     website: "https://fastlinesupply.com"
   },
   {
     name: "Midway Bearing & Seal",
+    stage: "Production" as const,
     type: "Hardware",
     phone: "+1-773-555-0440",
     website: "https://midwaybearing.com"
   },
   {
     name: "Anvil Finishing Group",
+    stage: "Production" as const,
     type: "Finishing",
     phone: "+1-815-555-0550",
     website: "https://anvilfinishing.com"
   },
   {
     name: "Forge Heat Treating",
+    stage: "Qualified" as const,
     type: "Heat Treating",
     phone: "+1-309-555-0660",
     website: "https://forgeheattreat.com"
   },
   {
     name: "Precision Gauge Services",
+    stage: "Production" as const,
     type: "Services",
     phone: "+1-608-555-0770",
     website: "https://precisiongauge.com"
@@ -374,6 +394,7 @@ export const SUPPLIERS = [
   },
   {
     name: "Prairie Anodizing",
+    stage: "Sampling" as const,
     type: "Finishing",
     phone: "+1-217-555-0990",
     website: "https://prairieanodizing.com",
@@ -381,6 +402,7 @@ export const SUPPLIERS = [
   },
   {
     name: "Cutrate Carbide",
+    stage: "Prospect" as const,
     type: "Tooling",
     phone: "+1-773-555-1010",
     website: "https://cutratecarbide.com",
@@ -388,6 +410,7 @@ export const SUPPLIERS = [
   },
   {
     name: "Bavaria Werkzeugstahl GmbH",
+    stage: "Production" as const,
     type: "Materials",
     phone: "+49-89-555-1120",
     website: "https://bavaria-werkzeugstahl.de",
@@ -848,7 +871,10 @@ export const precisionFoundation: FoundationData = {
   employeeJob: EMPLOYEE_JOB,
   warehouses: WAREHOUSES,
   storageTypes: STORAGE_TYPES,
+  nonNettableStorageTypes: ["Quarantine"],
   shelves: SHELVES,
+  inspectionShelf: "QC-Inspection",
+  rejectedShelf: "MRB-Hold",
   printerRoute: PRINTER_ROUTE,
   holidays: HOLIDAYS,
   tags: TAGS,

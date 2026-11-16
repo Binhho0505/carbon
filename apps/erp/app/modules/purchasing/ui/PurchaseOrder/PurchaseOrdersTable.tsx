@@ -2,6 +2,7 @@
 // Carbon (github.com/crbnos/carbon). Modified or adapted versions of this file,
 // including ports, remain AGPLv3; serving them over a network requires releasing their source.
 
+import { useLoaderQuery } from "@carbon/query";
 import {
   BarProgress,
   Checkbox,
@@ -14,16 +15,16 @@ import {
   MENU_ITEM_SHORTCUTS,
   MenuIcon,
   MenuItem,
-  toast,
   useDisclosure
 } from "@carbon/react";
 import { getLocalTimeZone, today } from "@internationalized/date";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { ColumnDef } from "@tanstack/react-table";
-import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useMemo, useState } from "react";
 import {
   LuBookMarked,
   LuCalendar,
+  LuCheckCheck,
   LuContainer,
   LuCopy,
   LuCreditCard,
@@ -51,24 +52,32 @@ import {
 import { Enumerable } from "~/components/Enumerable";
 import { usePaymentTerm } from "~/components/Form/PaymentTerm";
 import { useShippingMethod } from "~/components/Form/ShippingMethod";
+import { useLineItemRows } from "~/components/LineItemRows";
 import { ConfirmDelete } from "~/components/Modals";
+import type { BulkActionScope, InfiniteOptions } from "~/components/Table";
 import { useCurrencyFormatter, usePermissions, useRealtime } from "~/hooks";
+import { useBulkFormAction } from "~/hooks/useBulkAction";
 import { useCustomColumns } from "~/hooks/useCustomColumns";
-import type { PurchaseOrderListItem } from "~/modules/purchasing";
-import { purchaseOrderStatusType } from "~/modules/purchasing";
-import type { action } from "~/routes/x+/purchase-order+/update";
+import {
+  isPurchaseOrderBulkDeletable,
+  purchaseOrderStatusType
+} from "~/modules/purchasing/purchasing.models";
+import type { PurchaseOrderListItem } from "~/modules/purchasing/types";
+import type { loader as finalizeDefaultsLoader } from "~/routes/api+/purchasing.purchase-order.$id.finalize";
 import { usePeople, useSuppliers } from "~/stores";
 import { path } from "~/utils/path";
+import PurchaseOrderFinalizeModal from "./PurchaseOrderFinalizeModal";
 import PurchasingStatus from "./PurchasingStatus";
 import { usePurchaseOrder } from "./usePurchaseOrder";
 
 type PurchaseOrdersTableProps = {
   data: PurchaseOrderListItem[];
   count: number;
+  infinite: InfiniteOptions;
 };
 
 const PurchaseOrdersTable = memo(
-  ({ data, count }: PurchaseOrdersTableProps) => {
+  ({ data, count, infinite }: PurchaseOrdersTableProps) => {
     useRealtime("purchaseOrder");
 
     const { t } = useLingui();
@@ -77,8 +86,11 @@ const PurchaseOrdersTable = memo(
 
     const [selectedPurchaseOrder, setSelectedPurchaseOrder] =
       useState<PurchaseOrderListItem | null>(null);
+    const [finalizeOrderId, setFinalizeOrderId] = useState<string | null>(null);
+    const finalizeFetcher = useFetcher();
 
     const deletePurchaseOrderModal = useDisclosure();
+    const finalizePurchaseOrderModal = useDisclosure();
 
     const [people] = usePeople();
     const [suppliers] = useSuppliers();
@@ -112,6 +124,7 @@ const PurchaseOrdersTable = memo(
             </HStack>
           ),
           meta: {
+            mobile: "P1",
             icon: <LuBookMarked />
           }
         },
@@ -122,6 +135,7 @@ const PurchaseOrdersTable = memo(
             return <SupplierAvatar supplierId={row.original.supplierId} />;
           },
           meta: {
+            mobile: "P3",
             filter: {
               type: "static",
               options: suppliers?.map((supplier) => ({
@@ -144,6 +158,7 @@ const PurchaseOrdersTable = memo(
             return <PurchasingStatus status={status} />;
           },
           meta: {
+            mobile: "P2",
             filter: {
               type: "static",
               options: purchaseOrderStatusType.map((status) => ({
@@ -193,22 +208,28 @@ const PurchaseOrdersTable = memo(
             <DateTime value={item.getValue<string>()} variant="date" />
           ),
           meta: {
+            filter: {
+              type: "dateRange"
+            },
             icon: <LuCalendar />
           }
         },
         {
           accessorKey: "receiptRequestedDate",
-          header: t`Requested Date`,
+          header: t`Receipt Requested Date`,
           cell: (item) => (
             <DateTime value={item.getValue<string>()} variant="date" />
           ),
           meta: {
+            filter: {
+              type: "dateRange"
+            },
             icon: <LuCalendar />
           }
         },
         {
           accessorKey: "receiptPromisedDate",
-          header: t`Promised Date`,
+          header: t`Receipt Promised Date`,
           cell: ({ row }) => {
             const isReceivedOnTime =
               row.original.deliveryDate &&
@@ -239,6 +260,35 @@ const PurchaseOrdersTable = memo(
             );
           },
           meta: {
+            filter: {
+              type: "dateRange"
+            },
+            icon: <LuCalendar />
+          }
+        },
+        {
+          accessorKey: "shippedDate",
+          header: t`Shipped Date`,
+          cell: (item) => (
+            <DateTime value={item.getValue<string>()} variant="date" />
+          ),
+          meta: {
+            filter: {
+              type: "dateRange"
+            },
+            icon: <LuCalendar />
+          }
+        },
+        {
+          accessorKey: "expectedReceiptDate",
+          header: t`Expected Receipt Date`,
+          cell: (item) => (
+            <DateTime value={item.getValue<string>()} variant="date" />
+          ),
+          meta: {
+            filter: {
+              type: "dateRange"
+            },
             icon: <LuCalendar />
           }
         },
@@ -247,6 +297,7 @@ const PurchaseOrdersTable = memo(
           header: t`Order Total`,
           cell: (item) => currencyFormatter.format(item.getValue<number>()),
           meta: {
+            mobile: "P2",
             icon: <LuDollarSign />,
             formatter: currencyFormatter.format,
             renderTotal: true
@@ -311,7 +362,12 @@ const PurchaseOrdersTable = memo(
         {
           accessorKey: "dropShipment",
           header: t`Drop Shipment`,
-          cell: (item) => <Checkbox isChecked={item.getValue<boolean>()} />,
+          cell: (item) => (
+            <Checkbox
+              aria-label={t`Drop Shipment`}
+              isChecked={item.getValue<boolean>()}
+            />
+          ),
           meta: {
             filter: {
               type: "static",
@@ -395,33 +451,25 @@ const PurchaseOrdersTable = memo(
       t
     ]);
 
-    const fetcher = useFetcher<typeof action>();
-    useEffect(() => {
-      if (fetcher.data?.error) {
-        toast.error(fetcher.data.error.message);
-      }
-    }, [fetcher.data]);
-
-    // biome-ignore lint/correctness/useExhaustiveDependencies: suppressed due to migration
+    const { submit: submitBulk, fetcher } = useBulkFormAction();
     const onBulkUpdate = useCallback(
-      (selectedRows: typeof data, field: "delete", value?: string) => {
-        const formData = new FormData();
-        selectedRows.forEach((row) => {
-          if (row.id) formData.append("ids", row.id);
-        });
-        formData.append("field", field);
-        if (value) formData.append("value", value);
-        fetcher.submit(formData, {
-          method: "post",
-          action: path.to.bulkUpdatePurchaseOrder
-        });
+      (
+        selectedRows: typeof data,
+        field: "delete",
+        value?: string,
+        scope?: BulkActionScope
+      ) => {
+        submitBulk(
+          path.to.bulkUpdatePurchaseOrder,
+          { scope, idsField: "ids", ids: selectedRows.map((row) => row.id) },
+          { field, value }
+        );
       },
-
-      []
+      [submitBulk]
     );
 
     const renderActions = useCallback(
-      (selectedRows: typeof data) => {
+      (selectedRows: typeof data, scope?: BulkActionScope) => {
         return (
           <DropdownMenuContent align="end" className="min-w-[200px]">
             <DropdownMenuLabel>Update</DropdownMenuLabel>
@@ -430,12 +478,17 @@ const PurchaseOrdersTable = memo(
               <DropdownMenuItem
                 disabled={
                   !permissions.can("delete", "purchasing") ||
-                  selectedRows.some(
-                    (row) => !["Draft", "Planned"].includes(row.status ?? "")
-                  )
+                  // Every matching row: the server deletes the Draft and
+                  // Planned orders and skips the rest.
+                  (!scope?.allMatching &&
+                    selectedRows.some(
+                      (row) => !isPurchaseOrderBulkDeletable(row.status)
+                    ))
                 }
                 destructive
-                onClick={() => onBulkUpdate(selectedRows, "delete")}
+                onClick={() =>
+                  onBulkUpdate(selectedRows, "delete", undefined, scope)
+                }
               >
                 <MenuIcon icon={<LuTrash />} />
                 <Trans>Delete Purchase Orders</Trans>
@@ -476,6 +529,24 @@ const PurchaseOrdersTable = memo(
 
           <MenuItem
             disabled={
+              !row.id ||
+              !["Draft", "Planned"].includes(row.status ?? "") ||
+              !permissions.can("view", "purchasing") ||
+              !permissions.can("create", "purchasing") ||
+              !permissions.can("update", "purchasing")
+            }
+            onClick={() => {
+              if (!row.id) return;
+              setFinalizeOrderId(row.id);
+              finalizePurchaseOrderModal.onOpen();
+            }}
+          >
+            <MenuIcon icon={<LuCheckCheck />} />
+            <Trans>Finalize</Trans>
+          </MenuItem>
+
+          <MenuItem
+            disabled={
               !["To Receive", "To Receive and Invoice"].includes(
                 row.status ?? ""
               ) || !permissions.can("update", "inventory")
@@ -504,15 +575,28 @@ const PurchaseOrdersTable = memo(
           </MenuItem>
         </>
       ),
-      [deletePurchaseOrderModal, edit, fetcher, permissions, receive]
+      [
+        deletePurchaseOrderModal,
+        edit,
+        fetcher,
+        finalizePurchaseOrderModal,
+        permissions,
+        receive
+      ]
     );
+
+    const lineItemRows =
+      useLineItemRows<PurchaseOrderListItem>("purchase-orders");
 
     return (
       <>
         <Table<PurchaseOrderListItem>
+          getRowLabel={(row) => row.purchaseOrderId ?? undefined}
           count={count}
           columns={columns}
           data={data}
+          {...lineItemRows}
+          infinite={infinite}
           defaultColumnPinning={{
             left: ["purchaseOrderId"]
           }}
@@ -536,6 +620,15 @@ const PurchaseOrdersTable = memo(
           withSelectableRows
         />
 
+        {finalizeOrderId && (
+          <ListFinalizeModal
+            purchaseOrderId={finalizeOrderId}
+            fetcher={finalizeFetcher}
+            open={finalizePurchaseOrderModal.isOpen}
+            onClose={finalizePurchaseOrderModal.onClose}
+          />
+        )}
+
         {selectedPurchaseOrder && selectedPurchaseOrder.id && (
           <ConfirmDelete
             action={path.to.deletePurchaseOrder(selectedPurchaseOrder.id)}
@@ -544,11 +637,9 @@ const PurchaseOrdersTable = memo(
             text={`Are you sure you want to delete ${selectedPurchaseOrder.purchaseOrderId!}? This cannot be undone.`}
             onCancel={() => {
               deletePurchaseOrderModal.onClose();
-              setSelectedPurchaseOrder(null);
             }}
             onSubmit={() => {
               deletePurchaseOrderModal.onClose();
-              setSelectedPurchaseOrder(null);
             }}
           />
         )}
@@ -557,5 +648,33 @@ const PurchaseOrdersTable = memo(
   }
 );
 PurchaseOrdersTable.displayName = "PurchaseOrdersTable";
+
+function ListFinalizeModal({
+  purchaseOrderId,
+  fetcher,
+  open,
+  onClose
+}: {
+  purchaseOrderId: string;
+  fetcher: ReturnType<typeof useFetcher>;
+  open: boolean;
+  onClose: () => void;
+}) {
+  const defaults = useLoaderQuery<typeof finalizeDefaultsLoader>(
+    path.to.api.purchaseOrderFinalize(purchaseOrderId)
+  );
+  if (!defaults.data?.purchaseOrder) return null;
+
+  return (
+    <PurchaseOrderFinalizeModal
+      purchaseOrderId={purchaseOrderId}
+      purchaseOrder={defaults.data.purchaseOrder}
+      defaultCc={defaults.data.defaultCc}
+      fetcher={fetcher}
+      open={open}
+      onClose={onClose}
+    />
+  );
+}
 
 export default PurchaseOrdersTable;

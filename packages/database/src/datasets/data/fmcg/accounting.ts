@@ -126,6 +126,58 @@ export const fmcgAccounting: AccountingData = {
         }
       ],
       depreciationCharge: 20500000
+    },
+    // Rental fleet units (sales.rentalAgreements), rented out from the plant.
+    {
+      key: "fleet-1",
+      className: "Rental Fleet",
+      location: "Plant",
+      name: "Tủ mát trưng bày 400L (đơn vị cho thuê 1)",
+      description: "Tủ mát cho thuê đặt tại điểm bán, quản lý từ nhà máy",
+      serialNumber: "EQ-COOLER-400-RNT-001",
+      status: "Active",
+      depreciationMethod: "Straight Line",
+      usefulLifeMonths: 60,
+      residualValuePercent: 20,
+      acquisitionCost: 9500000,
+      acquisitionOffset: -200,
+      depreciationStartOffset: -180,
+      accumulatedDepreciation: 0,
+      fleet: { item: "EQ-COOLER-400", serial: "EQ-COOLER-400-RNT-001" }
+    },
+    {
+      key: "fleet-2",
+      className: "Rental Fleet",
+      location: "Plant",
+      name: "Tủ mát trưng bày 400L (đơn vị cho thuê 2)",
+      description: "Tủ mát cho thuê đặt tại điểm bán, quản lý từ nhà máy",
+      serialNumber: "EQ-COOLER-400-RNT-002",
+      status: "Active",
+      depreciationMethod: "Straight Line",
+      usefulLifeMonths: 60,
+      residualValuePercent: 20,
+      acquisitionCost: 9500000,
+      acquisitionOffset: -200,
+      depreciationStartOffset: -180,
+      accumulatedDepreciation: 0,
+      fleet: { item: "EQ-COOLER-400", serial: "EQ-COOLER-400-RNT-002" }
+    },
+    {
+      key: "fleet-3",
+      className: "Rental Fleet",
+      location: "Plant",
+      name: "Tủ mát trưng bày 400L (đơn vị cho thuê 3)",
+      description: "Tủ mát cho thuê đặt tại điểm bán, quản lý từ nhà máy",
+      serialNumber: "EQ-COOLER-400-RNT-003",
+      status: "Active",
+      depreciationMethod: "Straight Line",
+      usefulLifeMonths: 60,
+      residualValuePercent: 20,
+      acquisitionCost: 9500000,
+      acquisitionOffset: -200,
+      depreciationStartOffset: -180,
+      accumulatedDepreciation: 0,
+      fleet: { item: "EQ-COOLER-400", serial: "EQ-COOLER-400-RNT-003" }
     }
   ],
   journalEntries: [
@@ -441,16 +493,395 @@ export const fmcgAccounting: AccountingData = {
       name: "An Việt EV Đồ uống FMCG Launch",
       description:
         "Production launch of the dòng đồ uống đồ uống sản phẩm FMCG for An Việt",
+      identifier: "AVL",
+      costTreatment: "Contract",
+      status: "Released",
+      // The contract keeps its own stock: two packaging parts received for it,
+      // and food cartons transferred in from common stock.
+      projectStock: {
+        openingStock: [
+          {
+            item: "PKG-LOT-LABEL",
+            shelf: "A1-L3",
+            qty: 100,
+            unitCost: 112.5,
+            dateOffset: -30
+          },
+          {
+            item: "PKG-FOOD-BOX",
+            shelf: "A1-L2",
+            qty: 10,
+            unitCost: 445,
+            dateOffset: -30
+          }
+        ],
+        transfers: [
+          {
+            item: "PKG-FOOD-CARTON",
+            shelf: "A1-L1",
+            qty: 50,
+            reason: "Cấp thùng carton cho lô sản xuất thử của dự án",
+            dateOffset: -12
+          }
+        ]
+      },
       purchaseInvoiceLine: {
         invoiceKey: "paid",
         item: "RM-WATER"
-      }
+      },
+      milestones: [
+        {
+          key: "pilot",
+          name: "Sản xuất thử",
+          startOffset: -55,
+          endOffset: -7
+        },
+        {
+          key: "sop",
+          name: "Bắt đầu sản xuất hàng loạt",
+          startOffset: -6,
+          endOffset: 55
+        }
+      ],
+      elements: [
+        {
+          key: "product",
+          type: "System",
+          name: "Dòng trà đóng chai 500 ml",
+          state: "In Progress",
+          budget: 10500000
+        },
+        {
+          key: "req-taste",
+          type: "Requirement",
+          name: "Hương vị đạt chuẩn hội đồng cảm quan",
+          parentKey: "product",
+          state: "In Progress",
+          milestone: "pilot"
+        },
+        {
+          key: "task-recipe",
+          type: "Task",
+          name: "Tinh chỉnh công thức phối trộn",
+          parentKey: "req-taste",
+          state: "Done",
+          milestone: "pilot",
+          estimatedHours: 28
+        },
+        {
+          key: "tc-sensory",
+          type: "Test Case",
+          name: "Đánh giá cảm quan lô sản xuất thử",
+          parentKey: "req-taste",
+          state: "In Review",
+          milestone: "pilot",
+          estimatedHours: 12
+        },
+        {
+          key: "req-shelf-life",
+          type: "Requirement",
+          name: "Hạn sử dụng tối thiểu 12 tháng",
+          parentKey: "product",
+          state: "Todo",
+          milestone: "sop"
+        },
+        {
+          key: "task-heat",
+          type: "Task",
+          name: "Hiệu chỉnh nhiệt độ thanh trùng",
+          parentKey: "req-shelf-life",
+          state: "In Progress",
+          milestone: "sop",
+          estimatedHours: 20
+        },
+        {
+          key: "tc-stability",
+          type: "Test Case",
+          name: "Kiểm nghiệm độ ổn định cấp tốc",
+          parentKey: "req-shelf-life",
+          state: "Todo",
+          milestone: "sop",
+          estimatedHours: 8
+        },
+        {
+          key: "line",
+          type: "System",
+          name: "Dây chuyền chiết rót",
+          state: "Todo",
+          milestone: "sop",
+          budget: 4500000
+        },
+        {
+          key: "req-speed",
+          type: "Requirement",
+          name: "Chiết rót 12.000 chai mỗi giờ",
+          parentKey: "line",
+          state: "Backlog",
+          milestone: "sop"
+        },
+        {
+          key: "task-capper",
+          type: "Task",
+          name: "Chọn đầu đóng nắp cho chai 500 ml",
+          parentKey: "req-speed",
+          state: "Backlog",
+          estimatedHours: 16
+        }
+      ]
     },
     {
       key: "kiểm nghiệm-automation",
       name: "Kiểm nghiệm Cell Automation",
       description:
-        "Automated load profiles and data capture for end-of-line testing"
+        "Automated load profiles and data capture for end-of-line testing",
+      identifier: "KNA",
+      costTreatment: "Expense",
+      status: "Released",
+      milestones: [
+        {
+          key: "profiles",
+          name: "Xác định quy trình kiểm nghiệm",
+          startOffset: -30,
+          endOffset: -2
+        },
+        {
+          key: "go-live",
+          name: "Vận hành chính thức",
+          startOffset: -1,
+          endOffset: 45
+        }
+      ],
+      elements: [
+        {
+          key: "cell",
+          type: "System",
+          name: "Trạm kiểm nghiệm cuối dây chuyền",
+          state: "In Progress",
+          budget: 3750000
+        },
+        {
+          key: "req-profile",
+          type: "Requirement",
+          name: "Tự động chạy quy trình kiểm nghiệm theo lô",
+          parentKey: "cell",
+          state: "In Progress",
+          milestone: "profiles"
+        },
+        {
+          key: "task-script",
+          type: "Task",
+          name: "Lập trình quy trình kiểm nghiệm",
+          parentKey: "req-profile",
+          state: "In Progress",
+          milestone: "go-live",
+          estimatedHours: 24
+        },
+        {
+          key: "tc-profile",
+          type: "Test Case",
+          name: "Chạy thử trên năm lô thành phẩm",
+          parentKey: "req-profile",
+          state: "Todo",
+          milestone: "go-live",
+          estimatedHours: 6
+        },
+        {
+          key: "req-data",
+          type: "Requirement",
+          name: "Lưu mọi kết quả kiểm nghiệm theo số lô",
+          parentKey: "cell",
+          state: "Done",
+          milestone: "profiles"
+        },
+        {
+          key: "task-db",
+          type: "Task",
+          name: "Liên kết kết quả kiểm nghiệm với số lô",
+          parentKey: "req-data",
+          state: "Done",
+          milestone: "profiles",
+          estimatedHours: 10
+        },
+        {
+          key: "tc-data",
+          type: "Test Case",
+          name: "Truy xuất mười lô đến kết quả kiểm nghiệm",
+          parentKey: "req-data",
+          state: "Todo",
+          milestone: "go-live",
+          estimatedHours: 3
+        },
+        {
+          key: "safety",
+          type: "System",
+          name: "An toàn trạm kiểm nghiệm",
+          state: "Backlog",
+          budget: 1000000
+        },
+        {
+          key: "req-guard",
+          type: "Requirement",
+          name: "Khóa liên động cửa bảo vệ",
+          parentKey: "safety",
+          state: "Backlog"
+        },
+        {
+          key: "task-guard",
+          type: "Task",
+          name: "Đấu nối khóa liên động cửa bảo vệ",
+          parentKey: "req-guard",
+          state: "Backlog",
+          estimatedHours: 6
+        },
+        {
+          key: "p-cycle",
+          type: "Parameter",
+          name: "Thời gian chu kỳ kiểm nghiệm",
+          parentKey: "cell",
+          state: "In Progress",
+          parameter: { source: "Sum", unit: "s" }
+        },
+        {
+          key: "p-cycle-sample",
+          type: "Parameter",
+          name: "Thời gian lấy mẫu",
+          parentKey: "p-cycle",
+          state: "In Progress",
+          parameter: { source: "Manual", value: 45, unit: "s" }
+        },
+        {
+          key: "p-cycle-measure",
+          type: "Parameter",
+          name: "Thời gian đo",
+          parentKey: "p-cycle",
+          state: "In Progress",
+          parameter: { source: "Manual", value: 30, unit: "s" }
+        },
+        {
+          key: "req-cycle-budget",
+          type: "Requirement",
+          name: "Chu kỳ kiểm nghiệm tối đa 90 giây",
+          parentKey: "cell",
+          state: "In Review",
+          requirement: {
+            category: "Performance",
+            operator: "≤",
+            target: 90,
+            unit: "s",
+            verificationMethod: "Test",
+            actualParameter: "p-cycle"
+          }
+        },
+        {
+          key: "tc-cycle",
+          type: "Test Case",
+          name: "Bấm giờ một chu kỳ kiểm nghiệm đầy đủ",
+          parentKey: "req-cycle-budget",
+          state: "Done",
+          verdict: "Pass"
+        }
+      ],
+      links: [
+        { from: "cell", to: "req-cycle-budget", type: "satisfies" },
+        { from: "tc-cycle", to: "req-cycle-budget", type: "verifies" },
+        { from: "tc-profile", to: "req-profile", type: "verifies" },
+        { from: "task-db", to: "req-data", type: "implements" },
+        { from: "task-script", to: "tc-profile", type: "precedes" }
+      ]
+    }
+  ],
+  indirectPools: [],
+  laborCategories: [
+    {
+      name: "Kỹ sư công nghệ thực phẩm",
+      description: "Phát triển công thức và quy trình sản xuất",
+      costRate: 4500
+    },
+    {
+      name: "Kỹ thuật viên kiểm nghiệm",
+      description: "Thực hiện kiểm nghiệm cuối dây chuyền",
+      costRate: 2800
+    },
+    {
+      name: "Kỹ sư quy trình",
+      description: "Hoạch định quy trình chiết rót và kiểm nghiệm",
+      costRate: 4000
+    }
+  ],
+  // Draft this week, Submitted last week: the timesheet and the approvals queue.
+  timesheetEntries: [
+    {
+      project: "ridgeline-đồ uống",
+      element: "task-heat",
+      laborCategory: "Kỹ sư công nghệ thực phẩm",
+      week: -1,
+      weekday: 0,
+      hours: 6,
+      status: "Submitted",
+      note: "Nghiên cứu nhiệt độ thanh trùng"
+    },
+    {
+      project: "ridgeline-đồ uống",
+      element: "tc-sensory",
+      laborCategory: "Kỹ thuật viên kiểm nghiệm",
+      week: -1,
+      weekday: 1,
+      hours: 5,
+      status: "Submitted"
+    },
+    {
+      project: "kiểm nghiệm-automation",
+      element: "task-script",
+      laborCategory: "Kỹ sư quy trình",
+      week: -1,
+      weekday: 2,
+      hours: 7,
+      status: "Submitted"
+    },
+    {
+      project: "kiểm nghiệm-automation",
+      element: "task-db",
+      laborCategory: "Kỹ sư quy trình",
+      week: -1,
+      weekday: 3,
+      hours: 3,
+      status: "Submitted"
+    },
+    {
+      project: "ridgeline-đồ uống",
+      element: "task-heat",
+      laborCategory: "Kỹ sư công nghệ thực phẩm",
+      week: 0,
+      weekday: 0,
+      hours: 5,
+      status: "Draft"
+    },
+    {
+      project: "ridgeline-đồ uống",
+      element: "tc-stability",
+      laborCategory: "Kỹ thuật viên kiểm nghiệm",
+      week: 0,
+      weekday: 1,
+      hours: 2,
+      status: "Draft"
+    },
+    {
+      project: "kiểm nghiệm-automation",
+      element: "task-script",
+      laborCategory: "Kỹ sư quy trình",
+      week: 0,
+      weekday: 0,
+      hours: 6,
+      status: "Draft"
+    },
+    {
+      project: "kiểm nghiệm-automation",
+      element: "tc-profile",
+      laborCategory: "Kỹ thuật viên kiểm nghiệm",
+      week: 0,
+      weekday: 2,
+      hours: 3,
+      status: "Draft"
     }
   ],
   customDimension: {

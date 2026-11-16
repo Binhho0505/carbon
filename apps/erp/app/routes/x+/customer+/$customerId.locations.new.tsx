@@ -6,21 +6,16 @@ import { assertIsPost, error, notFound, success } from "@carbon/auth";
 import { requirePermissions } from "@carbon/auth/auth.server";
 import { flash } from "@carbon/auth/session.server";
 import { validationError, validator } from "@carbon/form";
+import { useRouteDialog } from "@carbon/react";
 import { redirect } from "@carbon/utils";
-import type {
-  ActionFunctionArgs,
-  ClientActionFunctionArgs
-} from "react-router";
-import { data, useNavigate, useParams } from "react-router";
+import type { ActionFunctionArgs } from "react-router";
+import { data, useParams } from "react-router";
 import { useUser } from "~/hooks";
-import {
-  customerLocationValidator,
-  insertCustomerLocation
-} from "~/modules/sales";
+import { customerLocationValidator } from "~/modules/sales/sales.models";
+import { insertCustomerLocation } from "~/modules/sales/sales.service";
 import { CustomerLocationForm } from "~/modules/sales/ui/Customer";
 import { setCustomFields } from "~/utils/form";
 import { path } from "~/utils/path";
-import { customerLocationsQuery } from "~/utils/react-query";
 
 export async function action({ request, params }: ActionFunctionArgs) {
   assertIsPost(request);
@@ -75,25 +70,11 @@ export async function action({ request, params }: ActionFunctionArgs) {
       );
 }
 
-export async function clientAction({
-  serverAction,
-  params
-}: ClientActionFunctionArgs) {
-  const { customerId } = params;
-  if (customerId) {
-    window.clientCache?.setQueryData(
-      customerLocationsQuery(customerId).queryKey,
-      null
-    );
-  }
-  return await serverAction();
-}
-
 export default function CustomerLocationsNewRoute() {
-  const navigate = useNavigate();
   const { company } = useUser();
   const { customerId } = useParams();
   if (!customerId) throw new Error("customerId not found");
+  const dialog = useRouteDialog(path.to.customerLocations(customerId));
 
   const initialValues = {
     name: "",
@@ -104,7 +85,8 @@ export default function CustomerLocationsNewRoute() {
     <CustomerLocationForm
       initialValues={initialValues}
       customerId={customerId}
-      onClose={() => navigate(path.to.customerLocations(customerId))}
+      open={dialog.open}
+      onClose={dialog.close}
     />
   );
 }

@@ -11,7 +11,9 @@ import type { BatchPlacement } from "./batch-scheduler.ts";
 import { placeReleasedBatches } from "./batch-scheduler.ts";
 import { toInstantMs } from "./date-utils.ts";
 import { KyselyMasterDataProvider } from "./master-data-provider.ts";
+import { persistLocationWrites } from "./persist-location.ts";
 import { DEADLINE_PRIORITY } from "./priority-calculator.ts";
+import type { JobWrites } from "./run-overlay.ts";
 import {
   SCHEDULING_HORIZON_DAYS,
   SchedulingEngine
@@ -135,8 +137,10 @@ export async function loadOrderedBatch(
 /**
  * Regenerate every open job in a location sequentially. Each run excludes the
  * jobs NOT YET run (self + later) from the reservation snapshot, so it sees
- * non-batch reservations plus the just-persisted placements of already-run batch
- * jobs — sequential capacity claiming, no pre-clear step.
+ * non-batch reservations plus the placements of already-run batch jobs —
+ * sequential capacity claiming, no pre-clear step. The jobs are computed in
+ * memory (the provider carries each job's result to the next) and the whole
+ * location is written in one transaction at the end.
  */
 export async function runLocationSchedule(
   params: BaseParams
@@ -175,13 +179,15 @@ export async function runLocationSchedule(
     log.error("Batch pre-pass failed; members place individually", {
       locationId,
       companyId,
-      error: err instanceof Error ? err.message : String(err)
+      error: err
     });
   }
 
-  // After the pre-pass, which writes member operations.
+  // After the pre-pass, which writes member operations and batch reservations.
   await provider.preloadJobs(batch);
+  await provider.beginRun(batch, now);
 
+  const writes: JobWrites[] = [];
   let conflictsDetected = 0;
   const failedJobIds: string[] = [];
   const newlyLate: NewlyLateJob[] = [];
@@ -196,15 +202,17 @@ export async function runLocationSchedule(
       companyId,
       userId,
       now,
-      persist: true,
       excludeJobIds: batch.slice(i),
       batchPlacements
     });
-    // One job's failure must not abandon the rest of the batch — its stale
-    // stamp only clears inside the persist transaction, so a failed job stays
-    // stamped for a later wave while the jobs behind it still run
+    // One job's failure must not abandon the rest of the batch — it is left
+    // out of the write, so it stays stamped stale for a later wave. The jobs
+    // behind it still see its stored reservations; the write then clears them.
     try {
       const result = await engine.run();
+      const jobWrites = engine.getWrites();
+      provider.recordJob(jobWrites);
+      writes.push(jobWrites);
       conflictsDetected += result.conflictsDetected;
       if (engine.isNewlyLate()) {
         newlyLate.push({
@@ -219,11 +227,13 @@ export async function runLocationSchedule(
         jobId: id,
         locationId,
         companyId,
-        error: err instanceof Error ? err.message : String(err)
+        error: err
       });
       failedJobIds.push(id);
     }
   }
+
+  await persistLocationWrites(db, writes, { companyId, userId }, failedJobIds);
 
   return {
     locationId,
@@ -268,8 +278,13 @@ export async function runExpediteWhatIf(
       horizonEnd: now + (SCHEDULING_HORIZON_DAYS + 7) * 24 * 3_600_000,
       persist: false
     });
-  } catch {
+  } catch (err) {
     // fall through — the sim runs with per-member placement
+    log.warning("Batch pre-pass failed; members place individually", {
+      locationId,
+      companyId,
+      error: err
+    });
   }
 
   const engine = new SchedulingEngine({
@@ -280,7 +295,6 @@ export async function runExpediteWhatIf(
     companyId,
     userId,
     now,
-    persist: false,
     excludeJobIds: batch,
     batchPlacements
   });
